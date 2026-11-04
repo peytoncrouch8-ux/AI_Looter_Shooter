@@ -75,11 +75,17 @@ AWeaponBase::AWeaponBase()
 
 	MuzzleLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("MuzzleLight"));
 	MuzzleLight->SetupAttachment(Collision);
+	// Movable: each shot hangs it at the muzzle again and sets its strength, which a stationary light can't be moved for.
+	MuzzleLight->SetMobility(EComponentMobility::Movable);
 	MuzzleLight->SetIntensityUnits(ELightUnits::Candelas);
+	// The shot's light (Phase 3, MUZZLE): each shot sizes and hangs it again (WeaponBaseMuzzle.cpp, Looter.Vfx.Muzzle.Light*); these are
+	// its resting values. 24 cd / 3.2 m was invisible in daylight; ~400 cd / 5 m for ~40 ms lights the hands and the ground. Never
+	// shadowed (a shadow pass a shot), and out of the indirect light (Lumen would pay for a 40 ms flash).
 	MuzzleLight->SetIntensity(0.f);
-	MuzzleLight->SetAttenuationRadius(320.f);
+	MuzzleLight->SetAttenuationRadius(500.f);
 	MuzzleLight->SetLightColor(FLinearColor(1.f, 0.7f, 0.42f));
 	MuzzleLight->SetCastShadows(false);
+	MuzzleLight->SetIndirectLightingIntensity(0.f);
 	MuzzleLight->SetVisibility(false);
 
 	RarityLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("RarityLight"));

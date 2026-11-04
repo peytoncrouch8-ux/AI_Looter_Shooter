@@ -1,4 +1,5 @@
 #include "Weapons/VfxTuning.h"
+#include "Weapons/VfxLightRules.h"
 #include "HAL/IConsoleManager.h"
 
 // The Looter.Vfx.* cvars (the VFX pass, Saved/Vfx/PLAN.md). Their defaults are FVfxTuning's own field values, so the rules'
@@ -53,7 +54,45 @@ namespace
 	TAutoConsoleVariable<float> CVarVfxMuzzleSmoke1P(TEXT("Looter.Vfx.Muzzle.Smoke1P"), VfxDefaults.MuzzleSmoke1P,
 		TEXT("A shot's smoke opacity in the player's own view, times."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarVfxMuzzleLight(TEXT("Looter.Vfx.Muzzle.Light"), VfxDefaults.MuzzleLight,
-		TEXT("The muzzle flash's point light, times (0: none)."), ECVF_Default);
+		TEXT("The shot's point light at its peak, candelas for a rifle-sized shot (0: none). It lights the hands and the ground; never shadowed."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleLightRadius(TEXT("Looter.Vfx.Muzzle.LightRadius"), VfxDefaults.MuzzleLightRadius,
+		TEXT("How far the rifle's shot light reaches (cm); a kind's by the root of its share."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleLightSeconds(TEXT("Looter.Vfx.Muzzle.LightSeconds"), VfxDefaults.MuzzleLightSeconds,
+		TEXT("How long the shot's light shows (s); never longer than its flash."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleLightPush(TEXT("Looter.Vfx.Muzzle.LightPush"), VfxDefaults.MuzzleLightPush,
+		TEXT("The light sits this far (cm) out along the barrel from where the muzzle shows (never inside the gun)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleLight1P(TEXT("Looter.Vfx.Muzzle.Light1P"), VfxDefaults.MuzzleLight1P,
+		TEXT("The shot light's share in the player's own view (lower it if the hands wash white)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleLightRifle(TEXT("Looter.Vfx.Muzzle.Light.Rifle"), VfxDefaults.MuzzleLightRifle,
+		TEXT("The rifle's share of the shot light (the reference: 1)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleLightShotgun(TEXT("Looter.Vfx.Muzzle.Light.Shotgun"), VfxDefaults.MuzzleLightShotgun,
+		TEXT("The shotgun's share of the shot light."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleLightRevolver(TEXT("Looter.Vfx.Muzzle.Light.Revolver"), VfxDefaults.MuzzleLightRevolver,
+		TEXT("The revolver's share of the shot light."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleLightSMG(TEXT("Looter.Vfx.Muzzle.Light.SMG"), VfxDefaults.MuzzleLightSMG,
+		TEXT("The SMG's share of the shot light (small: it fires a dozen times a second)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleLightSniper(TEXT("Looter.Vfx.Muzzle.Light.Sniper"), VfxDefaults.MuzzleLightSniper,
+		TEXT("The sniper's share of the shot light."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleLightLMG(TEXT("Looter.Vfx.Muzzle.Light.LMG"), VfxDefaults.MuzzleLightLMG,
+		TEXT("The LMG's share of the shot light."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxMuzzleLightLauncher(TEXT("Looter.Vfx.Muzzle.Light.Launcher"), VfxDefaults.MuzzleLightLauncher,
+		TEXT("The launcher's share of the shot light."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactLight(TEXT("Looter.Vfx.Impact.Light"), VfxDefaults.ImpactLight,
+		TEXT("The flash a rifle round throws on stone or metal, candelas at its peak (0: no impact lights). Four pooled lights, never shadowed."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactLightRadius(TEXT("Looter.Vfx.Impact.LightRadius"), VfxDefaults.ImpactLightRadius,
+		TEXT("How far an impact flash reaches (cm)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactLightSeconds(TEXT("Looter.Vfx.Impact.LightSeconds"), VfxDefaults.ImpactLightSeconds,
+		TEXT("How long an impact flash shows (s)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactLightLift(TEXT("Looter.Vfx.Impact.LightLift"), VfxDefaults.ImpactLightLift,
+		TEXT("An impact flash hangs this far (cm) off the surface along its normal (closer is a hotter pinpoint)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactLightEye(TEXT("Looter.Vfx.Impact.LightEye"), VfxDefaults.ImpactLightEye,
+		TEXT("An impact flash nearer the eye than this (cm) is skipped, easing in to full at twice it (0: no rule)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactLightFar(TEXT("Looter.Vfx.Impact.LightFar"), VfxDefaults.ImpactLightFar,
+		TEXT("Hits farther than this (cm) throw no light (0: no limit)."), ECVF_Default);
+	TAutoConsoleVariable<int32> CVarVfxImpactLightMax(TEXT("Looter.Vfx.Impact.LightMax"), VfxDefaults.ImpactLightMax,
+		TEXT("Impact flash lights lit at once, 0 to 4 (the pool's size)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarVfxImpactLightMerge(TEXT("Looter.Vfx.Impact.LightMerge"), VfxDefaults.ImpactLightMerge,
+		TEXT("A hit this close (cm) to a live impact flash refreshes its light instead of taking another."), ECVF_Default);
 	TAutoConsoleVariable<float> CVarVfxMuzzleMax1P(TEXT("Looter.Vfx.Muzzle.Max1P"), VfxDefaults.MuzzleMax1P,
 		TEXT("In the player's own view the flash reaches at most this many degrees from its muzzle on screen (0: no cap)."), ECVF_Default);
 	TAutoConsoleVariable<bool> CVarVfxSoftStreaks(TEXT("Looter.Vfx.SoftStreaks"), VfxDefaults.bSoftStreaks,
@@ -181,6 +220,25 @@ FVfxTuning FVfxTuning::Live()
 	Tuning.MuzzleSparks1P = VfxNotBelowZero(CVarVfxMuzzleSparks1P);
 	Tuning.MuzzleSmoke1P = VfxNotBelowZero(CVarVfxMuzzleSmoke1P);
 	Tuning.MuzzleLight = VfxNotBelowZero(CVarVfxMuzzleLight);
+	Tuning.MuzzleLightRadius = VfxNotBelowZero(CVarVfxMuzzleLightRadius);
+	Tuning.MuzzleLightSeconds = VfxNotBelowZero(CVarVfxMuzzleLightSeconds);
+	Tuning.MuzzleLightPush = VfxNotBelowZero(CVarVfxMuzzleLightPush);
+	Tuning.MuzzleLight1P = VfxNotBelowZero(CVarVfxMuzzleLight1P);
+	Tuning.MuzzleLightRifle = VfxNotBelowZero(CVarVfxMuzzleLightRifle);
+	Tuning.MuzzleLightShotgun = VfxNotBelowZero(CVarVfxMuzzleLightShotgun);
+	Tuning.MuzzleLightRevolver = VfxNotBelowZero(CVarVfxMuzzleLightRevolver);
+	Tuning.MuzzleLightSMG = VfxNotBelowZero(CVarVfxMuzzleLightSMG);
+	Tuning.MuzzleLightSniper = VfxNotBelowZero(CVarVfxMuzzleLightSniper);
+	Tuning.MuzzleLightLMG = VfxNotBelowZero(CVarVfxMuzzleLightLMG);
+	Tuning.MuzzleLightLauncher = VfxNotBelowZero(CVarVfxMuzzleLightLauncher);
+	Tuning.ImpactLight = VfxNotBelowZero(CVarVfxImpactLight);
+	Tuning.ImpactLightRadius = VfxNotBelowZero(CVarVfxImpactLightRadius);
+	Tuning.ImpactLightSeconds = VfxNotBelowZero(CVarVfxImpactLightSeconds);
+	Tuning.ImpactLightLift = VfxNotBelowZero(CVarVfxImpactLightLift);
+	Tuning.ImpactLightEye = VfxNotBelowZero(CVarVfxImpactLightEye);
+	Tuning.ImpactLightFar = VfxNotBelowZero(CVarVfxImpactLightFar);
+	Tuning.ImpactLightMax = FMath::Clamp(CVarVfxImpactLightMax.GetValueOnGameThread(), 0, FImpactFlashPool::MaxSlots);
+	Tuning.ImpactLightMerge = VfxNotBelowZero(CVarVfxImpactLightMerge);
 	Tuning.MuzzleMax1P = FMath::Clamp(CVarVfxMuzzleMax1P.GetValueOnGameThread(), 0.f, 60.f);
 	Tuning.bSoftStreaks = CVarVfxSoftStreaks.GetValueOnGameThread();
 	Tuning.SparkGlow = VfxNotBelowZero(CVarVfxSparkGlow);

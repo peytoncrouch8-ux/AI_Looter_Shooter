@@ -1,4 +1,5 @@
 #include "Weapons/WeaponFXImpactLooks.h"
+#include "Weapons/ImpactFlashSubsystem.h"
 #include "Weapons/VfxRules.h"
 #include "Weapons/VfxTuning.h"
 #include "Engine/World.h"
@@ -85,6 +86,8 @@ void FWeaponFX::SpawnSurfaceImpact(const FVector& Location, const FVector& Norma
 	// The pass's own pieces (Looter.Vfx.Impact.Scale of them; a pellet's half).
 	const float Extra = Vfx.ImpactScale * Share * Detail;
 	const float Weight = VfxRules::HitWeight(Scale) * Look.Size;
+	// Phase 3 (MUZZLE): stone, metal and wood flash for ~60 ms (one of four pooled unshadowed lights; never near the eye).
+	UImpactFlashSubsystem::Flash(Owner.Get(), Vfx, Point, Up, Material, Weight, bHasCamera ? &LastCamera : nullptr);
 	FVector SideA, SideB;
 	Up.FindBestAxisVectors(SideA, SideB);
 	// VFX-2 (2026-10-22): puffs and chunks drawn bigger far off (a hit at 10-30 m read as a few pale pixels), and the dust

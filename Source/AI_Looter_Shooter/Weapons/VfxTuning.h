@@ -40,8 +40,12 @@ struct AI_LOOTER_SHOOTER_API FVfxTuning
 	float MuzzleTongue1P = 0.3f;
 	float MuzzleBloom1P = 0.5f;
 	float MuzzleJets1P = 0.35f;
-	/** Looter.Vfx.Muzzle.Aim / .AimGlow: the flash's size and strength aimed down the sights (first person). */
-	float MuzzleAim = 0.55f;
+	/**
+	 * Looter.Vfx.Muzzle.Aim / .AimGlow: the flash's size and strength aimed down the sights (first person). Size 0.55 -> 0.8
+	 * (Phase 3, MUZZLE, 2026-11-03: the audit found the aimed flash shrunk three ways and unseen); the crosshair's clearance
+	 * (MuzzleAimClear) still shrinks it to keep out, so a bigger flash never covers the target.
+	 */
+	float MuzzleAim = 0.8f;
 	float MuzzleAimGlow = 0.6f;
 	/**
 	 * Looter.Vfx.Muzzle.Clear / .AimClear (degrees): round the crosshair nothing of the flash shows, from the hip / aimed (the
@@ -53,8 +57,26 @@ struct AI_LOOTER_SHOOTER_API FVfxTuning
 	/** Looter.Vfx.Muzzle.Sparks1P / .Smoke1P: the share of a shot's sparks, and its smoke's opacity, in the player's own view. */
 	float MuzzleSparks1P = 0.67f;
 	float MuzzleSmoke1P = 0.75f;
-	/** Looter.Vfx.Muzzle.Light: the flash's point light (the one it always had; 0 none). */
-	float MuzzleLight = 1.f;
+	// --- The shot's point light: the gun lights the hands and the ground (Phase 3, MUZZLE, 2026-11-03; VfxLightRules.h) ---
+	// Before: 24 cd, 3.2 m, a times-1 cvar: invisible in daylight. Never shadowed (one unshadowed light is cheap).
+	/** Looter.Vfx.Muzzle.Light: the light's peak in candelas for a rifle-sized shot (0: no muzzle light). Was a multiplier (1) of 24 cd. */
+	float MuzzleLight = 400.f;
+	/** Looter.Vfx.Muzzle.LightRadius (cm): where the rifle's light reaches (a kind's by the root of its share, so its glow edge is alike). */
+	float MuzzleLightRadius = 500.f;
+	/** Looter.Vfx.Muzzle.LightSeconds: how long it shows, never longer than its flash (the gun ticks only while the flash shows). */
+	float MuzzleLightSeconds = 0.04f;
+	/** Looter.Vfx.Muzzle.LightPush (cm): out along the barrel from where the muzzle shows, so the light never sits inside the gun. */
+	float MuzzleLightPush = 10.f;
+	/** Looter.Vfx.Muzzle.Light1P: the light's share in the player's own view (the hands are a hand's length from it: first lever if they wash white). */
+	float MuzzleLight1P = 1.f;
+	/** Looter.Vfx.Muzzle.Light.<Kind>: the kind's share of the light (strength; the radius by its root). A shotgun's and a launcher's bigger, an SMG's smaller. */
+	float MuzzleLightRifle = 1.f;
+	float MuzzleLightShotgun = 1.5f;
+	float MuzzleLightRevolver = 1.25f;
+	float MuzzleLightSMG = 0.6f;
+	float MuzzleLightSniper = 1.3f;
+	float MuzzleLightLMG = 1.1f;
+	float MuzzleLightLauncher = 1.6f;
 	/**
 	 * Looter.Vfx.Muzzle.Max1P (degrees): in the player's own view the flash never reaches farther than this from its muzzle
 	 * on screen (a revolver drawn big and close flashed over half the screen; the play-check, 2026-10-22).
@@ -92,6 +114,21 @@ struct AI_LOOTER_SHOOTER_API FVfxTuning
 	float ImpactChunkFrom = 1.2f;
 	/** Looter.Vfx.Impact.PunchFrom: from this weight a hit punches (a ring of dust, big chunks: the sniper's). */
 	float ImpactPunchFrom = 1.5f;
+	// --- The flash a hit throws on the rock (Phase 3, MUZZLE; UImpactFlashSubsystem: four pooled unshadowed lights, none spawned per hit) ---
+	/** Looter.Vfx.Impact.Light: the flash's peak in candelas for a rifle round on stone or metal (0: no impact lights). */
+	float ImpactLight = 150.f;
+	/** Looter.Vfx.Impact.LightRadius (cm) / .LightSeconds / .LightLift (cm off the surface, so the spot isn't a white pinpoint). */
+	float ImpactLightRadius = 300.f;
+	float ImpactLightSeconds = 0.06f;
+	float ImpactLightLift = 30.f;
+	/** Looter.Vfx.Impact.LightEye (cm): a flash nearer the eye than this is skipped, easing in to full at twice it (0: no rule). */
+	float ImpactLightEye = 100.f;
+	/** Looter.Vfx.Impact.LightFar (cm): hits farther than this throw no light (0: no limit). */
+	float ImpactLightFar = 4000.f;
+	/** Looter.Vfx.Impact.LightMax: flash lights lit at once, 0 to the pool's 4. */
+	int32 ImpactLightMax = 4;
+	/** Looter.Vfx.Impact.LightMerge (cm): a hit this close to a live flash refreshes its light instead of taking another (a stream into one wall, a blast's pellets). */
+	float ImpactLightMerge = 150.f;
 	/** Looter.Vfx.Impact.Sheet: a shotgun blast's one dust sheet across its pattern, times (0 none). */
 	float ImpactSheet = 1.f;
 	/** Looter.Vfx.Impact.SheetWait (s) / .SheetMin: the sheet waits this long at most for the blast's last pellet; fewer pellets than this on the world, none. */

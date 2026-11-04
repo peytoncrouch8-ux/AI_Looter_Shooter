@@ -5,6 +5,7 @@
 #include "Player/PlayerViewComponent.h"
 #include "Weapons/ElementVfxTuning.h"
 #include "Weapons/GunfeelKickTuning.h"
+#include "Weapons/VfxLightRules.h"
 #include "Weapons/VfxRules.h"
 #include "Weapons/VfxTuning.h"
 #include "Weapons/WeaponDefinition.h"
@@ -22,7 +23,12 @@
 // core, a soft orange bloom, a star of thin tapered spikes, tongues along the barrel; VfxRules::MuzzleQuads by the gun's
 // kind), placed again each shot for its view: in first person each layer has its own size (the tongues short: along the
 // barrel is toward the crosshair), it shrinks to keep clear of the crosshair and the material fades what still reaches in.
-// It lasts about two frames. FWeaponFX::SpawnMuzzleBurst throws the sparks and smoke round it. The point light is as before.
+// It lasts about two frames. FWeaponFX::SpawnMuzzleBurst throws the sparks and smoke round it.
+//
+// The point light (Phase 3, lane MUZZLE, 2026-11-03: the audit found it 24 cd / 3.2 m, invisible in daylight): ~400 cd for 5 m,
+// ~40 ms, never shadowed, sized by the gun's kind (VfxRules::MuzzleLightShape: Looter.Vfx.Muzzle.Light*), first and third
+// person alike. It hangs where the muzzle shows pushed 10 cm out along the barrel (so it is never inside the gun's mesh) and
+// lights the hands and the ground in the flash's own two to four frames. Aimed, it is the flash's strength (x0.6) dimmer.
 
 namespace
 {
@@ -33,7 +39,6 @@ namespace
 	/** M_FX_Muzzle's custom data: 0-2 colour, 3 strength, 4 shape, 5 param, 6 seed, 7 the crosshair's clear share (0 none). */
 	constexpr int32 FlashFloats = 8;
 	constexpr int32 FlashStrengthIndex = 3;
-	constexpr float FlashLightCandelas = 24.f;
 	/** The flash light's own colour (AWeaponBase's constructor sets the same): a plain gun's. */
 	const FLinearColor MuzzleLightColor(1.f, 0.7f, 0.42f);
 	/** Each shot's flash this much stronger or weaker at random. */
@@ -41,6 +46,43 @@ namespace
 	constexpr float FlashStrengthHigh = 1.1f;
 	/** A pause this long (s) between shots starts a new burst (the rifle's climb has the same). */
 	constexpr double MuzzleBurstGap = 0.35;
+
+	/**
+	 * Sizes the shot's light for its kind and hangs it where the muzzle shows, Looter.Vfx.Muzzle.LightPush out along the barrel so it
+	 * is never inside the gun. False (and hidden) when the light is off for this gun.
+	 */
+	bool HangShotLight(UPointLightComponent& Light, EWeaponKind Kind, bool bFirstPerson, const FVfxTuning& Vfx, const FVector& Muzzle,
+		const FVector& Barrel)
+	{
+		const FVfxLightShape Shape = VfxRules::MuzzleLightShape(Kind, bFirstPerson, Vfx);
+		if (Shape.Candelas <= 0.f)
+		{
+			Light.SetVisibility(false);
+			return false;
+		}
+		Light.SetWorldLocation(VfxRules::MuzzleLightPlace(Muzzle, Barrel, Vfx.MuzzleLightPush));
+		Light.SetAttenuationRadius(Shape.RadiusCm);
+		Light.SetVisibility(true);
+		return true;
+	}
+
+	/**
+	 * The shot light's strength Age s into the flash: its kind's peak times the flash's fade run over the light's own life (40 ms,
+	 * never longer than the flash) and the shot's strength (random, aimed dimmer); hidden once that life is spent.
+	 */
+	void FadeShotLight(UPointLightComponent& Light, EWeaponKind Kind, bool bFirstPerson, const FVfxTuning& Vfx, float FlashSeconds, float Age,
+		float ShotStrength)
+	{
+		const float Peak = VfxRules::MuzzleLightShape(Kind, bFirstPerson, Vfx).Candelas;
+		const float Life = VfxRules::MuzzleLightLife(FlashSeconds, Vfx);
+		if (Peak <= 0.f || Age >= Life)
+		{
+			Light.SetIntensity(0.f);
+			Light.SetVisibility(false);
+			return;
+		}
+		Light.SetIntensity(Peak * VfxRules::MuzzleFade(Age, Life, Vfx.MuzzleFadePower) * ShotStrength);
+	}
 
 	/** Degrees off the view's middle Point is seen at from Eye looking along Axis. */
 	float DegreesOff(const FVector& Eye, const FVector& Axis, const FVector& Point)
@@ -96,8 +138,9 @@ void AWeaponBase::SetupMuzzleFlash()
 	const FVector Offset = bUsingModel ? Model->GetMuzzle() : FVector::ZeroVector;
 	MuzzleFlash->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
 	MuzzleFlash->SetRelativeLocation(Offset);
+	// The shot light rides the muzzle too, out in front of the barrel's end (each shot hangs it again where the muzzle shows).
 	MuzzleLight->AttachToComponent(Mesh, FAttachmentTransformRules::SnapToTargetNotIncludingScale, Socket);
-	MuzzleLight->SetRelativeLocation(Offset + FVector(10.f, 0.f, 0.f));
+	MuzzleLight->SetRelativeLocation(Offset + FVector(FVfxTuning::Live().MuzzleLightPush, 0.f, 0.f));
 
 	MuzzleFlash->SetStaticMesh(FlashPlane());
 	MuzzleFlash->SetMaterial(0, MuzzleMaterial());
@@ -219,7 +262,9 @@ void AWeaponBase::PlayMuzzleFlash()
 		MuzzleFlash->SetCustomDataValue(Index, 7, ClearShare);
 	}
 	MuzzleFlash->SetVisibility(true);
-	MuzzleLight->SetVisibility(Vfx.MuzzleLight > 0.f);
+	// The shot lights the hands and the ground: sized for the gun's kind, hung at the muzzle where it shows, pushed out of the gun.
+	HangShotLight(*MuzzleLight, Instance.Definition ? Instance.Definition->Kind : EWeaponKind::None, bFirstPerson, Vfx,
+		GetVisibleMuzzleLocation(), MuzzleFlash->GetForwardVector());
 	UpdateMuzzleFlash(0.f);
 	RefreshTick();
 
@@ -280,5 +325,8 @@ void AWeaponBase::UpdateMuzzleFlash(float DeltaSeconds)
 		MuzzleFlash->SetCustomDataValue(Index, FlashStrengthIndex, FlashQuads[Index].Glow * Fade);
 	}
 	MuzzleFlash->MarkRenderStateDirty();
-	MuzzleLight->SetIntensity(FlashLightCandelas * Fade * Vfx.MuzzleLight * (Instance.Definition ? Instance.Definition->MuzzleFlashScale : 1.f));
+	// The light fades over its own (never longer) life by its kind's peak; the definition's flash scale no longer multiplies it (the
+	// kind's share does: Looter.Vfx.Muzzle.Light.<Kind>).
+	FadeShotLight(*MuzzleLight, Instance.Definition ? Instance.Definition->Kind : EWeaponKind::None, IsDrawnFirstPerson(), Vfx, FlashDuration,
+		FlashDuration - FlashTimeLeft, FlashStrength);
 }
