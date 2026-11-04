@@ -802,7 +802,9 @@ and revolver (121) did less than the rifle (180-195) and the health sat just ove
 - Hearing: `UBulletSubsystem::Fire` tells `ACreatureBase::HearGunfire` once a volley of a player's gun (never an effect's bounce or
   twin); every idle or wandering creature within `Looter.Fight.HearGunfire` [3000 cm] turns on the shooter (notice beat and all);
   never passive, buried, perched, scene-held or a boss; rule `Creatures/GunfireHearing` (test `Looter.Creatures.Pursuit.Hearing`).
-- Paper (`Looter.Fight.Pace.Bands`, six of a kind on a still player): Unpaid 9.4-11.2 s, slimes 10.4-12.3 (uncertain: the 10-29 run said
-  15-18; `Looter.Fight.Sim` decides), spiders 4.7-5.6 at bite 11, so the spider's bite is 6 in Creature Kinds (x1.2 = 7.2 a bite; the user
-  lifted "leave the spiders" on 2026-11-03): about 8.6-10.3 s. Main runs `Looter.Fight.Sim` after the build and may retune to the 8-12 s
-  band (the user's call, 2026-11-03 night).
+- Measured that night (`Looter.Fight.Sim <Kind> 6 Basic 3 1` after `Looter.Landfall 8`: since Landfall the game starts on the flying
+  ship, which pulls a teleported player back aboard and the pack gives up in 0.4 s; land first): at DamageScale 1.2 and spider bite 6
+  a standing level 3 died to six Unpaid in 15.2 s (25 attacks, 19 landed: 76%, was 2 of 59 in the chapel yard), six spiders 18.6 s,
+  six slimes 28.7 s; about 3 s of each is the walk in. Retuned to the 8-12 s band (the user's call): `DamageScale` 1.4, spider bite 8,
+  slime bite 10 (Creature Kinds), `FittedUptime` 0.45 / 0.4 / 0.4 (the evening's paper fits ran 1.3-2.3x hot). Expected now: Unpaid
+  ~13 s, spiders ~12, slimes ~15 (the slime hops and misses; its band is the loosest). The second sim's numbers: the handoff.

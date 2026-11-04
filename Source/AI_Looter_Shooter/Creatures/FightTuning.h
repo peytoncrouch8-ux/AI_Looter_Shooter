@@ -105,7 +105,9 @@ struct AI_LOOTER_SHOOTER_API FFightTuning
 	 * Looter.Fight.DamageScale: every regular creature's damage, times (bosses and Legendary monsters keep theirs). 1.2 since
 	 * 2026-11-03 (1.8 from 2026-10-22, 1.5 before): more turns at once, so each hit smaller (a spider's bite 13 at level 1, was 20).
 	 */
-	float DamageScale = 1.2f;
+	// 1.4 since the 2026-11-03 night sims (1.2 from the fights pass that evening, 1.8 from 2026-10-22): with five turns at once a
+	// standing level 3 died to six Unpaid in 15.2 s at 1.2 (the band is 8-12 s), to six spiders in 18.6, to six slimes in 28.7.
+	float DamageScale = 1.4f;
 	/** Looter.Fight.RegenDelay: seconds unhurt before the player's wounds start to close (was 6). */
 	float RegenDelay = 7.f;
 	/** Looter.Fight.RegenRate: the share of the player's most health healed a second at the ramp's top: 0.035, about 30 s a bar,

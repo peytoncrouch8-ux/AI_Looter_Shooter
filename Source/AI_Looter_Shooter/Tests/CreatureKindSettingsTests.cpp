@@ -33,8 +33,8 @@ bool FCreatureKindSettingsTest::RunTest(const FString& Parameters)
 		if (TestNotNull(FString::Printf(TEXT("%s has an entry"), *Case.Key->GetName()), Entry))
 		{
 			TestEqual(FString::Printf(TEXT("%s: health in the settings"), *Case.Key->GetName()), Entry->Health, Case.Value);
-			// The spider's bite is the settings' 6 (change 4: five biting at once); every other kind keeps its class's (0).
-			TestEqual(FString::Printf(TEXT("%s: damage entry"), *Case.Key->GetName()), Entry->AttackDamage, Case.Key == ASpiderCreature::StaticClass() ? 6.f : 0.f);
+			// The spider's bite is the settings' 8 (change 4: five biting at once; the slime's 10 is its own entry); the rest keep their class's (0).
+			TestEqual(FString::Printf(TEXT("%s: damage entry"), *Case.Key->GetName()), Entry->AttackDamage, Case.Key == ASpiderCreature::StaticClass() ? 8.f : 0.f);
 		}
 		TestEqual(FString::Printf(TEXT("%s: BaseHealthOf reads the settings"), *Case.Key->GetName()), UCreatureKindSettings::BaseHealthOf(Case.Key), Case.Value);
 		TestTrue(FString::Printf(TEXT("%s: two shotgun blasts"), *Case.Key->GetName()), Case.Value <= 2.f * 96.f);
@@ -64,8 +64,9 @@ bool FCreatureKindSettingsTest::RunTest(const FString& Parameters)
 		if (TestNotNull(TEXT("Spider has health"), Health))
 		{
 			TestEqual(TEXT("A Regular spider at level 1 starts with 150"), Health->GetMaxHealth(), 150.f, 0.01f);
-			TestEqual(TEXT("...and its bite is the settings' 6 (the class says 11)"), Spider->AttackDamage, 6.f, 0.01f);
-			TestEqual(TEXT("BaseAttackDamageOf reads the settings"), UCreatureKindSettings::BaseAttackDamageOf(ASpiderCreature::StaticClass()), 6.f, 0.01f);
+			TestEqual(TEXT("...and its bite is the settings' 8 (the class says 11)"), Spider->AttackDamage, 8.f, 0.01f);
+			TestEqual(TEXT("BaseAttackDamageOf reads the settings"), UCreatureKindSettings::BaseAttackDamageOf(ASpiderCreature::StaticClass()), 8.f, 0.01f);
+			TestEqual(TEXT("The slime's bite is the settings' 10 (the class says 6) and its health its class's"), UCreatureKindSettings::BaseAttackDamageOf(ASlimeCreature::StaticClass()), 10.f, 0.01f);
 		}
 	}
 	UBestiaryEntry* Page = NewObject<UBestiaryEntry>();

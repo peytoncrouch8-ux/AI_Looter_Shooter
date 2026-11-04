@@ -83,23 +83,18 @@ float FightPace::SecondsToKill(float BaseHealth, int32 Level, float RankHealth, 
 
 float FightPace::FittedUptime(EPaceKind Kind)
 {
-	// Refit for the pack that presses (the audit's change 4, 2026-11-03: 5 melee turns, the ring at 3 m). Paper fits until
-	// Looter.Fight.Sim measures them again (Docs/Work/2026-11-03-Phase3/FIGHTS.md has the working):
+	// Fitted to Looter.Fight.Sim on the night of 2026-11-03 (six Basic at level 3 on a standing level 3 player, the pack that
+	// presses: 5 melee turns, the ring at 3 m, DamageScale 1.2 then): the Unpaid killed in 15.2 s (25 attacks, 19 landed), the
+	// spiders in 18.6 (bite 6), the slimes in 28.7; about 3 s of each is the walk in from the arc. The paper fits of the evening
+	// (0.55 / 0.65 / 0.9) ran 1.3-2.3x too hot: a spider circles and skips back, a slime hops and misses, an Unpaid feints.
 	switch (Kind)
 	{
 	case EPaceKind::Spider:
-		// 0.75 was fitted on 10-28 (a pack killed a still level 3 in 3.2 s, nearly every bite landing). Since 10-31 a spider
-		// circles before most bites (0.55-1.15 s, its turn held) and skips back after some, about 0.8 s more a cycle, which the
-		// five turns no longer hide: 6 bite about 2 a second against the model's 2.9.
-		return 0.65f;
+		return 0.4f;
 	case EPaceKind::Slime:
-		// FIGHTS.md section 0's "about 9 s"; its ring (530 cm, past its leap) is unchanged, and the model counts its turns itself.
-		return 0.9f;
+		return 0.4f;
 	case EPaceKind::Unpaid:
-		// DEMO's 10-29 run (6 Basic, level 3, still): dead in 10.4 s, 175 taken, 3 turns held throughout: 0.43 at the old numbers.
-		// Five turns let the pack start about 1.9 attacks a second instead of 1.5 (their walk in from the ring had kept a
-		// turn busy): x1.3.
-		return 0.55f;
+		return 0.45f;
 	default:
 		return 1.f;
 	}
