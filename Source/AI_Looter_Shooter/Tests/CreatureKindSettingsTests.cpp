@@ -33,7 +33,8 @@ bool FCreatureKindSettingsTest::RunTest(const FString& Parameters)
 		if (TestNotNull(FString::Printf(TEXT("%s has an entry"), *Case.Key->GetName()), Entry))
 		{
 			TestEqual(FString::Printf(TEXT("%s: health in the settings"), *Case.Key->GetName()), Entry->Health, Case.Value);
-			TestEqual(FString::Printf(TEXT("%s: the class's own damage kept (0)"), *Case.Key->GetName()), Entry->AttackDamage, 0.f);
+			// The spider's bite is the settings' 6 (change 4: five biting at once); every other kind keeps its class's (0).
+			TestEqual(FString::Printf(TEXT("%s: damage entry"), *Case.Key->GetName()), Entry->AttackDamage, Case.Key == ASpiderCreature::StaticClass() ? 6.f : 0.f);
 		}
 		TestEqual(FString::Printf(TEXT("%s: BaseHealthOf reads the settings"), *Case.Key->GetName()), UCreatureKindSettings::BaseHealthOf(Case.Key), Case.Value);
 		TestTrue(FString::Printf(TEXT("%s: two shotgun blasts"), *Case.Key->GetName()), Case.Value <= 2.f * 96.f);
@@ -44,7 +45,7 @@ bool FCreatureKindSettingsTest::RunTest(const FString& Parameters)
 	// A kind with no entry keeps its class's number, and a subclass never inherits its parent's entry (Abel keeps his own).
 	TestEqual(TEXT("The slime keeps its class's 120"), UCreatureKindSettings::BaseHealthOf(ASlimeCreature::StaticClass()), 120.f);
 	TestEqual(TEXT("HealthFor with no entry is the class's"), UCreatureKindSettings::HealthFor(ASlimeCreature::StaticClass(), 77.f), 77.f);
-	TestEqual(TEXT("AttackDamageFor with a 0 entry is the class's"), UCreatureKindSettings::AttackDamageFor(ASpiderCreature::StaticClass(), 11.f), 11.f);
+	TestEqual(TEXT("AttackDamageFor with a 0 entry is the class's"), UCreatureKindSettings::AttackDamageFor(AUnpaidCreature::StaticClass(), 8.f), 8.f);
 	TestNull(TEXT("No class, no entry"), UCreatureKindSettings::Get().Find(nullptr));
 
 	// In play: a spider spawned in a test world starts with the settings' health, and the Warden's Log says the same.
@@ -63,7 +64,8 @@ bool FCreatureKindSettingsTest::RunTest(const FString& Parameters)
 		if (TestNotNull(TEXT("Spider has health"), Health))
 		{
 			TestEqual(TEXT("A Regular spider at level 1 starts with 150"), Health->GetMaxHealth(), 150.f, 0.01f);
-			TestEqual(TEXT("...and its bite is the class's 11"), Spider->AttackDamage, 11.f, 0.01f);
+			TestEqual(TEXT("...and its bite is the settings' 6 (the class says 11)"), Spider->AttackDamage, 6.f, 0.01f);
+			TestEqual(TEXT("BaseAttackDamageOf reads the settings"), UCreatureKindSettings::BaseAttackDamageOf(ASpiderCreature::StaticClass()), 6.f, 0.01f);
 		}
 	}
 	UBestiaryEntry* Page = NewObject<UBestiaryEntry>();

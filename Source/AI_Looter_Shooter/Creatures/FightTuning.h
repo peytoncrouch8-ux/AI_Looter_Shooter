@@ -15,10 +15,14 @@ struct AI_LOOTER_SHOOTER_API FFightTuning
 	int32 Director = 1;
 
 	// --- Attack turns (tokens, per target) ---
-	/** Looter.Fight.MeleeTokens: creatures that may be in a melee attack (asked at the ring, wind-up to recovery) at once. */
-	int32 MeleeTokens = 3;
-	/** Looter.Fight.RangedTokens: creatures that may be in a spit or shot (tell to recovery) at once. */
-	int32 RangedTokens = 2;
+	/**
+	 * Looter.Fight.MeleeTokens: creatures that may be in a melee attack (asked at the ring, wind-up to recovery) at once. 5 since
+	 * the audit's change 4 (2026-11-03; was 3): with 3 a nine-pack hit like three for three times as long and the rest stood in a
+	 * line, so a pack now comes on together, its hits smaller (DamageScale).
+	 */
+	int32 MeleeTokens = 5;
+	/** Looter.Fight.RangedTokens: creatures that may be in a spit or shot (tell to recovery) at once (4 since 2026-11-03; was 2). */
+	int32 RangedTokens = 4;
 	/** Looter.Fight.TokenMaxSeconds: a turn held this long (s) is taken back (a creature that never got there). */
 	float TokenMaxSeconds = 3.f;
 	/** Looter.Fight.TokenRest: a creature that just attacked waits this long (s) before it asks for a turn again. */
@@ -29,8 +33,12 @@ struct AI_LOOTER_SHOOTER_API FFightTuning
 	float RangedGap = 0.35f;
 
 	// --- The surround ring ---
-	/** Looter.Fight.RingRadius: the ring's radius round the target (cm); a creature whose reach is longer waits RingMargin past its reach. */
-	float RingRadius = 480.f;
+	/**
+	 * Looter.Fight.RingRadius: the ring's radius round the target (cm); a creature whose reach is longer waits RingMargin past its
+	 * reach. 300 since 2026-11-03 (was 480): a spider (reach 220 + 80) waits at its own reach, not two body lengths out, so the
+	 * pack crowds the player and a turn's walk in is short (the slime still waits at 530 past its leap, the Unpaid at 460, was 480).
+	 */
+	float RingRadius = 300.f;
 	/** Looter.Fight.RingMargin: a ring spot is at least this far (cm) past the creature's attack reach. */
 	float RingMargin = 80.f;
 	/** Looter.Fight.RingSlots: spots round the ring (3 to 32). */
@@ -39,8 +47,8 @@ struct AI_LOOTER_SHOOTER_API FFightTuning
 	float RingRefresh = 0.4f;
 	/** Looter.Fight.RingDrift: the ring turns round the target this fast (degrees a second), so the waiting circle prowls. */
 	float RingDrift = 25.f;
-	/** Looter.Fight.FeintChance: each refresh a waiting creature feints in (a short step in and back) with this chance. */
-	float FeintChance = 0.15f;
+	/** Looter.Fight.FeintChance: each refresh a waiting creature feints in (a short step in and back) with this chance (0.08 since 2026-11-03, was 0.15: with more turns, fewer bluffs). */
+	float FeintChance = 0.08f;
 	/** Looter.Fight.FeintDepth / FeintSeconds: a feint comes in to this share of its ring radius and back, over this long (s). */
 	float FeintDepth = 0.55f;
 	float FeintSeconds = 0.5f;
@@ -93,13 +101,24 @@ struct AI_LOOTER_SHOOTER_API FFightTuning
 	// --- Difficulty (Borderlands normal) ---
 	/** Looter.Fight.ChaseScale: every regular kind chases this many times its own speed (never a boss or Legendary monster). */
 	float ChaseScale = 1.3f;
-	/** Looter.Fight.DamageScale: every regular creature's damage, times (bosses and Legendary monsters keep theirs). */
-	float DamageScale = 1.8f;
+	/**
+	 * Looter.Fight.DamageScale: every regular creature's damage, times (bosses and Legendary monsters keep theirs). 1.2 since
+	 * 2026-11-03 (1.8 from 2026-10-22, 1.5 before): more turns at once, so each hit smaller (a spider's bite 13 at level 1, was 20).
+	 */
+	float DamageScale = 1.2f;
 	/** Looter.Fight.RegenDelay: seconds unhurt before the player's wounds start to close (was 6). */
 	float RegenDelay = 7.f;
 	/** Looter.Fight.RegenRate: the share of the player's most health healed a second at the ramp's top: 0.035, about 30 s a bar,
 	 *  since the user's playtest call of 2026-10-30 (0.07 from 2026-10-21, 0.12 before). */
 	float RegenRate = 0.035f;
+
+	// --- Senses ---
+	/**
+	 * Looter.Fight.HearGunfire: a player's gunshot is heard this far (cm, 30 m; 0 = nobody hears). A creature within it that is
+	 * idle or wandering turns and hunts the shooter (ACreatureBase::HearGunfire, the rule GunfireHearing; 2026-11-03): before,
+	 * only its eyes and a hurt packmate's call set one on the player, so a fight never spilled over to the pack next door.
+	 */
+	float HearGunfire = 3000.f;
 
 	/** The cvars' values now (read at each use, so a change in PIE counts at once). */
 	static FFightTuning Live();
@@ -111,4 +130,6 @@ struct AI_LOOTER_SHOOTER_API FFightTuning
 	static float LiveRangedBackOff();
 	/** Looter.Fight.RangedMoveShare alone, now. */
 	static float LiveRangedMoveShare();
+	/** Looter.Fight.HearGunfire alone, now (asked at every shot a player fires). */
+	static float LiveHearGunfire();
 };

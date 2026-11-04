@@ -3,6 +3,7 @@
 #include "Combat/CombatRules.h"
 #include "Combat/CriticalSpotTarget.h"
 #include "Combat/LooterDamageTypes.h"
+#include "Creatures/CreatureBase.h"
 #include "Elements/ElementCallout.h"
 #include "Elements/ElementRules.h"
 #include "Elements/ElementTuning.h"
@@ -14,6 +15,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/World.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Kismet/GameplayStatics.h"
@@ -108,7 +110,8 @@ void UBulletSubsystem::Fire(const FBulletShot& FiredShot)
 	OnBulletFiring.Broadcast(Shot);
 
 	// Shots fired by one gun in one frame are one volley (a shotgun's pellets from one pull): they share the cap on marks.
-	if (GFrameCounter != LastFireFrame || Shot.Weapon != LastFireWeapon || Shot.Shooter != LastFireShooter)
+	const bool bNewVolley = GFrameCounter != LastFireFrame || Shot.Weapon != LastFireWeapon || Shot.Shooter != LastFireShooter;
+	if (bNewVolley)
 	{
 		++VolleyCount;
 		VolleyPellets = 0;
@@ -138,6 +141,13 @@ void UBulletSubsystem::Fire(const FBulletShot& FiredShot)
 	if (AdvanceDepth == 0)
 	{
 		FireHeld();
+	}
+	// The shot is heard (FIGHTS, 2026-11-03): calm creatures near it turn on the shooter; ACreatureBase::HearGunfire decides who,
+	// and hears only a player's. Once a volley (a shotgun's pellets are one shot) and only for a gun's own round, never an
+	// effect's bounce or twin; last, once the bullet is on the list, as turning a creature may set off more.
+	if (bNewVolley && Shot.EffectGeneration == 0)
+	{
+		ACreatureBase::HearGunfire(Cast<APawn>(Shot.Shooter.Get()), Shot.Start);
 	}
 }
 

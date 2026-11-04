@@ -51,7 +51,8 @@ void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocat
 		TakeUpHunt(Attacker, true);
 	}
 	// A pack turns on whoever hurts one of them: every creature of its pack (its PackTag) within its call, which a rank
-	// can widen (a Gravebound spider calls every spider near it). Each answers by its own ground.
+	// can widen (a Gravebound spider calls every spider near it). Each answers by its own ground. Since 2026-11-03 every
+	// regular kind calls (Basic spiders within 15 m too: the audit's change 4, a fight spills over to its pack).
 	// (A killing blow still calls them: the fall of one of theirs is heard.)
 	const float CallRadius = GetPackCallRadius();
 	const EHuntCheck AttackerCheck = CheckHunt(Attacker);
@@ -61,8 +62,12 @@ void ACreatureBase::HandleDamaged(float Damage, bool bCritical, FVector HitLocat
 		const double CallSquared = FMath::Square(static_cast<double>(CallRadius));
 		ForEachCreature([&](ACreatureBase& Other)
 		{
+			// One waiting in its entrance (its brain held and after nobody: a lurker on its perch, a body still buried, one
+			// climbing out) keeps its own pacing: a lurk's mates drop a moment apart and only those in reach (AAmbushSpawner),
+			// the buried rise in their turn. With Basic spiders calling, a shot lurker would bring every perch near it down at once.
+			const bool bInEntrance = Other.BrainHold > 0.f && !Other.Target.IsValid();
 			// The level's actor walk skipped ones being destroyed; the creature list may still hold one for a moment.
-			if (&Other != this && !Other.IsActorBeingDestroyed() && Other.SharesPackWith(*this)
+			if (&Other != this && !Other.IsActorBeingDestroyed() && !bInEntrance && Other.SharesPackWith(*this)
 				&& FVector::DistSquared(Other.GetActorLocation(), GetActorLocation()) <= CallSquared)
 			{
 				Other.AlertTo(Attacker);

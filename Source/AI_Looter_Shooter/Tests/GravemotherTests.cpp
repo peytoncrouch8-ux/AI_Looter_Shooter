@@ -338,7 +338,8 @@ bool FGravemotherPackCallsTest::RunTest(const FString& Parameters)
 {
 	// Pack calls go by pack tag: hurt, the Gravemother calls every spider within 30 m onto her attacker, whatever its class
 	// (a spider, a spiderling), and nothing else (a slime) nor anything farther; a Gravebound spider's call reaches her too.
-	// The slime's own call is as it was: slimes within 25 m, no spiders. A Basic spider calls nobody.
+	// The slime's own call is as it was: slimes within 25 m, no spiders. A Basic spider calls its packmates within 15 m
+	// (since 2026-11-03, audit change 4: a fight spills over; it called nobody before).
 	FTestWorldWrapper WorldWrapper;
 	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
 	{
@@ -412,7 +413,7 @@ bool FGravemotherPackCallsTest::RunTest(const FString& Parameters)
 
 	BossTestWorld::Hurt(Lone, 10.f, Shooter);
 	TestTrue(TEXT("A Basic spider turns on its attacker"), Hunting(Lone));
-	TestFalse(TEXT("...and calls nobody"), Hunting(Neighbour));
+	TestTrue(TEXT("...and calls its neighbour 5 m off (Basic spiders call within 15 m since 2026-11-03)"), Hunting(Neighbour));
 	return true;
 }
 

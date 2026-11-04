@@ -197,7 +197,8 @@ int32 UFightDirectorSubsystem::MeleeTokensFor(const ACreatureBase& Creature, con
 {
 	const int32 Usual = const_cast<UFightDirectorSubsystem*>(this)->Tuning().MeleeTokens;
 	// Its pack's frenzy lets more of them in at once; anyone else at the same player keeps the usual count (they still count
-	// the frenzy's holders, so a spider can't add a fourth bite on top of a frenzy).
+	// the frenzy's holders, so a spider can't add a bite on top of a frenzy). A frenzy's count under the usual one adds nothing
+	// (Looter.Unpaid.FrenzyTokens 4 against Looter.Fight.MeleeTokens 5 since 2026-11-03: the frenzy is its pace alone).
 	const bool bFrenzy = !Creature.PackTag.IsNone() && Creature.PackTag == Fight.FrenzyPack && Now() < Fight.FrenzyUntil;
 	// A nearly dead player's close-call ease takes one off whichever count holds (FightDirectorPressure.cpp).
 	return FightPressureRules::EasedTokens(bFrenzy ? FMath::Max(Usual, Fight.FrenzyTokens) : Usual, Fight.Ease.IsEasing(Now()));

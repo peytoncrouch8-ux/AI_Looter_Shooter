@@ -83,16 +83,23 @@ float FightPace::SecondsToKill(float BaseHealth, int32 Level, float RankHealth, 
 
 float FightPace::FittedUptime(EPaceKind Kind)
 {
-	// Fitted to FIGHTS.md section 0's measured fights: a spider pack kills a still level 3 in 3.2 s (3.3 here), the Unpaid in
-	// 12-20 s (13.5), the slimes in about 9 s. DEMO refits them after the baseline run.
+	// Refit for the pack that presses (the audit's change 4, 2026-11-03: 5 melee turns, the ring at 3 m). Paper fits until
+	// Looter.Fight.Sim measures them again (Docs/Work/2026-11-03-Phase3/FIGHTS.md has the working):
 	switch (Kind)
 	{
 	case EPaceKind::Spider:
-		return 0.75f;
+		// 0.75 was fitted on 10-28 (a pack killed a still level 3 in 3.2 s, nearly every bite landing). Since 10-31 a spider
+		// circles before most bites (0.55-1.15 s, its turn held) and skips back after some, about 0.8 s more a cycle, which the
+		// five turns no longer hide: 6 bite about 2 a second against the model's 2.9.
+		return 0.65f;
 	case EPaceKind::Slime:
+		// FIGHTS.md section 0's "about 9 s"; its ring (530 cm, past its leap) is unchanged, and the model counts its turns itself.
 		return 0.9f;
 	case EPaceKind::Unpaid:
-		return 0.3f;
+		// DEMO's 10-29 run (6 Basic, level 3, still): dead in 10.4 s, 175 taken, 3 turns held throughout: 0.43 at the old numbers.
+		// Five turns let the pack start about 1.9 attacks a second instead of 1.5 (their walk in from the ring had kept a
+		// turn busy): x1.3.
+		return 0.55f;
 	default:
 		return 1.f;
 	}
@@ -106,9 +113,11 @@ FightPace::FBandPair FightPace::StandingDeathBands(EPaceKind Kind)
 	switch (Kind)
 	{
 	case EPaceKind::Spider:
-		// The user's call (2026-10-28, "leave the spiders"): a pack still kills a standing player in 3-4 s. A known exception to
-		// the target, held between today's fight and the rest.
-		Bands.Guard = { 2.f, 16.f };
+		// "Leave the spiders" was lifted (the user, 2026-11-03), but the smaller damage scale alone doesn't bring a pack there: six
+		// bite at their own pace (11 every 2.1 s each), so a still player lasts about 5 s (4.7-5.6; it was 2.7-3.2). Known short
+		// of the target until the spider's own numbers change (its bite in Creature Kinds, or a melee gap); the guard still
+		// catches a doubled pace (2.4 s) and lets a fixed one in.
+		Bands.Guard = { 3.5f, 16.f };
 		break;
 	case EPaceKind::Spitter:
 		// A ranged kind: no melee turns to count, so no standing-death band (the lobs are the Spitter's tests').

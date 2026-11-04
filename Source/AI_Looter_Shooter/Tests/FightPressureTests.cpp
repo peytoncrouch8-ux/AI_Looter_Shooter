@@ -127,7 +127,8 @@ bool FFightPressureTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("...another 1 s later: no"), Leaps.MayLeap(1.0, 1.5f));
 	TestTrue(TEXT("...1.5 s later: yes"), Leaps.MayLeap(1.5, 1.5f));
 
-	// The director in a test level: its read of a player three spiders fight, and the ease when the player is nearly dead.
+	// The director in a test level: its read of a player a pack of spiders fights (as many as the melee turns, 5 since
+	// 2026-11-03, so the ease's one fewer shows), and the ease when the player is nearly dead.
 	FPressureLevel Level;
 	if (!TestTrue(TEXT("Test level made"), Level.Create()))
 	{
@@ -138,15 +139,17 @@ bool FFightPressureTest::RunTest(const FString& Parameters)
 	FEditorScriptExecutionGuard RunActorEvents;
 	LocomotionTestWorld::SpawnBlock(World, FVector(0.0, 0.0, -50.0), FVector(6000.0, 6000.0, 100.0));
 	ACharacter* Player = EncounterTestWorld::SpawnPlayer(World, FVector(0.0, 0.0, 90.0));
+	const int32 PackSize = FMath::Max(FFightTuning::Live().MeleeTokens, 3);
 	TArray<ACreatureBase*> Spiders;
-	for (int32 Index = 0; Index < 3; ++Index)
+	for (int32 Index = 0; Index < PackSize; ++Index)
 	{
-		const float Radians = FMath::DegreesToRadians(120.f * static_cast<float>(Index));
+		// 4.5 m out: well inside where a turn is given back as out of reach (1.5 x 1.6 rings of 3 m, 7.2 m).
+		const float Radians = FMath::DegreesToRadians(360.f * static_cast<float>(Index) / static_cast<float>(PackSize));
 		Spiders.Add(EncounterTestWorld::SpawnCreature(World, ASpiderCreature::StaticClass(),
-			FVector(FMath::Cos(Radians) * 700.f, FMath::Sin(Radians) * 700.f, 0.f)));
+			FVector(FMath::Cos(Radians) * 450.f, FMath::Sin(Radians) * 450.f, 0.f)));
 	}
 	if (!TestNotNull(TEXT("A director"), Director) || !TestNotNull(TEXT("Player stand-in"), Player)
-		|| !TestFalse(TEXT("Three spiders"), Spiders.Contains(nullptr)))
+		|| !TestFalse(TEXT("The spiders"), Spiders.Contains(nullptr)))
 	{
 		return false;
 	}
@@ -156,7 +159,7 @@ bool FFightPressureTest::RunTest(const FString& Parameters)
 	}
 	Director->RefreshNow();
 	FFightPlayerRead Read = Director->GetPlayerRead(*Player);
-	TestEqual(TEXT("Three fight the player"), Read.Fighters, 3);
+	TestEqual(TEXT("The pack fights the player"), Read.Fighters, PackSize);
 	TestEqual(TEXT("...in the open: not hidden"), Read.HiddenFor, 0.f);
 	TestEqual(TEXT("...whole"), Read.HealthShare, 1.f, 0.001f);
 	TestFalse(TEXT("...not easing"), Read.bEasing);
@@ -177,6 +180,7 @@ bool FFightPressureTest::RunTest(const FString& Parameters)
 			Given += Director->TryTakeToken(*Spider, *Player, EFightRole::Melee) ? 1 : 0;
 		}
 		TestEqual(TEXT("...one melee turn fewer at once"), Given, FMath::Min(Turns, Spiders.Num()));
+		TestTrue(TEXT("...so one of the pack waits"), Given < Spiders.Num());
 		TestTrue(TEXT("...each turn noted"), Director->GetEventCount(EFightEvent::TurnTaken) >= Given);
 	}
 

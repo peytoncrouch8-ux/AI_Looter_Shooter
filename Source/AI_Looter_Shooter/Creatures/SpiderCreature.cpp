@@ -55,6 +55,8 @@ ASpiderCreature::ASpiderCreature()
 	CorpseTime = 10.f;
 	// Every spider answers every other's call (spiderlings, the Gravemother), whatever its class.
 	PackTag = TEXT("Spider");
+	// A hurt one sets its packmates within 15 m on the attacker (2026-11-03, was 0: only a Gravebound's call reached them).
+	PackAlertRadius = 1500.f;
 
 	GetCapsuleComponent()->InitCapsuleSize(62.f, 62.f);
 

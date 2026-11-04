@@ -101,6 +101,10 @@ namespace
 	TAutoConsoleVariable<float> CVarRegenRate(TEXT("Looter.Fight.RegenRate"), FightDefaults.RegenRate,
 		TEXT("The share of the player's most health healed a second at the ramp's top."), ECVF_Default);
 
+	// Senses.
+	TAutoConsoleVariable<float> CVarHearGunfire(TEXT("Looter.Fight.HearGunfire"), FightDefaults.HearGunfire,
+		TEXT("A player's gunshot is heard this far (cm): an idle or wandering creature within it hunts the shooter. 0 = nobody hears."), ECVF_Default);
+
 	float NotBelowZero(const TAutoConsoleVariable<float>& Variable)
 	{
 		return FMath::Max(Variable.GetValueOnGameThread(), 0.f);
@@ -156,6 +160,8 @@ FFightTuning FFightTuning::Live()
 	Tuning.DamageScale = LiveDamageScale();
 	Tuning.RegenDelay = NotBelowZero(CVarRegenDelay);
 	Tuning.RegenRate = FMath::Clamp(CVarRegenRate.GetValueOnGameThread(), 0.f, 1.f);
+
+	Tuning.HearGunfire = LiveHearGunfire();
 	return Tuning;
 }
 
@@ -177,4 +183,9 @@ float FFightTuning::LiveRangedBackOff()
 float FFightTuning::LiveRangedMoveShare()
 {
 	return FMath::Clamp(CVarRangedMoveShare.GetValueOnGameThread(), 0.1f, 1.5f);
+}
+
+float FFightTuning::LiveHearGunfire()
+{
+	return NotBelowZero(CVarHearGunfire);
 }

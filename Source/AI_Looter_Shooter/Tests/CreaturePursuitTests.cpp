@@ -7,7 +7,9 @@
 #include "Creatures/CreatureBase.h"
 #include "Creatures/CreaturePursuit.h"
 #include "Creatures/EncounterSettings.h"
+#include "Creatures/FightTuning.h"
 #include "Creatures/GravemotherCreature.h"
+#include "Creatures/GunfireHearing.h"
 #include "Creatures/SlimeCreature.h"
 #include "Creatures/SpiderCreature.h"
 #include "Creatures/SpitterSpider.h"
@@ -412,6 +414,86 @@ bool FCreaturePursuitBossTest::RunTest(const FString& Parameters)
 	Player->SetActorLocation(FVector(6000.0, 0.0, 0.0));
 	Run(*Creature, 0.4f);
 	TestTrue(TEXT("60 m off: it lets go at once, no search"), !Creature->GetTarget() && Creature->GetCreatureState() != ECreatureState::Search);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FCreaturePursuitHearingTest, "Looter.Creatures.Pursuit.Hearing",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FCreaturePursuitHearingTest::RunTest(const FString& Parameters)
+{
+	// A player's gunshot carries 30 m (Looter.Fight.HearGunfire; the audit's change 4, 2026-11-03): a calm creature near it hunts
+	// the shooter; one busy, held back, held in its entrance, a boss, in a scene, or with the shooter where it may not hunt them
+	// does not (GunfireHearing, ACreatureBase::HearGunfire).
+	const float Radius = FFightTuning().HearGunfire;
+	FGunfireListener Calm;
+	Calm.Distance = 2000.f;
+	Calm.bShooterHuntable = true;
+	TestTrue(TEXT("Idle 20 m off, the shooter on its ground: it hears"), GunfireHearing::Hears(Calm, Radius));
+	FGunfireListener Strolling = Calm;
+	Strolling.State = ECreatureState::Wander;
+	TestTrue(TEXT("...wandering, too"), GunfireHearing::Hears(Strolling, Radius));
+	FGunfireListener Far = Calm;
+	Far.Distance = Radius + 100.f;
+	TestFalse(TEXT("31 m off: not"), GunfireHearing::Hears(Far, Radius));
+	TestFalse(TEXT("Hearing off (0): nobody"), GunfireHearing::Hears(Calm, 0.f));
+	for (const ECreatureState BusyState : { ECreatureState::Chase, ECreatureState::Attack, ECreatureState::Search, ECreatureState::Return,
+		ECreatureState::Dead })
+	{
+		FGunfireListener Doing = Calm;
+		Doing.State = BusyState;
+		TestFalse(FString::Printf(TEXT("%s: it doesn't turn"), *UEnum::GetValueAsString(BusyState)), GunfireHearing::Hears(Doing, Radius));
+	}
+	auto HearsWith = [&Calm, Radius](TFunctionRef<void(FGunfireListener&)> Change)
+	{
+		FGunfireListener Changed = Calm;
+		Change(Changed);
+		return GunfireHearing::Hears(Changed, Radius);
+	};
+	TestFalse(TEXT("After someone already: no"), HearsWith([](FGunfireListener& Listener) { Listener.bHasTarget = true; }));
+	TestFalse(TEXT("Held back (passive, a spider in its den): no"), HearsWith([](FGunfireListener& Listener) { Listener.bPassive = true; }));
+	TestFalse(TEXT("Buried, on its perch, climbing out (its brain held): no"), HearsWith([](FGunfireListener& Listener) { Listener.bBrainHeld = true; }));
+	TestFalse(TEXT("Hidden: no"), HearsWith([](FGunfireListener& Listener) { Listener.bHidden = true; }));
+	TestFalse(TEXT("A boss: no"), HearsWith([](FGunfireListener& Listener) { Listener.bBoss = true; }));
+	TestFalse(TEXT("A scene holds the player: no"), HearsWith([](FGunfireListener& Listener) { Listener.bSceneHolding = true; }));
+	TestFalse(TEXT("The shooter in a safe zone or off its ground: no"), HearsWith([](FGunfireListener& Listener) { Listener.bShooterHuntable = false; }));
+	TestFalse(TEXT("Given up on them where they still stand: no"), HearsWith([](FGunfireListener& Listener) { Listener.bSpurned = true; }));
+	FGunfireListener NotLookedYet = Calm;
+	NotLookedYet.bShooterHuntable = false;
+	TestTrue(TEXT("The cheap half asks nothing of the shooter"), GunfireHearing::MayHear(NotLookedYet, Radius));
+
+	// In a test level: the player's stand-in fires. A calm spider 20 m off comes; one 40 m off, a passive one and one after
+	// someone else don't; a shot by anyone else (a Dredger's rifle) is heard by nobody.
+	FTestWorldWrapper WorldWrapper;
+	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = WorldWrapper.GetTestWorld();
+	ACharacter* Player = EncounterTestWorld::SpawnPlayer(World, FVector::ZeroVector);
+	ACharacter* Other = BossTestWorld::SpawnPlayer(World, FVector(0.0, -9000.0, 0.0));
+	ACreatureBase* Near = EncounterTestWorld::SpawnCreature(World, ASpiderCreature::StaticClass(), FVector(2000.0, 0.0, 0.0));
+	ACreatureBase* Distant = EncounterTestWorld::SpawnCreature(World, ASpiderCreature::StaticClass(), FVector(-4000.0, 0.0, 0.0));
+	ACreatureBase* Held = EncounterTestWorld::SpawnCreature(World, ASpiderCreature::StaticClass(), FVector(0.0, 1000.0, 0.0));
+	ACreatureBase* Busy = EncounterTestWorld::SpawnCreature(World, ASpiderCreature::StaticClass(), FVector(0.0, -2500.0, 0.0));
+	ACreatureBase* Second = EncounterTestWorld::SpawnCreature(World, ASpiderCreature::StaticClass(), FVector(0.0, -7000.0, 0.0));
+	const TArray<ACreatureBase*> Spiders = { Near, Distant, Held, Busy, Second };
+	if (!TestNotNull(TEXT("Player stand-in"), Player) || !TestNotNull(TEXT("Someone else"), Other)
+		|| !TestFalse(TEXT("Five spiders"), Spiders.Contains(nullptr)))
+	{
+		return false;
+	}
+	Held->SetPassive(true);
+	Busy->AlertTo(Other);
+	TestTrue(TEXT("One after someone else"), Busy->GetTarget() == Other);
+	ACreatureBase::HearGunfire(Player, Player->GetActorLocation());
+	TestTrue(TEXT("20 m off, idle: it heard the shot and hunts the shooter"), Near->GetTarget() == Player
+		&& Near->GetCreatureState() == ECreatureState::Chase);
+	TestFalse(TEXT("40 m off: it heard nothing"), Distant->GetTarget() != nullptr);
+	TestFalse(TEXT("Held back: nothing"), Held->GetTarget() != nullptr);
+	TestTrue(TEXT("After someone else: still after them"), Busy->GetTarget() == Other);
+	ACreatureBase::HearGunfire(Other, Other->GetActorLocation());
+	TestFalse(TEXT("A shot by someone not the player: unheard, 20 m off"), Second->GetTarget() != nullptr);
 	return true;
 }
 

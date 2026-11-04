@@ -48,25 +48,29 @@ bool FFightTuningDefaultsTest::RunTest(const FString& Parameters)
 	// The contract's numbers, as the cvars start.
 	const FFightTuning Tuning;
 	TestEqual(TEXT("The director is on"), Tuning.Director, 1);
-	TestEqual(TEXT("3 melee turns at once"), Tuning.MeleeTokens, 3);
-	TestEqual(TEXT("2 ranged turns at once"), Tuning.RangedTokens, 2);
+	// The pack presses (the audit's change 4, 2026-11-03): more turns at once (3 and 2 before), a tighter ring (4.8 m), fewer
+	// feints (0.15), smaller hits (1.8), and gunfire heard 30 m off.
+	TestEqual(TEXT("5 melee turns at once"), Tuning.MeleeTokens, 5);
+	TestEqual(TEXT("4 ranged turns at once"), Tuning.RangedTokens, 4);
 	TestEqual(TEXT("A turn held 3 s is taken back"), Tuning.TokenMaxSeconds, 3.f);
 	TestEqual(TEXT("0.6 s rest after an attack"), Tuning.TokenRest, 0.6f);
-	TestEqual(TEXT("The ring: 4.8 m"), Tuning.RingRadius, 480.f);
+	TestEqual(TEXT("The ring: 3 m"), Tuning.RingRadius, 300.f);
 	TestEqual(TEXT("...8 slots"), Tuning.RingSlots, 8);
 	TestEqual(TEXT("...looked at every 0.4 s"), Tuning.RingRefresh, 0.4f);
 	TestEqual(TEXT("...turning 25 degrees a second"), Tuning.RingDrift, 25.f);
-	TestEqual(TEXT("...feints at 0.15 a look"), Tuning.FeintChance, 0.15f);
+	TestEqual(TEXT("...feints at 0.08 a look"), Tuning.FeintChance, 0.08f);
 	TestEqual(TEXT("...0.35 against the front"), Tuning.BehindBias, 0.35f);
 	TestEqual(TEXT("...for 3 or more"), Tuning.RingMinPack, 3);
 	TestEqual(TEXT("Ranged spots 50 degrees off the pack"), Tuning.RangedOffAngle, 50.f);
 	TestEqual(TEXT("...moving on after 6 shots in 10"), Tuning.RangedRelocate, 0.6f);
 	TestEqual(TEXT("...backing off inside 9 m"), Tuning.RangedBackOff, 900.f);
 	TestEqual(TEXT("Chase x1.3"), Tuning.ChaseScale, 1.3f);
-	TestEqual(TEXT("Damage x1.8 (raised from 1.5 for the player's ward, 2026-10-22)"), Tuning.DamageScale, 1.8f);
+	TestEqual(TEXT("Damage x1.2 (1.8 from 2026-10-22: more turns, smaller hits)"), Tuning.DamageScale, 1.2f);
 	TestEqual(TEXT("Regen waits 7 s"), Tuning.RegenDelay, 7.f);
 	TestEqual(TEXT("...and heals 3.5% a second (the user, 2026-10-30)"), Tuning.RegenRate, 0.035f);
+	TestEqual(TEXT("Gunfire heard 30 m off"), Tuning.HearGunfire, 3000.f);
 	TestEqual(TEXT("Live() with nothing set gives the defaults (chase)"), FFightTuning::Live().ChaseScale, Tuning.ChaseScale);
+	TestEqual(TEXT("...and hearing"), FFightTuning::LiveHearGunfire(), Tuning.HearGunfire);
 	return true;
 }
 
@@ -182,9 +186,11 @@ bool FFightRingTest::RunTest(const FString& Parameters)
 	using namespace FightRules;
 	TestFalse(TEXT("Two hunting: no ring"), UsesRing(2, 3));
 	TestTrue(TEXT("Three: a ring"), UsesRing(3, 3));
-	TestEqual(TEXT("A spider waits on the ring's 4.8 m"), RingReach(480.f, 220.f, 80.f), 480.f);
-	TestEqual(TEXT("A slime past its 4.5 m leap"), RingReach(480.f, 450.f, 80.f), 530.f);
-	TestEqual(TEXT("It asks for its turn within 1.6 rings"), ApproachDistance(480.f, 1.6f), 768.f, 0.01f);
+	TestEqual(TEXT("A spider waits on the ring's 3 m, just past its reach"), RingReach(300.f, 220.f, 80.f), 300.f);
+	TestEqual(TEXT("...on a wider ring, out on it"), RingReach(480.f, 220.f, 80.f), 480.f);
+	TestEqual(TEXT("A slime past its 4.5 m leap"), RingReach(300.f, 450.f, 80.f), 530.f);
+	TestEqual(TEXT("...and an Unpaid past its 3.8 m lunge"), RingReach(300.f, 380.f, 80.f), 460.f);
+	TestEqual(TEXT("It asks for its turn within 1.6 rings"), ApproachDistance(300.f, 1.6f), 480.f, 0.01f);
 	TestEqual(TEXT("Slots round the circle"), SlotBearing(2, 8, 10.f), 100.f, 0.01f);
 	TestEqual(TEXT("...past half way, negative"), SlotBearing(5, 8, 0.f), -135.f, 0.01f);
 	TestEqual(TEXT("Straight ahead is front"), Frontness(30.f, 30.f), 1.f, 1e-4f);
@@ -354,7 +360,7 @@ bool FFightScalesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("A spider chases at 1.3 times its own"), Spider, GetDefault<ASpiderCreature>()->ChaseSpeed * 1.3f, 0.01f);
 	TestTrue(FString::Printf(TEXT("...%.0f: over the walk (%.0f), under the sprint (%.0f)"), Spider, Walk, Sprint), Spider > Walk && Spider < Sprint);
 	TestEqual(TEXT("A boss's chase is its own"), ChaseSpeedFor(430.f, true, Tuning.ChaseScale), 430.f);
-	TestEqual(TEXT("A regular creature hits 1.8 times as hard"), DamageScaleFor(false, Tuning.DamageScale), 1.8f);
+	TestEqual(TEXT("A regular creature hits 1.2 times as hard"), DamageScaleFor(false, Tuning.DamageScale), 1.2f);
 	TestEqual(TEXT("...a boss as it always did"), DamageScaleFor(true, Tuning.DamageScale), 1.f);
 	return true;
 }
@@ -374,15 +380,19 @@ bool FFightDirectorTest::RunTest(const FString& Parameters)
 	FEditorScriptExecutionGuard RunActorEvents;
 	LocomotionTestWorld::SpawnBlock(World, FVector(0.0, 0.0, -50.0), FVector(6000.0, 6000.0, 100.0));
 	ACharacter* Player = EncounterTestWorld::SpawnPlayer(World, FVector(0.0, 0.0, 90.0));
+	// As many as the turns (Looter.Fight.MeleeTokens, 5) and two more, so one waits behind them and one behind that, 4.5 m out:
+	// inside where a spider asks for its turn (1.6 rings, 4.8 m) and outside the ring (3 m).
+	const int32 Turns = FFightTuning::Live().MeleeTokens;
+	const int32 Count = Turns + 2;
 	TArray<ACreatureBase*> Spiders;
-	for (int32 Index = 0; Index < 5; ++Index)
+	for (int32 Index = 0; Index < Count; ++Index)
 	{
-		const float Radians = FMath::DegreesToRadians(72.f * static_cast<float>(Index));
+		const float Radians = FMath::DegreesToRadians(360.f * static_cast<float>(Index) / static_cast<float>(Count));
 		Spiders.Add(EncounterTestWorld::SpawnCreature(World, ASpiderCreature::StaticClass(),
-			FVector(FMath::Cos(Radians) * 700.f, FMath::Sin(Radians) * 700.f, 0.f)));
+			FVector(FMath::Cos(Radians) * 450.f, FMath::Sin(Radians) * 450.f, 0.f)));
 	}
 	if (!TestNotNull(TEXT("A director"), Director) || !TestNotNull(TEXT("Player stand-in"), Player)
-		|| !TestFalse(TEXT("Five spiders"), Spiders.Contains(nullptr)))
+		|| !TestFalse(TEXT("The spiders"), Spiders.Contains(nullptr)))
 	{
 		return false;
 	}
@@ -391,54 +401,59 @@ bool FFightDirectorTest::RunTest(const FString& Parameters)
 		Spider->DevPutInState(ECreatureState::Chase, Player);
 		TestTrue(TEXT("A regular spider takes turns"), Spider->UsesFightDirector());
 	}
+	ACreatureBase* Waiting = Spiders[Turns];
+	ACreatureBase* Last = Spiders[Turns + 1];
 
-	// Three turns; the fourth waits.
-	TestTrue(TEXT("First: a turn"), Director->TryTakeToken(*Spiders[0], *Player, EFightRole::Melee));
-	TestTrue(TEXT("...second"), Director->TryTakeToken(*Spiders[1], *Player, EFightRole::Melee));
-	TestTrue(TEXT("...third"), Director->TryTakeToken(*Spiders[2], *Player, EFightRole::Melee));
-	TestFalse(TEXT("...fourth waits"), Director->TryTakeToken(*Spiders[3], *Player, EFightRole::Melee));
-	TestEqual(TEXT("Three held"), Director->CountTokens(*Player, EFightRole::Melee), 3);
+	// As many turns as there are; the next one waits.
+	for (int32 Index = 0; Index < Turns; ++Index)
+	{
+		TestTrue(FString::Printf(TEXT("Spider %d: a turn"), Index), Director->TryTakeToken(*Spiders[Index], *Player, EFightRole::Melee));
+	}
+	TestFalse(TEXT("...the next waits"), Director->TryTakeToken(*Waiting, *Player, EFightRole::Melee));
+	TestEqual(TEXT("All the turns held"), Director->CountTokens(*Player, EFightRole::Melee), Turns);
 
 	// Killed: its turn goes with it, and the one waiting gets it.
 	BossTestWorld::Kill(Spiders[0]);
 	TestTrue(TEXT("The first one is dead"), Spiders[0]->IsDead());
 	TestFalse(TEXT("...holding nothing"), Director->HoldsToken(*Spiders[0]));
-	TestTrue(TEXT("...the fourth's turn now"), Director->TryTakeToken(*Spiders[3], *Player, EFightRole::Melee));
+	TestTrue(TEXT("...the waiting one's turn now"), Director->TryTakeToken(*Waiting, *Player, EFightRole::Melee));
 
-	// Hit off its turn (a stagger): given back, its place kept ahead of the fifth.
+	// Hit off its turn (a stagger): given back, its place kept ahead of the last.
 	Director->GiveBackForHit(*Spiders[1]);
-	TestEqual(TEXT("Staggered: two held"), Director->CountTokens(*Player, EFightRole::Melee), 2);
-	TestFalse(TEXT("...the fifth asks: no, the staggered one is first in line"), Director->TryTakeToken(*Spiders[4], *Player, EFightRole::Melee));
+	TestEqual(TEXT("Staggered: one fewer held"), Director->CountTokens(*Player, EFightRole::Melee), Turns - 1);
+	TestFalse(TEXT("...the last asks: no, the staggered one is first in line"), Director->TryTakeToken(*Last, *Player, EFightRole::Melee));
 	TestTrue(TEXT("...come to, it has its turn back"), Director->TryTakeToken(*Spiders[1], *Player, EFightRole::Melee));
 
 	// Out of the fight (walking home): its turn goes back.
 	Spiders[2]->DevPutInState(ECreatureState::Return);
 	TestFalse(TEXT("Walking home: no turn"), Director->HoldsToken(*Spiders[2]));
 
-	// The ring: four alive and chasing (one walked home) hold slots round the player, each its own, 4.8 m out.
+	// The ring: the living ones chasing (one walked home and came back) hold slots round the player, each its own, 3 m out.
 	Spiders[2]->DevPutInState(ECreatureState::Chase, Player);
 	Director->RefreshNow();
-	TestTrue(TEXT("Four hunting: a ring"), Director->IsRingUp(*Player));
+	TestTrue(TEXT("A pack hunting: a ring"), Director->IsRingUp(*Player));
 	TSet<int32> Slots;
-	for (int32 Index = 1; Index < 5; ++Index)
+	for (int32 Index = 1; Index < Count; ++Index)
 	{
 		const int32 Slot = Director->GetSlot(*Spiders[Index], *Player);
 		TestTrue(FString::Printf(TEXT("Spider %d has a slot"), Index), Slot != INDEX_NONE);
 		Slots.Add(Slot);
 	}
-	TestEqual(TEXT("...each its own"), Slots.Num(), 4);
+	TestEqual(TEXT("...each its own"), Slots.Num(), FMath::Min(Count - 1, FFightTuning::Live().RingSlots));
 	FVector Spot;
-	if (TestTrue(TEXT("A waiting one's spot"), Director->GetWaitSpot(*Spiders[4], *Player, Spot)))
+	if (TestTrue(TEXT("A waiting one's spot"), Director->GetWaitSpot(*Last, *Player, Spot)))
 	{
-		TestEqual(TEXT("...on the ring"), static_cast<float>(FVector::Dist2D(Spot, Player->GetActorLocation())), Director->GetRingReach(*Spiders[4]), 1.f);
+		TestEqual(TEXT("...on the ring"), static_cast<float>(FVector::Dist2D(Spot, Player->GetActorLocation())), Director->GetRingReach(*Last), 1.f);
 	}
 
 	// Two left: no ring, they just come in.
-	BossTestWorld::Kill(Spiders[1]);
-	BossTestWorld::Kill(Spiders[2]);
+	for (int32 Index = 1; Index < Turns; ++Index)
+	{
+		BossTestWorld::Kill(Spiders[Index]);
+	}
 	Director->RefreshNow();
 	TestFalse(TEXT("Two hunting: no ring"), Director->IsRingUp(*Player));
-	TestFalse(TEXT("...no spot to wait at"), Director->GetWaitSpot(*Spiders[4], *Player, Spot));
+	TestFalse(TEXT("...no spot to wait at"), Director->GetWaitSpot(*Last, *Player, Spot));
 
 	// Bosses and Legendary monsters keep their own fights.
 	UBossComponent* Boss = BossTestSpider::Spawn(World, FVector(-2000.0, 0.0, 0.0), 0.f);
@@ -453,7 +468,7 @@ bool FFightDirectorTest::RunTest(const FString& Parameters)
 	{
 		Legend->SetRank(ECreatureRank::Legendary);
 		TestFalse(TEXT("A Legendary monster takes no turns"), Legend->UsesFightDirector());
-		TestTrue(TEXT("...a regular spider chases faster in play"), Spiders[4]->GetChaseSpeedNow() > Spiders[4]->ChaseSpeed);
+		TestTrue(TEXT("...a regular spider chases faster in play"), Last->GetChaseSpeedNow() > Last->ChaseSpeed);
 	}
 	return true;
 }

@@ -494,13 +494,15 @@ bool FUnpaidKitDirectorTest::RunTest(const FString& Parameters)
 	FEditorScriptExecutionGuard RunActorEvents;
 	LocomotionTestWorld::SpawnBlock(World, FVector(0.0, 0.0, -50.0), FVector(6000.0, 6000.0, 100.0));
 	ACharacter* Player = EncounterTestWorld::SpawnPlayer(World, FVector(0.0, 0.0, 90.0));
+	// One more than the turns at once (MeleeTokens 5 since 2026-11-03, audit change 4), so one always waits.
 	TArray<AUnpaidCreature*> Pack;
-	for (int32 Index = 0; Index < 5; ++Index)
+	const int32 PackSize = FFightTuning::Live().MeleeTokens + 1;
+	for (int32 Index = 0; Index < PackSize; ++Index)
 	{
-		const float Radians = FMath::DegreesToRadians(72.f * static_cast<float>(Index));
+		const float Radians = FMath::DegreesToRadians(360.f / static_cast<float>(PackSize) * static_cast<float>(Index));
 		Pack.Add(SpawnUnpaid(World, FVector(FMath::Cos(Radians) * 700.f, FMath::Sin(Radians) * 700.f, 0.f)));
 	}
-	if (!TestNotNull(TEXT("A director"), Director) || !TestNotNull(TEXT("Player stand-in"), Player) || !TestFalse(TEXT("Five Unpaid"), Pack.Contains(nullptr)))
+	if (!TestNotNull(TEXT("A director"), Director) || !TestNotNull(TEXT("Player stand-in"), Player) || !TestFalse(TEXT("The pack spawned"), Pack.Contains(nullptr)))
 	{
 		return false;
 	}
@@ -534,7 +536,7 @@ bool FUnpaidKitDirectorTest::RunTest(const FString& Parameters)
 
 	// The pack, counted at a look.
 	Director->RefreshNow();
-	TestEqual(TEXT("Five Unpaid on the player"), Director->CountPack(*Player, TEXT("Unpaid")), 5);
+	TestEqual(TEXT("The whole pack on the player"), Director->CountPack(*Player, TEXT("Unpaid")), PackSize);
 	TestEqual(TEXT("...no spiders"), Director->CountPack(*Player, TEXT("Spider")), 0);
 
 	// A creature's own chase boost rides on its chase, and goes with it.

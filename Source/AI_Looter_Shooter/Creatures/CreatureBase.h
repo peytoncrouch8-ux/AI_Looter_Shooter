@@ -116,6 +116,13 @@ public:
 	void AlertTo(APawn* Attacker);
 
 	/**
+	 * A player's gunshot rang out at Where (UBulletSubsystem tells it once a shot a player's gun fires): every creature within
+	 * Looter.Fight.HearGunfire of it that is idle or wandering turns and hunts Shooter as if it had seen them, its notice beat and
+	 * all; never a passive, buried, perched or scene-held one, nor a boss (CreatureBaseHunting.cpp; the rule: GunfireHearing).
+	 */
+	static void HearGunfire(APawn* Shooter, const FVector& Where);
+
+	/**
 	 * Pressed: hurt (or its pack hurt) by By from just past its ground's edge (within GetPressReach), it fights them there for
 	 * GetPressSeconds, renewed while they stay within that reach (the Unpaid, 2026-10-28: shot at from the chapel's doorway,
 	 * nine stood in a line at the edge). False (nothing changes) for a kind that never presses or one already out of reach.

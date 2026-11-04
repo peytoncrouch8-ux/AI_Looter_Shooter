@@ -176,7 +176,8 @@ struct AI_LOOTER_SHOOTER_API FUnpaidFightTuning
 	/** Looter.Unpaid.FrenzySeconds: after the scream, the pack comes on together this long (s). */
 	float FrenzySeconds = 4.f;
 	/** Looter.Unpaid.FrenzyTokens: melee turns at that player during the frenzy (Looter.Fight.MeleeTokens otherwise). */
-	int32 FrenzyTokens = 4;
+	// 7 since 2026-11-03 (audit change 4 raised Looter.Fight.MeleeTokens 3 -> 5; at 4 a frenzy added no turns).
+	int32 FrenzyTokens = 7;
 	/** Looter.Unpaid.FrenzyChase: the pack chases this many times faster in the frenzy. */
 	float FrenzyChase = 1.2f;
 

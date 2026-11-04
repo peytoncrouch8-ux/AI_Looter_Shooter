@@ -22,8 +22,8 @@
 // numbers that decide how one goes (turns, rests, bites, health, the gun), so anyone who moves one out of its band, the guns'
 // work included, sees this test fail. Each band has a Target (what the plan wants; shown as a warning when missed, never a
 // failure) and a Guard (what is enforced: today's fights sit inside it, a doubled turn count or a halved health does not).
-// The spiders are a known exception to the standing-player target: the user said "leave them" (2026-10-28), and a pack still
-// kills a standing player in 3-4 s.
+// The spiders are short of the standing-player target: "leave them" was lifted (2026-11-03), but with five turns and the damage
+// scale at 1.2 six still bite at their own pace and a standing player lasts about 5 s, until the spider's own numbers change.
 
 namespace
 {
@@ -182,7 +182,8 @@ bool FFightPaceBandsTest::RunTest(const FString& Parameters)
 			TestTrue(*Line, Bands.Guard.Contains(Seconds));
 			if (!Bands.Target.Contains(Seconds))
 			{
-				AddWarning(FString::Printf(TEXT("%s: outside the target%s"), *Line, Each.Kind == EPaceKind::Spider ? TEXT(" (known exception: the spiders stay as they are)") : TEXT("")));
+				AddWarning(FString::Printf(TEXT("%s: outside the target%s"), *Line,
+					Each.Kind == EPaceKind::Spider ? TEXT(" (known: six bite at their own pace; their bite or a melee gap brings them in)") : TEXT("")));
 			}
 			else
 			{
