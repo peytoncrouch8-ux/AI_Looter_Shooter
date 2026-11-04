@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Engine/HitResult.h"
+#include "Player/PlayerCameraMotion.h"
 #include "Player/PlayerSize.h"
 #include "Player/PlayerSlide.h"
 #include "Player/PlayerTraversal.h"
@@ -52,6 +53,8 @@ enum class ESwimExit : uint8
  *    whatever the capsule does. The engine's crouch changes the capsule in one frame (and sets the body's place in it
  *    without moving it there); the eye absorbs it, so the camera moves only on its curve (UpdateCamera).
  *  - A slide kicks up dust and grit from the feet (FSlideDust) and plays its sounds (Player.Slide, Player.SlideLoop).
+ *  - The camera answers the movement (PlayerLocomotionCameraMotion.cpp, Player/PlayerCameraMotion.h): a landing dips the
+ *    view and the eye by the fall, a jump kicks it up, each footfall nods it in step with the gun's bob, a strafe leans it.
  *  - Traversal (PlayerLocomotionTraversal.cpp): the jump key at a chest-high ledge climbs onto it (a mantle), and at a
  *    fence or low wall taken at a run vaults over it (FTraversalProbe finds them, FPlayerTraversal plans the move); a
  *    ledge met in the air with forward held is caught. The movement stands aside during a move (its custom mode) while
@@ -263,6 +266,8 @@ private:
 
 	UFUNCTION()
 	void HandleLanded(const FHitResult& Hit);
+	/** A mantle or vault ended (OnTraversalLanded, bound by UpdateCameraMotion): the view dips. */
+	void HandleTraversalLanded(ETraversalKind Kind, float Height);
 
 	void SetupInput(AController* Controller);
 	void TeardownInput();
@@ -276,6 +281,16 @@ private:
 	/** Lowers and tips the first-person view on its eased curves (PlayerLocomotionViewModel.cpp). */
 	void UpdateCamera(float DeltaTime);
 	void UpdateViewModel(float DeltaTime);
+
+	// --- The camera answering the movement (PlayerLocomotionCameraMotion.cpp, Player/PlayerCameraMotion.h) ---
+
+	/** Advances the eye's dips and the strafe lean and says what they ask of the eye and the roll now (UpdateCamera). */
+	FCameraMotionPose UpdateCameraMotion(float DeltaTime);
+	/** A landing at LandingSpeed (cm/s): the view dips and the eye with it. A jump leaving the ground: the view kicks up. */
+	void CameraMotionLanded(float LandingSpeed);
+	void CameraMotionJumped();
+	/** Reads the gun bob's stride clock (StepPhase) once a frame: each footfall nods the view (UpdateViewModel). */
+	void CameraMotionStepped(float DeltaTime);
 
 	/**
 	 * The engine's crouch and stand set the body's height in the capsule straight into its relative location, without
@@ -415,6 +430,12 @@ private:
 	float PendingFeetJump = 0.f;
 	/** The roll a slide tips the first-person view by, as last given to the camera. */
 	float AppliedViewRoll = 0.f;
+	/** That and the strafe's lean together, as last given to the camera and the gun (UpdateCamera). */
+	float AppliedViewTilt = 0.f;
+	/** The camera's answer to the movement: eye dips, the lean, the stride clock's last reading. */
+	FCameraMotion ViewMotion;
+	/** OnTraversalLanded's listener, bound on the first frame (UpdateCameraMotion). */
+	FDelegateHandle TraversalLandedHandle;
 
 	FPawnInputBinding InputBinding;
 

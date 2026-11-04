@@ -202,30 +202,36 @@ void UPlayerLocomotionComponent::UpdateCamera(float DeltaTime)
 		EyeHeight.Advance(Dt);
 	}
 
+	// The camera's answer to the movement (Player/PlayerCameraMotion.h): a landing lowers the eye a moment more, on a curve that
+	// starts at rest, and a strafe leans the view. Both only lower or roll, so no ceiling the eye cleared is met.
+	const FCameraMotionPose Motion = UpdateCameraMotion(Dt);
+
 	// Lower the rig (the arms the camera rides, or the camera itself) so the camera sits at the eye's height. The drop is
 	// in world cm, scaled into the rig's parent's space. Every height the eye heads for is under the capsule's top (the
 	// crouch's keeps CrouchHeadClearance), so a low ceiling the capsule fits under never cuts the view; on its way down
 	// into a crouch it's where the standing capsule just was, which was clear. (A traversal's eye stays under the top too:
-	// its plan checks it.)
-	const FVector Wanted = EyeRigBaseLocation - FVector(0.f, 0.f, (Natural - GetEyeHeight()) / ParentScale);
+	// its plan checks it.) A landing's dip is on top of it (the rig's lowering is taken off again above, measuring the rest).
+	const FVector Wanted = EyeRigBaseLocation - FVector(0.f, 0.f, (Natural - GetEyeHeight() + Motion.EyeDrop) / ParentScale);
 	if (!Rig->GetRelativeLocation().Equals(Wanted, 0.01f))
 	{
 		Rig->SetRelativeLocation(Wanted);
 	}
 
 	// A slide tips the view a little, eased in as it drops and out as it slows: an offset on the camera itself, so the
-	// controller's rotation (the aim) stays level.
+	// controller's rotation (the aim) stays level. A strafe's lean rides on the same offset (the gun turns with both).
 	const bool bTipped = Slide.IsActive() && !Slide.IsEasingOut();
 	ViewRoll.SetTarget(bTipped ? SlideViewRoll : 0.f, bTipped ? RollInSeconds : RollOutSeconds, MaxRollAcceleration);
 	ViewRoll.Advance(Dt);
 	const float Roll = ViewRoll.GetValue();
-	if (!FMath::IsNearlyEqual(Roll, AppliedViewRoll, 0.01f))
+	const float Tilt = Roll + Motion.Roll;
+	if (!FMath::IsNearlyEqual(Tilt, AppliedViewTilt, 0.01f))
 	{
 		View->ClearAdditiveOffset();
-		if (!FMath::IsNearlyZero(Roll, 0.01f))
+		if (!FMath::IsNearlyZero(Tilt, 0.01f))
 		{
-			View->AddAdditiveOffset(FTransform(FRotator(0.f, 0.f, Roll)), 0.f);
+			View->AddAdditiveOffset(FTransform(FRotator(0.f, 0.f, Tilt)), 0.f);
 		}
+		AppliedViewTilt = Tilt;
 		AppliedViewRoll = Roll;
 	}
 }
@@ -234,6 +240,8 @@ void UPlayerLocomotionComponent::HandleLanded(const FHitResult& Hit)
 {
 	// Harder landings push the gun down further, and a heavier gun sinks further (GunHeft).
 	KickVelocity -= FMath::Clamp(FallSpeed / 12.f, 10.f, 90.f) * GunHeft::FromWeight(HeftWeight, GunHeft::Share()).LandKick;
+	// The camera dips with it by the same fall (nothing for a step's drop): the view and the eye, not only the gun.
+	CameraMotionLanded(FallSpeed);
 	FallSpeed = 0.f;
 }
 
@@ -258,6 +266,7 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 		if (!bWasFalling && Owner->GetVelocity().Z > 50.f)
 		{
 			KickVelocity -= Heft.JumpLag; // the gun lags as you jump (more the heavier it is)
+			CameraMotionJumped();         // and the view tips up a touch
 		}
 	}
 	bWasFalling = bFalling;
@@ -289,6 +298,8 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 	}
 	MoveWeight = FMath::FInterpTo(MoveWeight, bGrounded ? FMath::Clamp(Speed / FMath::Max(BaseWalkSpeed, 1.f), 0.f, 1.6f) : 0.f, Dt, 6.f);
 	IdleTime += Dt;
+	// Each footfall nods the view too, found in this same stride clock so it lands with the gun's dip (a sprint rolls it a touch).
+	CameraMotionStepped(Dt);
 
 	const float Sprint = SprintAlpha;
 	const float Crouch = CrouchAlpha;
@@ -433,10 +444,10 @@ void UPlayerLocomotionComponent::UpdateViewModel(float DeltaTime)
 		FinalLocation -= FVector(0.f, Drift.Y, Drift.Z) * Lock;
 	}
 
-	// The slide's tipped view (UpdateCamera) takes the gun with it, turning about the line of sight so a sight stays on it.
-	if (!FMath::IsNearlyZero(AppliedViewRoll))
+	// The tipped view (UpdateCamera: a slide's, a strafe's lean) takes the gun with it, turning about the line of sight so a sight stays on it.
+	if (!FMath::IsNearlyZero(AppliedViewTilt))
 	{
-		const FQuat Tilt = FRotator(0.f, 0.f, AppliedViewRoll).Quaternion();
+		const FQuat Tilt = FRotator(0.f, 0.f, AppliedViewTilt).Quaternion();
 		FinalLocation = Tilt.RotateVector(FinalLocation);
 		FinalRotation = Tilt * FinalRotation;
 	}
