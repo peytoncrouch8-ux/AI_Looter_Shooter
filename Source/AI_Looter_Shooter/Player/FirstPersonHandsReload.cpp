@@ -8,6 +8,9 @@
 // own reload steps (LooterReload::Steps) and, while it holds a moving part, placed on that part's travel as the gun's
 // model moves it, so the hand and the magazine, pump or cylinder never part company. The spots themselves (on the magazine,
 // handle, cylinder, rod, speedloader, the pouches) are in FirstPersonHandsReloadSpots.cpp.
+// The hand's own short, hard moves spring (Phase 3 change 12, ReloadCurves): the handle yanked back past its pull and let
+// run home, a shell thumbed in faster and faster into the port; riding a part it takes that part's snap (the fresh
+// magazine cocked down then rammed home, the pump into its stops). The long reaches to and from the pouches stay eased.
 
 namespace
 {
@@ -57,9 +60,16 @@ namespace
 
 	// The magazine's reload (ReloadMotion.cpp moves the magazine: released at 0.16, clear of the well at 0.28, out of
 	// sight by 0.40, the fresh one up from 0.46, seated on the MagIn step, the charging handle on the Bolt step).
-	/** On the magazine before its release, and the moment it drops out of the hand. */
+	/** On the magazine before its release. */
 	constexpr float MagazineReach = 0.13f;
-	constexpr float MagazineLetGo = 0.30f;
+	/** ...the moment it drops out of the hand before the thrown magazine (it rode the old one's fall a little way). */
+	constexpr float MagazineLetGoEased = 0.30f;
+
+	/** The moment the old magazine leaves the hand: where it is thrown from the well (Looter.Gunfeel.Reload.DropMag). */
+	float MagazineLetGo()
+	{
+		return ReloadTuning::DropMagOn() ? LooterReload::MagazineClearAt : MagazineLetGoEased;
+	}
 	/** At the pouch, and away from it with the fresh one. */
 	constexpr float MagazineAtPouch = 0.40f;
 	constexpr float MagazineLeavePouch = 0.43f;
@@ -136,15 +146,16 @@ namespace
 		{
 			return Ease(Home, OnMagazine(Gun, MagazineTravel(P)), Rise(P, 0.f, MagazineReach));
 		}
-		if (P < MagazineLetGo)
+		const float LetGoAt = MagazineLetGo();
+		if (P < LetGoAt)
 		{
 			return OnMagazine(Gun, MagazineTravel(P));
 		}
-		const FHandPlacement LetGo = OnMagazine(Gun, MagazineTravel(MagazineLetGo));
+		const FHandPlacement LetGo = OnMagazine(Gun, MagazineTravel(LetGoAt));
 		const FHandPlacement Pouch = AtPouch(LetGo, MagazinePouch());
 		if (P < MagazineAtPouch)
 		{
-			return Ease(LetGo, Pouch, Rise(P, MagazineLetGo, MagazineAtPouch));
+			return Ease(LetGo, Pouch, Rise(P, LetGoAt, MagazineAtPouch));
 		}
 		if (P < MagazineLeavePouch)
 		{
@@ -164,8 +175,9 @@ namespace
 		}
 		if (P < HandleOff)
 		{
-			// Yanked back hard, held a beat, let run home.
-			const float Yank = Rise(P, HandleOn, HandleOn + 0.04f) * (1.f - Rise(P, HandleOn + 0.07f, HandleOff));
+			// Yanked back hard, held a beat, let run home (snapped: a nudge forward first, past the pull and back, and past
+			// home as it slams).
+			const float Yank = ReloadCurves::Window(P, HandleOn, HandleOn + 0.04f, HandleOn + 0.07f, HandleOff);
 			return OnHandle(Gun, Yank);
 		}
 		return Ease(OnHandle(Gun, 0.f), Home, Rise(P, HandleOff, MagazineHomeBy));
@@ -291,7 +303,8 @@ namespace
 			}
 			if (Turn < ShellIn)
 			{
-				return AtLoadingPort(Gun, Rise(Turn, ShellUp, ShellIn));
+				// Thumbed in faster and faster until it clicks home (snapped; from under the port, no wind-up).
+				return AtLoadingPort(Gun, ReloadCurves::Into(Turn, ShellUp, ShellIn, false));
 			}
 			if (Turn < ShellHeld || bLast)
 			{

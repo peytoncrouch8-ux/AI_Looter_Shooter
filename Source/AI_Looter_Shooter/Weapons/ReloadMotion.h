@@ -53,6 +53,69 @@ struct FReloadStepAt
 	EReloadStep Step;
 };
 
+/** Where in a reload (its choreography progress) the first-person gun is knocked: a part seating, or a handle, bolt or pump slammed home. */
+struct FReloadJoltAt
+{
+	float Progress;
+	bool bSlam;
+};
+
+/**
+ * The reload's spring curves (Phase 3 change 12, 2026-11-03; Docs/Work/2026-11-03-Phase3/RELOAD.md): plain math over a move's
+ * window (T 0 to 1), each starting and ending at rest. An authored reload snaps: the hand cocks back before the slap, the
+ * part overshoots and settles; every curve here was SmoothStep, so a slap was a soft symmetric bump. Shapes from
+ * ReloadTuning::FSnapShape. The progress forms at the end are what the choreography and the hands call: with
+ * Looter.Gunfeel.Reload.Snap 0 they are exactly the eased curves before.
+ */
+namespace ReloadCurves
+{
+	/**
+	 * A move from 0 to 1: winds up to -Anticipate over Lead (eased, from rest to rest), swings to 1 + Overshoot on an
+	 * underdamped spring's half swing (fast first, arriving at rest), then settles onto 1 over the last Settle, critically
+	 * damped (no second swing). 0 from T 0 down, exactly 1 from T 1 up.
+	 */
+	AI_LOOTER_SHOOTER_API float Snap(float T, const ReloadTuning::FSnapShape& Shape);
+
+	/**
+	 * A move into a hard stop (a magazine seating, a rocket home, a pump or bolt bottoming): winds up as Snap does, then
+	 * speeds up all the way into 1 and stops dead there at T 1 (the stop takes the overshoot; the gun's beat shows it).
+	 * Never past 1.
+	 */
+	AI_LOOTER_SHOOTER_API float SnapInto(float T, const ReloadTuning::FSnapShape& Shape);
+
+	/**
+	 * A knock out and back (the gun as a part slaps home): 0, wound up to -Anticipate by T = Lead (the hit), kicked to 1 at
+	 * BeatPeakAt, rebounding past 0 to -Overshoot, settled on 0 by T 1 (critically damped). 0 outside 0-1.
+	 */
+	AI_LOOTER_SHOOTER_API float SnapBeat(float T, const ReloadTuning::FSnapShape& Shape);
+	AI_LOOTER_SHOOTER_API float BeatPeakAt(const ReloadTuning::FSnapShape& Shape);
+
+	/**
+	 * The gun recoil's spring knocked from rest (FWeaponRecoil::AddShot's impulse, in closed form so it is the same at any
+	 * frame rate): 0 at Seconds 0 and before, 1 at its peak, a rebound past 0, and 0 again from JoltSeconds on.
+	 */
+	AI_LOOTER_SHOOTER_API float Jolt(float Seconds, float Hz, float Damping);
+	/** When Jolt has rung down under 1% of its peak for good. */
+	AI_LOOTER_SHOOTER_API float JoltSeconds(float Hz, float Damping);
+
+	// --- Over a reload's progress, on the live Looter.Gunfeel.Reload.Snap* numbers ---
+
+	/** Looter.Gunfeel.Reload.Snap is on. */
+	AI_LOOTER_SHOOTER_API bool On();
+	/** 0 before A, 1 from B: a Snap (on) or SmoothStep (off). */
+	AI_LOOTER_SHOOTER_API float Rise(float P, float A, float B);
+	/** Up A to B, held, down C to D, each a Rise (on, the fall overshoots past 0 and settles). */
+	AI_LOOTER_SHOOTER_API float Window(float P, float A, float B, float C, float D);
+	/** Into a stop A to B: a SnapInto (on; bWindUp false for a part that starts at a stop) or SmoothStep (off). */
+	AI_LOOTER_SHOOTER_API float Into(float P, float A, float B, bool bWindUp);
+	/**
+	 * A knock whose hit is at At, HalfWidth either side as the old bump had: on, a SnapBeat over
+	 * [At - Lead x 2 HalfWidth, At + (1 - Lead) x 2 HalfWidth] (wound up before the hit, rung out after it); off, the old
+	 * symmetric bump peaking at At.
+	 */
+	AI_LOOTER_SHOOTER_API float Beat(float P, float At, float HalfWidth);
+}
+
 /**
  * One reload, choreographed over its progress (0 = started, 1 = done). The weapon moves its part from this and the
  * first-person view moves the whole gun from it, so the two always line up whatever the weapon's reload time.
@@ -178,6 +241,33 @@ namespace LooterReload
 
 	/** How far the pump is pulled when racked (cm). */
 	inline constexpr float PumpStroke = 7.f;
+
+	// --- The seat's jolt and the thrown magazine (Phase 3 change 12; ReloadMotionPlan.cpp, ReloadMotionSnap.cpp) ---
+
+	/** The old magazine is clear of its well here (the magazine's choreography): the hand lets go and it falls (UWeaponMagazineDrop). */
+	inline constexpr float MagazineClearAt = 0.28f;
+	/** ...and the fresh one first shows under the well here. */
+	inline constexpr float FreshMagazineAt = 0.46f;
+	/** The sniper's bolt is home again here in a reload from empty. */
+	inline constexpr float BoltHomeAt = 0.88f;
+
+	/**
+	 * Where a reload of Part as planned knocks the first-person gun, in order: each part seating (the magazine, helix, box,
+	 * rocket, cylinder; not a shell), and from empty the charging handle or the belt cover home (HandleTo), the sniper's bolt
+	 * home (BoltHomeAt), the pump shoved home.
+	 */
+	AI_LOOTER_SHOOTER_API void JoltsFor(EWeaponReloadPart Part, const FReloadPlan& Plan, TArray<FReloadJoltAt>& OutJolts);
+
+	/** ChoreographyProgress backwards: the motion's share where a reload of Part reaches Progress (inside a skipped handle, its start). */
+	AI_LOOTER_SHOOTER_API float RawProgressOf(EWeaponReloadPart Part, const FReloadPlan& Plan, float Progress);
+
+	/**
+	 * The first-person gun's knock RawProgress into a reload Motion seconds long: every seat and slam passed, rung on the
+	 * gun recoil's spring (Rules' Hz times the gun's Snappiness), summed; in the gun's space, back (-X) and down (-Z) with
+	 * the muzzle dipped. Zero with Looter.Gunfeel.Reload.Snap 0, or once each has rung out.
+	 */
+	AI_LOOTER_SHOOTER_API void JoltPose(EWeaponReloadPart Part, const FReloadPlan& Plan, float RawProgress, float MotionSeconds,
+		float Snappiness, const ReloadTuning::FJoltRules& Rules, FVector& OutOffset, FRotator& OutRotation);
 
 	// --- The pump racked between shots (AWeaponBase::GetPumpCycle, WeaponBasePump.cpp) ---
 

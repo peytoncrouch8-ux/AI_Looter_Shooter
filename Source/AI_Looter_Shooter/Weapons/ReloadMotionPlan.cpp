@@ -22,6 +22,11 @@ namespace
 	// The rack between shots, as shares of its cycle: back by PumpCycleBackAt (the hull flies), held a beat, home.
 	constexpr float RackHoldUntil = 0.55f;
 	constexpr float RackHomeAt = 0.95f;
+	/** Snapped (Looter.Gunfeel.Reload.Snap), the fore-end is shoved home sooner, faster, so its knock rings out before the cycle ends. */
+	constexpr float RackHomeSnapAt = 0.8f;
+	/** ...and the knock either side of its hit (cycle shares): eased round its old peak, snapped from the home. */
+	constexpr float RackShoveHalf = 0.06f;
+	constexpr float RackShoveSnapHalf = 0.1f;
 
 	float Rise(float P, float A, float B)
 	{
@@ -33,9 +38,10 @@ namespace
 		return Rise(P, A, B) * (1.f - Rise(P, C, D));
 	}
 
-	float Pulse(float P, float T, float HalfWidth)
+	/** Where the fore-end is home in its rack between shots. */
+	float RackHome()
 	{
-		return Window(P, T - HalfWidth, T, T, T + HalfWidth);
+		return ReloadCurves::On() ? RackHomeSnapAt : RackHomeAt;
 	}
 
 	/** A shell reload's beats as shares of its whole length (its seconds cancel out: the gun's reload scale doesn't move them). */
@@ -156,7 +162,9 @@ float LooterReload::PumpTravel(float Progress, const FReloadPlan& Plan)
 	}
 	const FShellBeats Beats = BeatsFor(Plan);
 	const float Back = Beats.PumpAt(PumpRackBack);
-	return PumpStroke * (Rise(Progress, Beats.PumpAt(PumpRackFrom), Back) - Rise(Progress, Back, Beats.PumpAt(PumpRackHome)));
+	// Snapped back into its stop and shoved home into the other (ReloadCurves::Into; it starts at a stop: no wind-up).
+	return PumpStroke * (ReloadCurves::Into(Progress, Beats.PumpAt(PumpRackFrom), Back, false)
+		- ReloadCurves::Into(Progress, Back, Beats.PumpAt(PumpRackHome), false));
 }
 
 float LooterReload::BoltOpenInReload(float Progress, const FReloadPlan& Plan)
@@ -183,17 +191,25 @@ void LooterReload::PumpViewModelPose(float Progress, const FReloadPlan& Plan, FV
 	OutOffset = FVector(-1.f, -5.f, 2.f) * Pose;
 	OutRotation = FRotator(10.f, -12.f, 30.f) * Pose;
 
-	// Each shell nudges the gun as it's thumbed home; racking the pump rocks it back.
+	// Each shell nudges the gun as it's thumbed home; racking the pump rocks it back. The beats are in seconds (Beats.At), so
+	// a plan cut short by a trigger press keeps each one where it was.
 	const float Half = Beats.At(ShellNudge);
 	for (int32 Shell = 0; Shell < Plan.Shells; ++Shell)
 	{
-		const float Push = Pulse(Progress, Beats.Seat(Shell), Half);
+		const float Push = ReloadCurves::Beat(Progress, Beats.Seat(Shell), Half);
 		OutOffset.Z += 1.f * Push;
 		OutRotation.Pitch += 2.f * Push;
 	}
 	const float Rack = PumpTravel(Progress, Plan) / PumpStroke;
 	OutOffset.X -= 1.5f * Rack;
 	OutRotation.Pitch -= 2.f * Rack;
+	// Snapped, the fore-end shoved home knocks the gun forward as the rack between shots does (PumpCycleViewPose).
+	if (Plan.bEmpty && ReloadCurves::On())
+	{
+		const float Shove = ReloadCurves::Beat(Progress, Beats.PumpAt(PumpRackHome), Half);
+		OutOffset.X += 0.8f * Shove;
+		OutRotation += FRotator(0.8f, 0.f, 1.f) * Shove;
+	}
 }
 
 float LooterReload::PumpCycleTravel(float CycleProgress)
@@ -202,8 +218,10 @@ float LooterReload::PumpCycleTravel(float CycleProgress)
 	{
 		return 0.f;
 	}
-	// Snapped back hard (the hull flies as it bottoms), held a beat, shoved home.
-	return PumpStroke * Rise(CycleProgress, 0.f, PumpCycleBackAt) * (1.f - Rise(CycleProgress, RackHoldUntil, RackHomeAt));
+	// Snapped back hard (the hull flies as it bottoms), held a beat, shoved home: snapped (ReloadCurves::Into), into each
+	// stop at speed; eased, slowing into them.
+	return PumpStroke * ReloadCurves::Into(CycleProgress, 0.f, PumpCycleBackAt, false)
+		* (1.f - ReloadCurves::Into(CycleProgress, RackHoldUntil, RackHome(), false));
 }
 
 void LooterReload::PumpCycleViewPose(float CycleProgress, FVector& OutOffset, FRotator& OutRotation)
@@ -214,9 +232,71 @@ void LooterReload::PumpCycleViewPose(float CycleProgress, FVector& OutOffset, FR
 	{
 		return;
 	}
-	// The support hand's pull rocks the gun back and cants it toward that hand; the shove home bumps it forward.
+	// The support hand's pull rocks the gun back and cants it toward that hand; the shove home bumps it forward (snapped,
+	// from the moment it hits home, rung out before the cycle ends).
 	const float Rack = PumpCycleTravel(CycleProgress) / PumpStroke;
-	const float Shove = Pulse(CycleProgress, RackHomeAt - 0.03f, 0.06f);
+	const float Shove = ReloadCurves::On() ? ReloadCurves::Beat(CycleProgress, RackHomeSnapAt, RackShoveSnapHalf)
+		: ReloadCurves::Beat(CycleProgress, RackHomeAt - 0.03f, RackShoveHalf);
 	OutOffset = FVector(-1.5f, -0.3f, -0.6f) * Rack + FVector(0.8f, 0.f, 0.f) * Shove;
 	OutRotation = FRotator(-2.f, 0.f, -3.f) * Rack + FRotator(0.8f, 0.f, 1.f) * Shove;
+}
+
+// ---------------------------------------------------------------------------
+// The seats and slams that knock the first-person gun (Phase 3 change 12; LooterReload::JoltPose rings them)
+// ---------------------------------------------------------------------------
+
+float LooterReload::RawProgressOf(EWeaponReloadPart Part, const FReloadPlan& Plan, float Progress)
+{
+	if (Progress < 0.f || !SkipsHandle(Part, Plan))
+	{
+		return Progress;
+	}
+	// ChoreographyProgress ran everything but the handle at one pace: the same pace back, the handle's span folded away.
+	const float Skipped = HandleTo - HandleFrom;
+	const float Kept = 1.f - Skipped;
+	if (Progress < HandleFrom)
+	{
+		return Progress / Kept;
+	}
+	return Progress < HandleTo ? HandleFrom / Kept : (Progress - Skipped) / Kept;
+}
+
+void LooterReload::JoltsFor(EWeaponReloadPart Part, const FReloadPlan& Plan, TArray<FReloadJoltAt>& OutJolts)
+{
+	OutJolts.Reset();
+	if (Part == EWeaponReloadPart::Pump)
+	{
+		// The shells are thumbed in (each its own small nudge in the pose); only the pump racked from empty is shoved home hard.
+		if (Plan.Shells > 0 && Plan.bEmpty)
+		{
+			OutJolts.Add({ BeatsFor(Plan).PumpAt(PumpRackHome), true });
+		}
+		return;
+	}
+	TArray<FReloadStepAt> Planned;
+	StepsFor(Part, Plan, Planned);
+	for (const FReloadStepAt& Step : Planned)
+	{
+		switch (Step.Step)
+		{
+		case EReloadStep::MagIn:
+		case EReloadStep::HelixIn:
+		case EReloadStep::BoxIn:
+		case EReloadStep::RocketIn:
+		case EReloadStep::CylinderIn:
+			// The part seats on its step (its travel reaches home there).
+			OutJolts.Add({ Step.Progress, false });
+			break;
+		case EReloadStep::Bolt:
+		case EReloadStep::BeltLay:
+			// The handle let run home (the belt cover shut) where its work ends, not where it's taken.
+			OutJolts.Add({ HandleTo, true });
+			break;
+		case EReloadStep::BoltClose:
+			OutJolts.Add({ BoltHomeAt, true });
+			break;
+		default:
+			break;
+		}
+	}
 }

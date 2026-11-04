@@ -628,3 +628,17 @@ for an interval or more) starts afresh from now, so a re-press never owes skippe
   wood from 4 pooled lights (`UImpactFlashSubsystem`; nothing within 1 m of the eye, eased to full at 2 m, nothing past 40 m;
   `Looter.Vfx.Impact.Light*`). Rocket and rubble ground hits flash too (they share `SpawnSurfaceImpact`). Perf: measure with
   `Looter.Perf.Fire` (PERF lane) lights on vs off before trusting the 0.07 ms margin.
+
+## Reloads with snap (2026-11-03 night; the audit's change 12; lane note Docs/Work/2026-11-03-Phase3/RELOAD.md)
+- The reload's beats were symmetric SmoothStep pulses (0.8-2.4 cm, no anticipation, no overshoot). Now `ReloadCurves` (`ReloadMotionSnap.cpp`):
+  each knock winds up 25% the other way, overshoots 12% and settles critically damped; the fresh magazine dips under the well then is
+  rammed home fastest as it seats; the handle yanks to 112% of its pull; pump, bolt and rocket speed into their stops. Both the gun's
+  reload pose and the hands' paths read them. `Looter.Gunfeel.Reload.Snap` [1] (0 = the eased curves), `Looter.Gunfeel.Reload.Snap.*` the shape.
+- The seat's jolt: the gun and hands knock back and down 1.8 cm at a seat, 2.2 at a slam, peak 21 ms, under 5% by ~120 ms (the gun
+  recoil's own spring in closed form, 9 Hz x Snappiness, damping 0.55, through `ApplyCyclePose`); first person only (the third-person
+  body doesn't jolt: an `AddGunJolt` hook on `FWeaponRecoil` is sketched in the note).
+- The thrown magazine (`UWeaponMagazineDrop`): the old magazine (rifle, SMG helix, LMG box, sniper box) leaves the gun at 0.28 of the
+  reload, the gun's own part hiding that frame until the fresh one shows at 0.46; gravity, one bounce (Loot.Land + Weapon.Casing.<surface>
+  at pitch 0.62: no magazine cue in cues.json yet), 20 s rest, sink; pooled 8 on one ISM per mesh and paint. `Looter.Gunfeel.Reload.DropMag` [1].
+- Unchanged: reload times, steps, sounds, commit points (`CommitsAt`). Tests `Looter.Gunfeel.Reload.Snap.*`, `.DropMag.*` (new),
+  `Looter.Player.Hands.Reloads` (runs with Snap 0 and 1).

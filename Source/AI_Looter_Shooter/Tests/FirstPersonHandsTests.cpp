@@ -13,6 +13,7 @@
 #include "Weapons/WeaponModelComponent.h"
 #include "AnimationRuntime.h"
 #include "Engine/SkeletalMesh.h"
+#include "HAL/IConsoleManager.h"
 #include "ReferenceSkeleton.h"
 
 // The first-person hands as plain math: the rig on the mannequin's rest pose (hands reach their spots, far ones too, the
@@ -82,6 +83,29 @@ namespace
 		}
 		return Biggest;
 	}
+
+	/** A console variable set to Value for the scope and put back after (the reload's snap and thrown-magazine switches). */
+	struct FHandsTestVariable
+	{
+		FHandsTestVariable(const TCHAR* Name, float Value)
+			: Variable(IConsoleManager::Get().FindConsoleVariable(Name))
+		{
+			if (Variable)
+			{
+				Was = Variable->GetString();
+				Variable->Set(*FString::SanitizeFloat(Value), ECVF_SetByConsole);
+			}
+		}
+		~FHandsTestVariable()
+		{
+			if (Variable)
+			{
+				Variable->Set(*Was, ECVF_SetByConsole);
+			}
+		}
+		IConsoleVariable* Variable = nullptr;
+		FString Was;
+	};
 
 	/** When the Nth of a step comes in a reload. */
 	float HandsTestStep(EWeaponReloadPart Part, EReloadStep Step, int32 Nth = 0)
@@ -356,15 +380,22 @@ bool FFirstPersonHandsReloadsTest::RunTest(const FString& Parameters)
 		{ TEXT("Shotgun (shells and pump)"), EWeaponKind::Shotgun, EWeaponReloadPart::Pump },
 		{ TEXT("Revolver (cylinder)"), EWeaponKind::Revolver, EWeaponReloadPart::Cylinder },
 	};
-	for (const FHandsTestGunCase& Case : Guns)
+	// Both ways: the springs (Looter.Gunfeel.Reload.Snap 1, the shipped) and the eased curves before (0).
+	for (const float Snap : { 0.f, 1.f })
 	{
-		const FHandsGun Gun = HandsTestGun(Case.Kind, Case.Part);
-		const FVector Home = FirstPersonHandsGrips::OnForegrip(Gun).Hold;
-		TestTrue(FString::Printf(TEXT("%s: on the foregrip as the reload starts"), Case.Name), HandsTestAt(Gun, 0.f).Hold.Equals(Home, 0.01));
-		TestTrue(FString::Printf(TEXT("%s: ...and back on it as it ends"), Case.Name), HandsTestAt(Gun, 1.f).Hold.Equals(Home, 0.01));
-		const float Biggest = HandsTestBiggestStep(Gun);
-		TestTrue(FString::Printf(TEXT("%s: the hand never jumps (%.2f cm at most between samples)"), Case.Name, Biggest), Biggest <= HandsTestMaxStep);
+		const FHandsTestVariable Snapped(TEXT("Looter.Gunfeel.Reload.Snap"), Snap);
+		for (const FHandsTestGunCase& Case : Guns)
+		{
+			const FHandsGun Gun = HandsTestGun(Case.Kind, Case.Part);
+			const FVector Home = FirstPersonHandsGrips::OnForegrip(Gun).Hold;
+			TestTrue(FString::Printf(TEXT("%s (snap %.0f): on the foregrip as the reload starts"), Case.Name, Snap), HandsTestAt(Gun, 0.f).Hold.Equals(Home, 0.01));
+			TestTrue(FString::Printf(TEXT("%s (snap %.0f): ...and back on it as it ends"), Case.Name, Snap), HandsTestAt(Gun, 1.f).Hold.Equals(Home, 0.01));
+			const float Biggest = HandsTestBiggestStep(Gun);
+			TestTrue(FString::Printf(TEXT("%s (snap %.0f): the hand never jumps (%.2f cm at most between samples)"), Case.Name, Snap, Biggest),
+				Biggest <= HandsTestMaxStep);
+		}
 	}
+	// The handle's spring and the hand letting the thrown magazine go: Looter.Gunfeel.Reload.Snap.Hands (ReloadSnapTests.cpp).
 
 	// The magazine: on it as it's pulled out and as the fresh one rises, on the handle for the yank.
 	{
@@ -378,7 +409,9 @@ bool FFirstPersonHandsReloadsTest::RunTest(const FString& Parameters)
 		}
 		const float Bolt = HandsTestStep(EWeaponReloadPart::Magazine, EReloadStep::Bolt);
 		const float OnHandleOff = static_cast<float>(FVector::Dist(HandsTestAt(Gun, Bolt).Hold, OnHandle(Gun, 0.f).Hold));
-		TestTrue(FString::Printf(TEXT("Rifle: on the charging handle at its step (%.2f cm off its rest)"), OnHandleOff), OnHandleOff <= 4.5f);
+		// 5.5 since the snap (2026-11-03, audit change 12): the handle is yanked to 112% of its pull, so the hand on it sits ~4.6 cm
+		// off the handle's rest at the step (4.5 before).
+		TestTrue(FString::Printf(TEXT("Rifle: on the charging handle at its step (%.2f cm off its rest)"), OnHandleOff), OnHandleOff <= 5.5f);
 	}
 
 	// The shotgun: a shell thumbed into the port at every shell step, on the pump as it's racked.

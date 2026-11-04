@@ -7,6 +7,7 @@
 #include "Weapons/ReloadTuning.h"
 #include "Weapons/WeaponCurseEffects.h"
 #include "Weapons/WeaponDefinition.h"
+#include "Weapons/WeaponMagazineDrop.h"
 #include "Weapons/WeaponSounds.h"
 #include "Inventory/WeaponManagerComponent.h"
 #include "Weapons/WeaponModelComponent.h"
@@ -19,6 +20,9 @@
 // empty, the rounds in as the magazine seats, ready a beat before the motion ends; a pump gun's shells one at a time, a
 // round each, cut short by a trigger press after the shell in hand. The reload's clock is its timer (a test world ticks
 // the timer manager by hand), carried across a re-plan or into the last beat by ReloadClockOffset.
+// Phase 3 change 12: the old magazine is thrown out as it clears the well (UWeaponMagazineDrop, Looter.Gunfeel.Reload.DropMag),
+// and each seat and slam knocks the first-person gun and the hands on it on the recoil's spring (LooterReload::JoltPose,
+// through the bolt's ApplyCyclePose: nothing else poses the gun while a reload has it).
 
 // ---------------------------------------------------------------------------
 // Where the reload is
@@ -180,6 +184,19 @@ void AWeaponBase::PlayReloadSteps(float Progress)
 	const bool bCommitAtSeat = ReloadTuning::CommitAtSeat();
 	const float From = ReloadSoundProgress;
 	ReloadSoundProgress = Progress;
+	// The old magazine clear of the well: thrown, the gun's own part hidden from this frame (UpdateReloadPart) until the fresh
+	// one shows. Never once the fresh one is in (a frame that skipped the whole swap): that would throw the fresh one.
+	const float ThrownAt = MagazineDrop::DropAt(Part);
+	if (ThrownAt >= 0.f && From < ThrownAt && Progress >= ThrownAt && MagazineDrop::Hides(Part, Progress) && bUsingModel
+		&& MagazineDrop::Throws(*this, *Model))
+	{
+		const UStaticMeshComponent* OldMagazine = MagazineDrop::FindReloadPart(*Model, *Instance.Definition);
+		UWeaponMagazineDrop* Thrown = GetWorld() ? GetWorld()->GetSubsystem<UWeaponMagazineDrop>() : nullptr;
+		if (OldMagazine && Thrown)
+		{
+			Thrown->Drop(MagazineDrop::LaunchFrom(*this, *OldMagazine, IsDrawnFirstPerson(), ReloadMotionSeconds));
+		}
+	}
 	// Each step as the motion reaches it (LooterReload choreographs both), so the clicks land on the hands at any reload time.
 	for (int32 Index = 0; Index < ReloadSteps.Num(); ++Index)
 	{
@@ -283,6 +300,11 @@ void AWeaponBase::FinishReload()
 		CommitReloadRounds();
 	}
 	bReloading = false;
+	// A knock still ringing (a very quick reload) is put back before the gun can fire and its own poses take over.
+	if (bCyclePoseApplied)
+	{
+		ApplyCyclePose(FVector::ZeroVector, FRotator::ZeroRotator);
+	}
 	// The motion's last beat runs on for the view and the hands, until it ends or the gun fires again.
 	const float Tail = ReloadMotionSeconds - ReloadReadySeconds;
 	const UWorld* World = GetWorld();
@@ -328,6 +350,11 @@ void AWeaponBase::CancelReload()
 	if (bReloading)
 	{
 		LogReload(TEXT("cut short"));
+		// Its knock put back (only a reload's: a rack or a bolt between shots keeps its own pose).
+		if (bCyclePoseApplied)
+		{
+			ApplyCyclePose(FVector::ZeroVector, FRotator::ZeroRotator);
+		}
 	}
 	GetWorldTimerManager().ClearTimer(ReloadTimer);
 	// Rounds already seated stay in (the magazine home, the shells pushed); the rest wait for the next reload.
@@ -361,6 +388,23 @@ void AWeaponBase::UpdateReloadPart()
 	}
 	// The gun's parts follow the reload while it's on; its last beat after ready is the view's and the hands', the parts home by then.
 	const float Progress = bReloading ? GetReloadProgress() : -1.f;
+	if (bReloading)
+	{
+		// Each seat and slam knocks the first-person gun back and down on the recoil's own spring, the hands on it with it
+		// (Looter.Gunfeel.Reload.Snap.Jolt). A reload holds the gun's cycle pose alone (Reload ended the bolt's and the
+		// pump's), and hands it back home once the knock has rung out (ApplyCyclePose puts a near-zero pose back).
+		FVector Jolt = FVector::ZeroVector;
+		FRotator JoltTurn = FRotator::ZeroRotator;
+		if (IsDrawnFirstPerson())
+		{
+			LooterReload::JoltPose(Part, ReloadPlan, GetReloadRawProgress(), ReloadMotionSeconds, GetRecoilProfile().Snappiness,
+				ReloadTuning::JoltRules(), Jolt, JoltTurn);
+		}
+		if (bCyclePoseApplied || !Jolt.IsNearlyZero(0.01) || !JoltTurn.IsNearlyZero(0.01f))
+		{
+			ApplyCyclePose(Jolt, JoltTurn);
+		}
+	}
 	if (Part == EWeaponReloadPart::Rocket)
 	{
 		// The launcher: the loaded rocket's nose shows while one's in; through a reload the next one is brought up in front
@@ -380,6 +424,11 @@ void AWeaponBase::UpdateReloadPart()
 	case EWeaponReloadPart::Box:
 	case EWeaponReloadPart::Bolt:
 		Travel = Progress >= 0.f ? LooterReload::WellTravel(Part, Progress, bVisible) : 0.f;
+		// Thrown (PlayReloadSteps): the gun's own part is gone from where it clears the well until the fresh one shows.
+		if (Progress >= 0.f && MagazineDrop::Hides(Part, Progress) && MagazineDrop::Throws(*this, *Model))
+		{
+			bVisible = false;
+		}
 		break;
 	case EWeaponReloadPart::Cylinder:
 		Travel = Progress >= 0.f ? LooterReload::CylinderSwing(Progress) : 0.f;

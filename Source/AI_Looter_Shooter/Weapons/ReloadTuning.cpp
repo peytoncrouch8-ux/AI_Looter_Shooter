@@ -59,6 +59,35 @@ namespace
 	TAutoConsoleVariable<int32> CVarDebug(TEXT("Looter.Gunfeel.Reload.Debug"), 0,
 		TEXT("1: log every reload's plan, times, commit, interrupt and finish (LogLooter)."), ECVF_Default);
 
+	TAutoConsoleVariable<int32> CVarSnap(TEXT("Looter.Gunfeel.Reload.Snap"), Def::Snap ? 1 : 0,
+		TEXT("1: the reload's beats spring (a wind-up, an overshoot, a settle) and the seats and slams jolt the gun. 0: the eased curves before."),
+		ECVF_Default);
+	TAutoConsoleVariable<float> CVarSnapAnticipate(TEXT("Looter.Gunfeel.Reload.Snap.Anticipate"), Def::SnapAnticipate,
+		TEXT("A snapped move first goes this share of itself the other way (0.2-0.3: the hand cocked before the slap)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSnapOvershoot(TEXT("Looter.Gunfeel.Reload.Snap.Overshoot"), Def::SnapOvershoot,
+		TEXT("...then springs this share past where it goes (0.1-0.15) before it settles."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSnapLead(TEXT("Looter.Gunfeel.Reload.Snap.Lead"), Def::SnapLead,
+		TEXT("The wind-up's share of a snapped move's window."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSnapSettle(TEXT("Looter.Gunfeel.Reload.Snap.Settle"), Def::SnapSettle,
+		TEXT("The settle's share of a snapped move's window (critically damped: no second swing)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSnapJolt(TEXT("Looter.Gunfeel.Reload.Snap.Jolt"), Def::SnapJolt,
+		TEXT("The seat's and the slam's jolt on the first-person gun, times this (0 = none)."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSnapJoltSeat(TEXT("Looter.Gunfeel.Reload.Snap.JoltSeat"), Def::SnapJoltSeat,
+		TEXT("cm the gun is knocked back and down as a magazine, helix, box, rocket or cylinder seats."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSnapJoltSlam(TEXT("Looter.Gunfeel.Reload.Snap.JoltSlam"), Def::SnapJoltSlam,
+		TEXT("cm the gun is knocked back and down as a charging handle, bolt or pump slams home."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSnapJoltPitch(TEXT("Looter.Gunfeel.Reload.Snap.JoltPitch"), Def::SnapJoltPitch,
+		TEXT("Degrees the muzzle dips per cm of a jolt."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSnapJoltHz(TEXT("Looter.Gunfeel.Reload.Snap.JoltHz"), Def::SnapJoltHz,
+		TEXT("The jolt's spring (Hz, times the gun's recoil Snappiness): the gun recoil's own 9."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarSnapJoltDamping(TEXT("Looter.Gunfeel.Reload.Snap.JoltDamping"), Def::SnapJoltDamping,
+		TEXT("The jolt spring's damping ratio (under 1: it rebounds a touch; the gun recoil's own 0.55)."), ECVF_Default);
+
+	TAutoConsoleVariable<int32> CVarDropMag(TEXT("Looter.Gunfeel.Reload.DropMag"), Def::DropMag ? 1 : 0,
+		TEXT("1: a magazine, helix or box reload throws the old one out to fall, bounce and lie. 0: it goes invisible as before."), ECVF_Default);
+	TAutoConsoleVariable<float> CVarDropMagRest(TEXT("Looter.Gunfeel.Reload.DropMag.Rest"), Def::DropMagRest,
+		TEXT("Seconds a thrown magazine lies before it sinks away."), ECVF_Default);
+
 	/** The kind's pair of variables (null for the shotgun, whose time is its shells, and for None). */
 	void KindVariables(EWeaponKind Kind, TAutoConsoleVariable<float>*& OutTactical, TAutoConsoleVariable<float>*& OutEmpty)
 	{
@@ -164,6 +193,46 @@ ReloadTuning::FRackRules ReloadTuning::RackRules()
 bool ReloadTuning::Debug()
 {
 	return CVarDebug.GetValueOnGameThread() != 0;
+}
+
+bool ReloadTuning::SnapOn()
+{
+	// Read on any thread: the curves are plain math the view model and the hands call each frame.
+	return CVarSnap.GetValueOnAnyThread() != 0;
+}
+
+ReloadTuning::FSnapShape ReloadTuning::SnapShape()
+{
+	// Kept to shapes that still start and end at rest with room for the move itself (a typo can't make a beat jump).
+	FSnapShape Shape;
+	Shape.Anticipate = FMath::Clamp(CVarSnapAnticipate.GetValueOnAnyThread(), 0.f, 0.6f);
+	Shape.Overshoot = FMath::Clamp(CVarSnapOvershoot.GetValueOnAnyThread(), 0.f, 0.5f);
+	Shape.Lead = FMath::Clamp(CVarSnapLead.GetValueOnAnyThread(), 0.f, 0.4f);
+	Shape.Settle = FMath::Clamp(CVarSnapSettle.GetValueOnAnyThread(), 0.05f, 0.5f);
+	return Shape;
+}
+
+ReloadTuning::FJoltRules ReloadTuning::JoltRules()
+{
+	FJoltRules Rules;
+	Rules.Scale = FMath::Max(CVarSnapJolt.GetValueOnAnyThread(), 0.f);
+	Rules.Seat = FMath::Max(CVarSnapJoltSeat.GetValueOnAnyThread(), 0.f);
+	Rules.Slam = FMath::Max(CVarSnapJoltSlam.GetValueOnAnyThread(), 0.f);
+	Rules.Pitch = CVarSnapJoltPitch.GetValueOnAnyThread();
+	Rules.Hz = FMath::Max(CVarSnapJoltHz.GetValueOnAnyThread(), 1.f);
+	// Under 1 so it rings (and the closed form holds), above 0 so it dies.
+	Rules.Damping = FMath::Clamp(CVarSnapJoltDamping.GetValueOnAnyThread(), 0.05f, 0.95f);
+	return Rules;
+}
+
+bool ReloadTuning::DropMagOn()
+{
+	return CVarDropMag.GetValueOnAnyThread() != 0;
+}
+
+float ReloadTuning::DropMagRest()
+{
+	return FMath::Max(CVarDropMagRest.GetValueOnAnyThread(), 0.f);
 }
 
 int32 ReloadTuning::ShellsNeeded(int32 Magazine, int32 MagazineSize, int32 Reserve)

@@ -4,9 +4,9 @@ namespace
 {
 	// Magazine reload, as fractions of the reload time.
 	constexpr float MagOutStart = 0.16f;   // release pressed, the old magazine starts to slide
-	constexpr float MagOutEnd = 0.28f;     // clear of the well
+	constexpr float MagOutEnd = LooterReload::MagazineClearAt;  // clear of the well (thrown from here: UWeaponMagazineDrop)
 	constexpr float MagGoneEnd = 0.40f;    // dropped out of sight
-	constexpr float MagInStart = 0.46f;    // the fresh one comes up
+	constexpr float MagInStart = LooterReload::FreshMagazineAt; // the fresh one comes up
 	constexpr float MagSeated = 0.62f;     // slapped home
 	constexpr float BoltStart = LooterReload::HandleFrom;     // charging handle
 	constexpr float BoltEnd = LooterReload::HandleTo;
@@ -47,10 +47,20 @@ namespace
 		return Rise(P, A, B) * (1.f - Rise(P, C, D));
 	}
 
-	/** A quick bump that peaks at T. */
+	/** A quick bump that peaks at T (the bolt's cycle between shots; a reload's beats are ReloadCurves::Beat). */
 	float Pulse(float P, float T, float HalfWidth)
 	{
 		return Window(P, T - HalfWidth, T, T, T + HalfWidth);
+	}
+
+	// A reload's beats (Phase 3 change 12): each knock a spring (ReloadCurves::Beat: wound up before its hit, rung out after
+	// it) and each worked part's own move a Snap (ReloadCurves::Rise / Window / Into); Looter.Gunfeel.Reload.Snap 0 gives the
+	// SmoothStep bumps before. The pose's own way in and out stays eased (Window above).
+	using ReloadCurves::Beat;
+
+	float SnapWindow(float P, float A, float B, float C, float D)
+	{
+		return ReloadCurves::Window(P, A, B, C, D);
 	}
 
 	/** When shell Shell (from 0) is pushed home: its nudge's peak. */
@@ -100,7 +110,7 @@ namespace
 	constexpr float BoltOpenStart = 0.04f;
 	constexpr float BoltOpenEnd = 0.16f;
 	constexpr float BoltCloseStart = 0.76f;
-	constexpr float BoltCloseEnd = 0.88f;
+	constexpr float BoltCloseEnd = LooterReload::BoltHomeAt;
 	constexpr FReloadStepAt BoltSteps[] = {
 		{ BoltOpenStart + 0.02f, EReloadStep::BoltOpen },
 		{ MagOutStart + LooterReload::BoltMagazineLag + 0.01f, EReloadStep::MagOut },
@@ -162,7 +172,8 @@ float LooterReload::WellTravel(EWeaponReloadPart Part, float Progress, bool& bOu
 
 float LooterReload::BoltOpenInReload(float Progress)
 {
-	return Rise(Progress, BoltOpenStart, BoltOpenEnd) * (1.f - Rise(Progress, BoltCloseStart, BoltCloseEnd));
+	// Snapped open into its back stop and slammed home into its front one (from a stop, no wind-up: it can't go the other way).
+	return ReloadCurves::Into(Progress, BoltOpenStart, BoltOpenEnd, false) * (1.f - ReloadCurves::Into(Progress, BoltCloseStart, BoltCloseEnd, false));
 }
 
 float LooterReload::BoltHandInReload(float Progress)
@@ -208,8 +219,13 @@ float LooterReload::RocketTravel(float Progress, bool& bOutShown, bool& bOutSeat
 	{
 		return bOutSeated ? 0.f : RocketReach;
 	}
-	// Brought up in front of the mouth, then pushed in, slowing as it seats.
+	// Brought up in front of the mouth, then pushed in: snapped, shoved faster and faster until it seats (no wind-up, so it
+	// never backs off past its reach); eased, slowing as it seats.
 	const float T = (Progress - RocketShownAt) / (RocketSeatedAt - RocketShownAt);
+	if (ReloadCurves::On())
+	{
+		return RocketReach * (1.f - ReloadCurves::SnapInto(T, ReloadTuning::SnapShape().NoWindUp()));
+	}
 	return RocketReach * FMath::Square(1.f - T);
 }
 
@@ -273,14 +289,20 @@ float LooterReload::MagazineTravel(float Progress, bool& bOutVisible)
 		bOutVisible = false;
 		return MagSlideOut + MagDrop;
 	}
-	// The fresh one rises into the well and slows as it seats.
+	// The fresh one rises into the well. Snapped: cocked down a little under it first, then rammed home, fastest as it
+	// seats (the slap; the gun's beat and jolt take the hit). Eased: slowing as it seats.
 	const float T = (Progress - MagInStart) / (MagSeated - MagInStart);
+	if (ReloadCurves::On())
+	{
+		return MagInFrom * (1.f - ReloadCurves::SnapInto(T, ReloadTuning::SnapShape()));
+	}
 	return MagInFrom * FMath::Square(1.f - T);
 }
 
 float LooterReload::PumpTravel(float Progress)
 {
-	return PumpStroke * (Rise(Progress, PumpStart, PumpBack) - Rise(Progress, PumpBack, PumpEnd));
+	// Snapped back into its stop and shoved home into the other (no wind-up: it starts and ends against a stop).
+	return PumpStroke * (ReloadCurves::Into(Progress, PumpStart, PumpBack, false) - ReloadCurves::Into(Progress, PumpBack, PumpEnd, false));
 }
 
 void LooterReload::ViewModelPose(EWeaponReloadPart Part, float Progress, FVector& OutOffset, FRotator& OutRotation)
@@ -317,9 +339,9 @@ void LooterReload::ViewModelPose(EWeaponReloadPart Part, float Progress, const F
 		const bool bHelix = Part == EWeaponReloadPart::Helix;
 		OutOffset = (bHelix ? FVector(-2.f, -6.f, 7.f) : FVector(-2.f, -5.f, 5.f)) * Pose;
 		OutRotation = (bHelix ? FRotator(6.f, -10.f, 32.f) : FRotator(4.f, -10.f, 24.f)) * Pose;
-		const float Tug = Pulse(Progress, (MagOutStart + MagOutEnd) * 0.5f, 0.05f);
-		const float Slap = Pulse(Progress, MagSeated, 0.04f);
-		const float Last = Window(Progress, BoltStart, BoltStart + 0.03f, BoltEnd - 0.05f, BoltEnd);
+		const float Tug = Beat(Progress, (MagOutStart + MagOutEnd) * 0.5f, 0.05f);
+		const float Slap = Beat(Progress, MagSeated, 0.04f);
+		const float Last = SnapWindow(Progress, BoltStart, BoltStart + 0.03f, BoltEnd - 0.05f, BoltEnd);
 		OutOffset += FVector(0.f, 0.f, 0.8f) * Tug + FVector(0.f, 0.f, bHelix ? 1.6f : 2.4f) * Slap
 			+ (bHelix ? FVector(-2.f, 0.f, 0.3f) : FVector(0.f, 0.f, -1.2f)) * Last;
 		OutRotation += FRotator(3.f, 0.f, -2.f) * Slap + (bHelix ? FRotator(0.f, 4.f, -8.f) : FRotator(-2.f, 0.f, 6.f)) * Last;
@@ -336,9 +358,11 @@ void LooterReload::ViewModelPose(EWeaponReloadPart Part, float Progress, const F
 		OutOffset = FVector(-2.f, -6.f, 6.f) * Pose + FVector(0.f, 1.f, -1.f) * BoltWork;
 		OutRotation = FRotator(3.f, -10.f, 24.f) * Pose + FRotator(0.f, 2.f, -30.f) * BoltWork;
 		const float Lag = BoltMagazineLag;
-		const float Slap = Pulse(Progress, MagSeated + Lag, 0.04f);
-		const float Yank = Worked * Pulse(Progress, BoltOpenEnd - 0.03f, 0.04f);
-		const float Home = Worked * Pulse(Progress, BoltCloseEnd - 0.04f, 0.04f);
+		const float Slap = Beat(Progress, MagSeated + Lag, 0.04f);
+		// Snapped, the yank's and the home's knocks land where the bolt hits its stops (BoltOpenInReload); eased, a little before.
+		const bool bSnap = ReloadCurves::On();
+		const float Yank = Worked * Beat(Progress, bSnap ? BoltOpenEnd : BoltOpenEnd - 0.03f, 0.04f);
+		const float Home = Worked * Beat(Progress, bSnap ? BoltCloseEnd : BoltCloseEnd - 0.04f, 0.04f);
 		OutOffset += FVector(0.f, 0.f, 1.6f) * Slap + FVector(-1.5f, 0.f, 0.f) * Yank + FVector(1.f, 0.f, 0.f) * Home;
 		OutRotation += FRotator(3.f, 0.f, -2.f) * Slap + FRotator(1.f, 0.f, 3.f) * Yank + FRotator(-1.f, 0.f, -2.f) * Home;
 		return;
@@ -350,7 +374,7 @@ void LooterReload::ViewModelPose(EWeaponReloadPart Part, float Progress, const F
 		// the mouth comes into view, the rocket pushed in, a shove as it seats.
 		OutOffset = FVector(-14.f, -10.f, -9.f) * Pose;
 		OutRotation = FRotator(-16.f, -28.f, 12.f) * Pose;
-		const float Seat = Pulse(Progress, RocketSeatedAt, 0.05f);
+		const float Seat = Beat(Progress, RocketSeatedAt, 0.05f);
 		OutOffset += FVector(-2.f, 0.f, 0.5f) * Seat;
 		OutRotation += FRotator(2.f, 0.f, -2.f) * Seat;
 		return;
@@ -364,9 +388,9 @@ void LooterReload::ViewModelPose(EWeaponReloadPart Part, float Progress, const F
 		OutRotation = FRotator(2.f, -14.f, 30.f) * Pose;
 
 		// A tug as the old magazine comes free, a slap as the new one seats, then a yank on the charging handle.
-		const float Tug = Pulse(Progress, (MagOutStart + MagOutEnd) * 0.5f, 0.05f);
-		const float Slap = Pulse(Progress, MagSeated, 0.04f);
-		const float Bolt = Window(Progress, BoltStart, BoltStart + 0.03f, BoltEnd - 0.05f, BoltEnd);
+		const float Tug = Beat(Progress, (MagOutStart + MagOutEnd) * 0.5f, 0.05f);
+		const float Slap = Beat(Progress, MagSeated, 0.04f);
+		const float Bolt = SnapWindow(Progress, BoltStart, BoltStart + 0.03f, BoltEnd - 0.05f, BoltEnd);
 		OutOffset += FVector(0.f, 0.f, 0.8f) * Tug + FVector(0.f, 0.f, 1.8f) * Slap + FVector(-2.5f, 0.f, 0.3f) * Bolt;
 		OutRotation += FRotator(3.f, 0.f, -2.f) * Slap + FRotator(0.f, 5.f, -10.f) * Bolt;
 		return;
@@ -381,12 +405,12 @@ void LooterReload::ViewModelPose(EWeaponReloadPart Part, float Progress, const F
 
 		// The wrist flicks as the cylinder swings out; the muzzle tips up and the palm punches the rod; it tips down for the
 		// speedloader, which pushes in; the cylinder is slapped home from the left.
-		const float Flick = Pulse(Progress, CylOutEnd, 0.04f);
+		const float Flick = Beat(Progress, CylOutEnd, 0.04f);
 		const float TipUp = Window(Progress, 0.22f, 0.29f, 0.34f, 0.44f);
-		const float Punch = Pulse(Progress, EjectAt, 0.03f);
+		const float Punch = Beat(Progress, EjectAt, 0.03f);
 		const float TipDown = Window(Progress, 0.44f, 0.50f, 0.60f, CylInStart);
-		const float Push = Pulse(Progress, RoundsInAt, 0.035f);
-		const float Slap = Pulse(Progress, CylInEnd, 0.035f);
+		const float Push = Beat(Progress, RoundsInAt, 0.035f);
+		const float Slap = Beat(Progress, CylInEnd, 0.035f);
 		OutOffset += FVector(0.f, -1.f, 0.f) * Flick + FVector(-2.f, 0.f, 3.f) * TipUp + FVector(0.f, 0.f, -1.5f) * Punch
 			+ FVector(0.f, 0.f, -0.5f) * TipDown + FVector(1.f, 0.f, 0.f) * Push + FVector(0.f, 0.8f, 0.4f) * Slap;
 		OutRotation += FRotator(0.f, 0.f, 6.f) * Flick + FRotator(40.f, 0.f, 0.f) * TipUp + FRotator(4.f, 0.f, 0.f) * Punch
@@ -400,7 +424,7 @@ void LooterReload::ViewModelPose(EWeaponReloadPart Part, float Progress, const F
 	// Each shell pushed in nudges the gun; racking the pump rocks it back.
 	for (int32 Shell = 0; Shell < ShellPushes; ++Shell)
 	{
-		const float Push = Pulse(Progress, ShellStart + (ShellEnd - ShellStart) * (Shell + 0.5f) / ShellPushes, 0.035f);
+		const float Push = Beat(Progress, ShellStart + (ShellEnd - ShellStart) * (Shell + 0.5f) / ShellPushes, 0.035f);
 		OutOffset.Z += 1.f * Push;
 		OutRotation.Pitch += 2.f * Push;
 	}
