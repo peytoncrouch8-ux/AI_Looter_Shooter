@@ -8,13 +8,15 @@
 
 class ABargeBoarding;
 class UInstancedStaticMeshComponent;
+class UMaterialInterface;
+class UStaticMesh;
 class UPointLightComponent;
 class USceneComponent;
 class UStaticMeshComponent;
 
 /**
  * The barge's soul furnace in the middle of its furnace hall (Main 6 steps 5-6, "Kill the furnace" and "Open the soul
- * cage": MAINS_2_7.md section 10): a 6 m riveted iron furnace, pipes up into the ceiling, and at its heart a glass-windowed
+ * cage": MAINS_2_7.md section 10): a 5 m riveted iron furnace, pipes up into the ceiling, and at its heart a glass-windowed
  * soul cage where Abel's light beats like a heart, flaring black at its edges (his soul burning as the barge's pilot light).
  * ABargeBoarding spawns it and keeps it in her frame (its origin the hall floor's middle, its +X the cage's window).
  *
@@ -26,8 +28,10 @@ class UStaticMeshComponent;
  *    Abel's lantern (AKeepersLantern::IsTakenIn) bursts it (Scenes/CageBurst). The missions hear the held Interact on the
  *    actor tagged Furnace_SoulCage. Burst, its heart is gone and the glass shattered; a load past step 6 finds it so.
  *
- * Stand-in look from engine shapes in the barge's iron (Tripo 33's furnace replaces the body once imported: BodyPath;
- * Tripo 34's grate wedge: GratePath). Its one light is shadowless. It ticks while the barge does (her tick moves it on).
+ * Its look is the PROPS lane's kit (BARGE_PROPS.md): the riveted boiler with the heart behind a barred brass porthole
+ * (BodyPath; burst: BargeLooks::FurnaceBurst), the grate wedges (GratePath), fire tongues, cage shards and pipe sections;
+ * engine shapes in the barge's iron stand in for each until it's imported. Its one light is shadowless. It ticks while the
+ * barge does (her tick moves it on).
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ABargeFurnace : public AActor, public IInteractable
@@ -83,9 +87,12 @@ public:
 	/** Every light of it out (the barge dying): the heart dark too. */
 	void PutOut();
 
-	/** Its cage's heart (world), the way its window faces (world, flat), and the hall's wall behind it (where Abel tears out). */
+	/** Its cage's heart (world: in the boiler model, inside behind its porthole), the way its window faces (world, flat),
+	 *  the cage's mouth (world: just in front of the porthole, where the burst comes out), and the hall's wall behind it
+	 *  (where Abel tears out). */
 	FVector GetCageLocation() const;
 	FVector GetCageFacing() const;
+	FVector GetCageMouth() const;
 	FVector GetBackWall() const;
 
 	/** Its opening's lines while it's shut and wanted: OpenWhen (Main 6 step 6). */
@@ -120,9 +127,13 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> Crown;
 
-	/** The pipes up into the hall's ceiling and the riveted bands (one instanced look). */
+	/** The stand-in's pipes up into the hall's ceiling and its riveted bands and bars (one instanced look). */
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UInstancedStaticMeshComponent> Ironwork;
+
+	/** With the boiler model: its three pipes from the crown's collars to the ceiling, in the kit's pipe sections. */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UInstancedStaticMeshComponent> Pipes;
 
 	/** The cage's iron window frame on the furnace's face. */
 	UPROPERTY(VisibleAnywhere, Category = "Components")
@@ -163,6 +174,23 @@ private:
 	FTransform WedgeTransform(int32 Wedge, float Up) const;
 	void HurtOnGrates(float DeltaSeconds);
 	bool StoryHolds(const FStoryCondition& Condition) const;
+	/** The boiler model's glow slot dark (out, or all valves shut) or its own. */
+	void UpdateGlow();
+
+	/** The looks found (BargeLooks): the boiler whole and burst, the iron its glow slot goes dark with; which of the kit's
+	 *  models stand in for the engine shapes; the boiler's scale; the heart and the cage's mouth (its frame). */
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> WholeMesh;
+	UPROPERTY()
+	TObjectPtr<UStaticMesh> BrokenMesh;
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> DarkGlow;
+	bool bGrateModel = false;
+	bool bFireModel = false;
+	bool bShardModel = false;
+	FVector BodyScale = FVector::OneVector;
+	FVector HeartAt = FVector::ZeroVector;
+	FVector MouthAt = FVector::ZeroVector;
 
 	TWeakObjectPtr<ABargeBoarding> Barge;
 	int32 ValvesShut = 0;

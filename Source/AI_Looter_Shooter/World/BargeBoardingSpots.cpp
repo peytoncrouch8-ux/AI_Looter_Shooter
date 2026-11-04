@@ -1,6 +1,6 @@
 // ABargeBoarding: where things are on her, in the world: the berths the Lamplighter lies at, the grapples' bites, the
-// plank's landing, where a player is put back aboard, the fights' spots, the office's desk, the horns, the hatch (the
-// house's door), her deck's and hall's middles, the hose's top. The build scripts call the UFUNCTIONs in the editor; the
+// plank's landing, where a player is put back aboard, the fights' spots, the office's desk, the horns, the hatch (its
+// stair's top on the well deck), her deck's and hall's middles, the hose's top. The build scripts call the UFUNCTIONs in the editor; the
 // sortie reads the rest live. All from her placed transform and BargeRules (nothing copied into the level but what a
 // script places from these).
 
@@ -28,7 +28,7 @@ bool ABargeBoarding::HasHull() const
 FTransform ABargeBoarding::GetBerth() const
 {
 	const FVector Keel(BargeRules::BerthX, BargeRules::BerthSide * BargeRules::BerthOut,
-		BargeRules::DeckTop - BargeRules::BerthUnderDeck - BargeRules::ShipDeckOverKeel);
+		BargeRules::WellDeckZ - BargeRules::BerthUnderDeck - BargeRules::ShipDeckOverKeel);
 	return FTransform(FRotator(0.f, GetActorRotation().Yaw, 0.f), ToWorld(Keel));
 }
 
@@ -36,32 +36,33 @@ FTransform ABargeBoarding::GetJumpBerth() const
 {
 	// Under the gangway's broken end, as she lists and drifts: the ship keeps level (the barge's yaw only).
 	const FVector Keel(BargeRules::BerthX, BargeRules::BerthSide * BargeRules::JumpOut,
-		BargeRules::DeckTop - BargeRules::JumpUnderDeck - BargeRules::ShipDeckOverKeel);
+		BargeRules::WellDeckZ - BargeRules::JumpUnderDeck - BargeRules::ShipDeckOverKeel);
 	return FTransform(FRotator(0.f, GetActorRotation().Yaw, 0.f), ToWorld(Keel));
 }
 
 FVector ABargeBoarding::GetGrappleAnchor(int32 Index) const
 {
-	// On the bulwark's top, fore and aft of its gap.
+	// On her rail's top, fore and aft of its gap.
 	const float Along = Index == 0 ? BargeRules::GrappleSpread : -BargeRules::GrappleSpread;
 	return ToWorld(FVector(BargeRules::BerthX + Along, BargeRules::BerthSide * (BargeRules::BulwarkHalfBeam - BargeRules::BulwarkThick * 0.5),
-		BargeRules::DeckTop + BargeRules::RailHeight));
+		BargeRules::WellDeckZ + BargeRules::RailHeight));
 }
 
 FVector ABargeBoarding::GetBoardingPoint() const
 {
-	return ToWorld(FVector(BargeRules::BerthX, BargeRules::BerthSide * (BargeRules::DeckHalfBeam - BargeRules::BoardingInset), BargeRules::DeckTop));
+	return ToWorld(FVector(BargeRules::BerthX, BargeRules::BerthSide * (BargeRules::WellDeckHalfBeam - BargeRules::BoardingInset), BargeRules::WellDeckZ));
 }
 
 FTransform ABargeBoarding::GetPlayerStart() const
 {
 	// On the deck, standing (a capsule's half height over it): by the plank facing inboard until the hatch; after it, on the
-	// deck out from the house's door, facing it (the way back down).
+	// deck behind the hatch's stair, facing down it (the way back down).
 	const bool bBelow = StoryStep >= BargeRules::ManifestStep;
-	const FVector Local = bBelow ? BargeRules::HatchSpot() + FVector(BargeRules::HatchStartOut, 0.0, BargeRules::StandUp)
-		: FVector(BargeRules::BerthX, BargeRules::BerthSide * (BargeRules::DeckHalfBeam - BargeRules::PlankStartIn), BargeRules::DeckTop + BargeRules::StandUp);
-	const float Yaw = static_cast<float>(GetActorRotation().Yaw) + (bBelow ? 180.f : (BargeRules::BerthSide < 0.f ? 90.f : -90.f));
-	return FTransform(FRotator(0.f, Yaw, 0.f), ToWorld(Local));
+	const FVector2D Way = BargeRules::HatchWay.GetSafeNormal();
+	const FVector Local = bBelow ? BargeRules::HatchSpot() - FVector(Way, 0.0) * BargeRules::HatchStartOut + FVector(0.0, 0.0, BargeRules::StandUp)
+		: FVector(BargeRules::BerthX, BargeRules::BerthSide * (BargeRules::WellDeckHalfBeam - BargeRules::PlankStartIn), BargeRules::WellDeckZ + BargeRules::StandUp);
+	const float Facing = bBelow ? static_cast<float>(FMath::RadiansToDegrees(FMath::Atan2(Way.Y, Way.X))) : (BargeRules::BerthSide < 0.f ? 90.f : -90.f);
+	return FTransform(FRotator(0.f, static_cast<float>(GetActorRotation().Yaw) + Facing, 0.f), ToWorld(Local));
 }
 
 TArray<FVector> ABargeBoarding::GetFightSpots(FName Fight) const
@@ -83,10 +84,9 @@ TArray<FVector> ABargeBoarding::GetFightSpots(FName Fight) const
 			{
 				const float Across = (Index % 2 == 0 ? -1.f : 1.f) * BargeRules::HallSpotAcross;
 				const float In = BargeRules::HallRadius - BargeRules::HallSpotIn - (Index / 2) * BargeRules::HallSpotRow;
-				const float Turn = FMath::DegreesToRadians(Angle);
-				const FVector Out(FMath::Cos(Turn), FMath::Sin(Turn), 0.0);
+				const FVector Out = BargeRules::HallPoint(Angle, 1.f) - BargeRules::HallPoint(Angle, 0.f);
 				const FVector Side(-Out.Y, Out.X, 0.0);
-				Spots.Add(ToWorld(BargeRules::HallCenter + Out * In + Side * Across + FVector(0.0, 0.0, BargeRules::HallFloor + BargeRules::SpotUp)));
+				Spots.Add(ToWorld(BargeRules::HallPoint(Angle, In, BargeRules::SpotUp) + Side * Across));
 			}
 		}
 	}
@@ -95,6 +95,12 @@ TArray<FVector> ABargeBoarding::GetFightSpots(FName Fight) const
 
 FVector ABargeBoarding::GetOfficeSpot() const
 {
+	// The desk as laid (the bench at its own size): its top's middle; without it the rules' block.
+	if (Desk && Desk->GetStaticMesh())
+	{
+		const FBox Box = Desk->CalcBounds(Desk->GetComponentTransform()).GetBox();
+		return FVector(Box.GetCenter().X, Box.GetCenter().Y, Box.Max.Z);
+	}
 	return ToWorld(BargeRules::DeskTop());
 }
 
@@ -117,7 +123,7 @@ FVector ABargeBoarding::GetHatchSpot() const
 
 FVector ABargeBoarding::GetDeckMiddle() const
 {
-	return ToWorld(FVector((BargeRules::DeckAft + BargeRules::DeckFore) * 0.5, 0.0, BargeRules::DeckTop + BargeRules::SpotUp));
+	return ToWorld(BargeRules::DeckMiddle() + FVector(0.0, 0.0, BargeRules::SpotUp));
 }
 
 FVector ABargeBoarding::GetHallMiddle() const

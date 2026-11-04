@@ -29,10 +29,14 @@ namespace
 	const TCHAR* CylinderPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 	const TCHAR* IronPath = TEXT("/Game/Art/Materials/MI_IronBlack.MI_IronBlack");
 
-	/** SM_CompanyTender at its real 12 m (4.4 m in the beam, 4.66 m tall); its riflemen stand on the iron hull's top walk
-	 *  (its collision box's top), fore and aft of the bag. */
+	/** SM_CompanyTender at its real 12 m (4.4 m in the beam, 4.66 m tall); its riflemen stand on the iron hull's rounded crown
+	 *  fore and aft of the bag. The crown is no flat deck: measured on the mesh (Docs/Work/2026-11-04-Art/COLLISION.md) it is
+	 *  302-305 cm up from 200 to 350 cm fore, the bag's cradle rim 302 amidships, and aft it falls from 291 at -200 to 250 at
+	 *  -450 (where the old aft spot stood, on the old box's flat 298: 48 cm in the air). Its hulls follow the crown
+	 *  (looter_tripo_collision.company_tender), so each rifleman stands on the crown measured under his spot. */
 	const FVector HullScale(1.0, 1.0, 1.0);
-	constexpr float DeckTop = 298.f;
+	/** The plank's hinge: on the cradle's rim beside the bag (302 cm up at 120 cm out). */
+	constexpr float HingeTop = 300.f;
 	/** Its side's plank hinge out from its middle (the top walk's edge), and the plank's own length (cm). */
 	constexpr float HingeOut = 120.f;
 	constexpr float PlankLength = 300.f;
@@ -61,8 +65,9 @@ namespace
 
 	/** Its two launchers on its ship-facing rail (tender-local, X along it; Y is flipped by the side it's on). */
 	const FVector LauncherSpots[] = { FVector(330.0, 125.0, 330.0), FVector(-450.0, 110.0, 330.0) };
-	/** Where its two riflemen stand on its deck (tender-local). */
-	const FVector RiflemanDeck[] = { FVector(260.0, 0.0, DeckTop), FVector(-450.0, 0.0, DeckTop) };
+	/** Where its two riflemen stand (tender-local; Z the crown's top there, its hulls' 306 and 274, the mesh's 304 and 270):
+	 *  fore of the bag, and aft of the bag's hose where the crown still walks (it falls 3 cm in 10 there; at -450, 4.5). */
+	const FVector RiflemanDeck[] = { FVector(300.0, 0.0, 305.0), FVector(-360.0, 0.0, 272.0) };
 
 	APawn* FindPlayer(const UWorld* World)
 	{
@@ -331,12 +336,12 @@ void ACompanyTender::UpdatePlank(float DeltaSeconds)
 	}
 	// The plank on its hinge: it reaches along its own -Y from the hinge, so on the port side it's turned about.
 	const float Gap = AlongsideOut - HingeOut - ALamplighterShip::RailOut;
-	const float Drop = AlongsideUp + DeckTop - ALamplighterShip::DeckTop;
+	const float Drop = AlongsideUp + HingeTop - ALamplighterShip::DeckTop;
 	const float Reach = FMath::Sqrt(Gap * Gap + Drop * Drop);
 	const float Lowered = FMath::RadiansToDegrees(FMath::Asin(FMath::Clamp(Drop / Reach, 0.f, 1.f)));
 	const float Tilt = FMath::Lerp(-90.f, Lowered, FMath::SmoothStep(0.f, 1.f, PlankAlpha));
 	const FQuat Facing(FVector::UpVector, Side > 0.f ? 0.0 : UE_PI);
-	Gangplank->SetRelativeLocationAndRotation(FVector(0.0, -Side * HingeOut, DeckTop + 2.0),
+	Gangplank->SetRelativeLocationAndRotation(FVector(0.0, -Side * HingeOut, HingeTop + 2.0),
 		Facing * FQuat(FVector::XAxisVector, FMath::DegreesToRadians(Tilt)));
 	const float PlankScale = Reach / PlankLength;
 	Gangplank->SetRelativeScale3D(FVector(PlankScale, PlankScale, PlankScale));

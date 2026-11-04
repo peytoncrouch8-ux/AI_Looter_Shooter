@@ -11,7 +11,7 @@
 
 // Main 6's barge, her beats (the Wardens story, lane MAIN67's W3): the grate ring's wheel, the valves, the cage, her dying
 // and her fall, each in a test level with no story (ForceStep plays her as if Main 6 were on a step). Her kit on the hull:
-// BargeBoardingTests.cpp.
+// BargeBoardingTests.cpp (Kit, Deck) and BargeBoardingHallTests.cpp (Hall, Hull).
 
 using BargeTestWorld::SpawnBarge;
 
@@ -31,9 +31,14 @@ bool FBargeGratesTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("One valve: 3 hot"), Count(BargeRules::HotMask(0.f, 1)), 3);
 	TestEqual(TEXT("Two: 2"), Count(BargeRules::HotMask(0.f, 2)), 2);
 	TestTrue(TEXT("Three: cold"), BargeRules::HotMask(0.f, 3) == 0u);
-	TestEqual(TEXT("The ring's wedge under a point"), BargeRules::GrateAt(FVector2D(600.0, 10.0)), 0);
-	TestEqual(TEXT("...off the ring by the furnace"), BargeRules::GrateAt(FVector2D(350.0, 0.0)), INDEX_NONE);
-	TestEqual(TEXT("...and outside it"), BargeRules::GrateAt(FVector2D(950.0, 0.0)), INDEX_NONE);
+	// The ring between the safe floor by the furnace and the safe floor under the catwalk (the smaller hall's).
+	constexpr double Hand = 20.0;
+	const double Middle = (BargeRules::GrateInner + BargeRules::GrateOuter) * 0.5;
+	TestEqual(TEXT("The ring's wedge under a point"), BargeRules::GrateAt(FVector2D(Middle, 10.0)), 0);
+	TestEqual(TEXT("...off the ring by the furnace"), BargeRules::GrateAt(FVector2D(BargeRules::GrateInner - Hand, 0.0)), INDEX_NONE);
+	TestEqual(TEXT("...and outside it"), BargeRules::GrateAt(FVector2D(BargeRules::GrateOuter + Hand, 0.0)), INDEX_NONE);
+	TestTrue(TEXT("Safe floor by the furnace and under the catwalk"), BargeRules::GrateInner > BargeRules::FurnaceRadius
+		&& BargeRules::GrateOuter < BargeRules::HallRadius && BargeRules::GrateInner < BargeRules::GrateOuter);
 
 	// The vents: a second's glow before every burn, never all at once.
 	bool bToldFirst = true;
@@ -148,7 +153,7 @@ bool FBargeDyingTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...the jump berth going with her"), Barge->GetActorTransform().InverseTransformPosition(JumpNow).Equals(JumpOnHerAtStart, 1.0)
 		&& JumpAtStart.Y - JumpNow.Y >= BargeRules::DriftAt(Dying) - 2.f);
 	TestTrue(TEXT("...the ship's berth kept level"), FMath::IsNearlyZero(static_cast<float>(Barge->GetJumpBerth().Rotator().Roll)));
-	TestFalse(TEXT("The third stack is down across the after deck"), Barge->FallingStackPivot->GetRelativeRotation().Equals(FRotator::ZeroRotator, 1.f));
+	TestFalse(TEXT("The third stack is down across the well deck"), Barge->FallingStackPivot->GetRelativeRotation().Equals(FRotator::ZeroRotator, 1.f));
 	return true;
 }
 

@@ -16,6 +16,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshSocket.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Pawn.h"
@@ -26,7 +27,7 @@
 #include "UObject/ConstructorHelpers.h"
 
 const FName ACompanyLoudspeaker::LoudspeakerTag(TEXT("CompanyLoudspeaker"));
-const TCHAR* const ACompanyLoudspeaker::ModelPath = TEXT("/Game/Art/Tripo/SM_CompanyLoudspeaker.SM_CompanyLoudspeaker");
+const TCHAR* const ACompanyLoudspeaker::ModelPath = TEXT("/Game/Art/Tripo/SM_LoudspeakerPost.SM_LoudspeakerPost");
 
 namespace
 {
@@ -108,6 +109,18 @@ ACompanyLoudspeaker::ACompanyLoudspeaker()
 		Post->SetRelativeScale3D(FVector(1.4, 1.4, Stretch));
 		Post->SetRelativeLocation(FVector(0.0, 0.0, -(Bounds.Origin.Z - Bounds.BoxExtent.Z) * Stretch));
 	}
+	// The Tripo post (4 m, its horns and plate on it facing +X, its pivot at the pole): its foot on the ground by its bounds
+	// whatever its pivot's height, the pole on the spot; the horns' target at its Horns socket (else where the stand-in's are).
+	FVector HornsAt(HornsOut * 0.6, 0.0, PostHeight - HornsBelowTop);
+	if (Model)
+	{
+		const double Lift = -Model->GetBoundingBox().Min.Z;
+		Post->SetRelativeLocation(FVector(0.0, 0.0, Lift));
+		if (const UStaticMeshSocket* Socket = Model->FindSocket(TEXT("Horns")))
+		{
+			HornsAt = Socket->RelativeLocation + FVector(0.0, 0.0, Lift);
+		}
+	}
 
 	auto MakeHorn = [&](const TCHAR* Name, float Side)
 	{
@@ -141,7 +154,7 @@ ACompanyLoudspeaker::ACompanyLoudspeaker()
 	HornsHit = CreateDefaultSubobject<UCapsuleComponent>(TEXT("HornsHit"));
 	HornsHit->SetupAttachment(Root);
 	HornsHit->InitCapsuleSize(HornsHitRadius, HornsHitHalfHeight);
-	HornsHit->SetRelativeLocationAndRotation(FVector(HornsOut * 0.6, 0.0, PostHeight - HornsBelowTop), FRotator(0.0, 0.0, 90.0));
+	HornsHit->SetRelativeLocationAndRotation(HornsAt, FRotator(0.0, 0.0, 90.0));
 	HornsHit->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	HornsHit->SetCollisionObjectType(ECC_WorldDynamic);
 	HornsHit->SetCollisionResponseToAllChannels(ECR_Ignore);
@@ -220,7 +233,8 @@ void ACompanyLoudspeaker::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 FVector ACompanyLoudspeaker::GetHornsLocation() const
 {
-	return GetActorTransform().TransformPosition(FVector(HornsOut * 0.6, 0.0, PostHeight - HornsBelowTop));
+	// The horns' target is laid where they are (the Tripo post's socket, or the stand-in's horns).
+	return HornsHit ? HornsHit->GetComponentLocation() : GetActorTransform().TransformPosition(FVector(HornsOut * 0.6, 0.0, PostHeight - HornsBelowTop));
 }
 
 bool ACompanyLoudspeaker::IsOnAir() const

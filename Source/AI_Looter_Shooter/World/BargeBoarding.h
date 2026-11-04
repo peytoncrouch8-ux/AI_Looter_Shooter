@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Story/StoryCondition.h"
+#include "World/BargeRules.h"
 #include "BargeBoarding.generated.h"
 
 class ABargeFurnace;
@@ -45,22 +46,26 @@ enum class EBargeState : uint8
  * section 10; lane MAIN67's contract, W3): the one time she's in reach, so the Wardens board her. The Lamplighter (W2's
  * sortie) grapples her at GetBerth and lays a plank to GetBoardingPoint; from there everything of steps 3-7 is hers:
  *
- *  - Her hull: the user's Tripo SM_DredgeBarge reworked for the kit (one flat open deck, the bulwark with its gap, the aft
- *    house at the full beam with a real door, the stacks and the tower on its roof), all with their own collision. On its
- *    deck, the 36 x 22 m arena fore of the house (BargeRules::DeckAft..DeckFore), the kit adds unseen rail walls on the
- *    bulwark's line, cover crates, the hose drum's gantry with ABargeHoseDrum on it, the falling third stack, four horn posts
- *    the build script stands ACompanyLoudspeakers on: the BargeDeck fight's ground. Eight furnace vents in it breathe in a
- *    running pattern: a second's glow through their slots, then a column of furnace fire that burns whatever stands in it.
- *  - The furnace hatch: the house's door (a Reach marker tagged Barge_FurnaceHatch), the vestibule inside it, then the
- *    stoker's office (the manifest lies on its desk; its radio carries Ned's call once the manifest is taken), which opens
- *    onto the hall's floor: one level, door to hall.
- *  - The furnace hall at deck level in the house (22 m round: the widest that fits; the design's 26 m doesn't), 9 m high, its
- *    catwalk ring at 4 m with two stairs up, two stokehold doors (the FurnaceHall pushes come through them), and in the
- *    middle ABargeFurnace (the soul cage, the grate ring) and three AFurnaceDraftValves at the wall.
+ *  - Her hull: the user's Tripo SM_DredgeBarge jumboed (BARGE_LAYOUT.md): a well deck between the house and the scoop's
+ *    raised floor (the forecastle, its two stairs the model's), house walks past the house to the cross walk between the
+ *    house and the casing, where the hatch's coaming stands; all with its own collision. Her decks are zones
+ *    (BargeRules::DeckZones); on them the kit adds only unseen rail walls on her rail line (BargeRules::RailLine), cover
+ *    (REUSE's props: barrels, crates, sandbags, a pump cart, the forecastle's winch), the hose drum's gantry with
+ *    ABargeHoseDrum on the well deck, the falling third stack, four horn posts the build script stands
+ *    ACompanyLoudspeakers on: the BargeDeck fight's ground (nine Dredgers in two pushes: the well deck, the forecastle's
+ *    high ground, the house walks' mouths). Four furnace vents in the well deck breathe in a running pattern: a second's
+ *    glow through their slots, then a column of furnace fire that burns whatever stands in it.
+ *  - The furnace hatch (a Reach marker tagged Barge_FurnaceHatch at the stair's top) on the cross walk: its steep stair
+ *    runs down through the coaming's hole onto the hall's catwalk, by the stoker's corner (the manifest lies on his desk;
+ *    the radio on it carries Ned's call once the manifest is taken).
+ *  - The furnace hall below the deck in the hull's hollow under the casing (15 m round: the user's "below deck, smaller"),
+ *    9 m high, its catwalk ring at 5.8 m with two stairs down to the floor, two stokehold doors (the FurnaceHall pushes
+ *    come through them), wall lanterns, and in the middle ABargeFurnace (the soul cage, the grate ring) and three
+ *    AFurnaceDraftValves at the wall.
  *  - Her hose, laid each frame as instanced sections from the drum under her keel toward the chapel's roof (HoseTarget),
  *    snaking lower through the fight (BargeRules::HoseReach), and stopped where it is when the drum is jammed.
  *  - The cage's burst (Scenes/CageBurst) sets her dying (step 7): every light out, the deck listing 12 degrees to her berth
- *    side and drifting west on the dusk wind, her back half burning, the third stack toppling across the after deck; the
+ *    side and drifting west on the dusk wind, her back half burning, the third stack toppling across the well deck; the
  *    Lamplighter hangs under the broken gangway (GetJumpBerth) for the jump.
  *  - BargeFall (Scenes/BargeFall) carries her over the Rest raining soul coal and down into Gravewind Canyon (FallTarget):
  *    the fireball, then Pilot.BargeFell, and she's gone (the build script's wreck shows from that flag).
@@ -69,13 +74,14 @@ enum class EBargeState : uint8
  * not ticking otherwise. A session loaded on any step finds her as that step leaves her (valves open on step 5's start,
  * all shut past it; the cage burst from step 7; dying in step 7). A player off both her and the Lamplighter during steps
  * 3-7 is put back aboard (a fall, a death's wake at a lantern post far below). Split by topic: BargeBoarding.cpp (life,
- * story, the beats), BargeBoardingSpots.cpp (the getters), BargeBoardingKit.cpp (the deck kit), BargeBoardingHall.cpp (the
- * vestibule, the office, the hall), BargeBoardingDeck.cpp (the tick: vents, hose, keeping the player aboard, the beats'
- * lines), BargeBoardingDying.cpp (dying, the stack, the fall).
+ * story, the beats), BargeBoardingSpots.cpp (the getters), BargeBoardingKit.cpp (the deck kit, the stairs, the looks),
+ * BargeBoardingProps.cpp (the cover, the stoker's corner, coal, lanterns), BargeBoardingHall.cpp (the hall below the deck and
+ * the hatch's stair), BargeBoardingDeck.cpp (the tick: vents, hose, keeping the player aboard, the beats' lines),
+ * BargeBoardingDying.cpp (dying, the stack, the fall).
  *
- * The house is a shell of 20 cm walls with nothing inside it (no floor, no rooms), so the vestibule, the office and the
- * hall build their own rooms in it (floors, walls, lining, roofs, ceiling, alcoves, lintels): nobody sees into its empty
- * inside. Without the hull (not imported) she's an iron box and the kit lays its own deck plate and rails on it.
+ * The hull below the deck is a hollow with nothing inside it (and no deck over it inside the casing), so the hall builds its
+ * own room in it (floor, walls, a ceiling closing it, alcoves, lintels) in the kit's iron (BargeLooks::KitIron): nobody sees
+ * into the shell. Without the hull (not imported) she's an iron box and the kit lays its own deck plates, coaming and rails on it.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ABargeBoarding : public AActor
@@ -146,7 +152,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Barge")
 	TArray<FTransform> GetHornSpots() const;
 
-	/** The furnace hatch's middle on the deck. */
+	/** The furnace hatch on the deck: its stair's top, at the deck's height (the build script's log reads its Z). */
 	UFUNCTION(BlueprintCallable, Category = "Barge")
 	FVector GetHatchSpot() const;
 
@@ -198,12 +204,16 @@ public:
 
 	/** The unseen pawn-only rail walls (one per BargeRules::RailWallLayout entry, in its order). */
 	const TArray<TObjectPtr<UBoxComponent>>& GetRailWalls() const { return RailWalls; }
-	/** The kit's floor plates as built (each BargeRules::DeckPlates entry laid, cut round the hatch's hole): the vestibule's,
-	 *  and the open deck's over the stand-in box only. */
+	/** The kit's floor plates as built: over the stand-in box only, one per deck zone cut round the hatch's hole (none over
+	 *  the hull: its decks are walked as they are). */
 	const TArray<TObjectPtr<UPrimitiveComponent>>& GetDeckPlates() const { return PlateParts; }
-	/** The unseen walls round superstructure a hull without collision would need (one per BargeRules::DeckBlocks entry). */
-	const TArray<TObjectPtr<UBoxComponent>>& GetDeckBlocks() const { return BlockWalls; }
-	/** True when the reworked hull is hers (not the stand-in box): its deck, bulwark and house carry their own collision. */
+	/** The cover's props as laid (each barrel of a cluster, each sandbag wall of a stack), in BargeRules::CoverPieces' order. */
+	const TArray<TObjectPtr<UStaticMeshComponent>>& GetCoverParts() const { return CoverParts; }
+	/** The deck's lights: the work lamp on the house's fore face, then the work lamps (BargeRules::WorkLamps' order). */
+	const TArray<TObjectPtr<UPointLightComponent>>& GetDeckLamps() const { return DeckLamps; }
+	/** The lanterns' lights in the hall (the four under the catwalk, then the one over the stoker's desk). */
+	const TArray<TObjectPtr<UPointLightComponent>>& GetLanterns() const { return Lanterns; }
+	/** True when the reworked hull is hers (not the stand-in box): its decks, rails and superstructure carry their collision. */
 	bool HasHull() const;
 
 	// --- Placed by the build script ---
@@ -225,9 +235,9 @@ public:
 	FVector BoardsPoint = FVector::ZeroVector;
 
 	/**
-	 * The walkable kit raised (or lowered) this far over the hull (cm). The deck is fitted to SM_DredgeBarge's own in
-	 * BargeRules::DeckTop (measured: Docs/Work/2026-11-04-Art/BARGE.md), not here, so this stays 0; a placed barge given
-	 * another hull would use it.
+	 * The walkable kit raised (or lowered) this far over the hull (cm). The decks are fitted to SM_DredgeBarge's own in
+	 * BargeRules::DeckZones (measured: Docs/Work/2026-11-04-Art/BARGE_LAYOUT.md), not here, so this stays 0; a placed barge
+	 * given another hull would use it.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Barge|Kit", meta = (Units = "cm"))
 	float KitLift = 0.f;
@@ -252,26 +262,52 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> FallingStack;
 
-	/** The deck's work lamps on the stacks (shadowless): out as she dies. */
+	/** The doubler plate it stood on: stays on the deck when it falls (the model only). */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> StackFoot;
+
+	/** The deck's lights (shadowless): the work lamp on the house's fore face, then the work lamps; out as she dies. */
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TArray<TObjectPtr<UPointLightComponent>> DeckLamps;
 
-	/** Instanced looks: rails, cover, the vents (cold, glowing, their fire), the hall's wall panels and catwalk, her hose's
-	 *  sections, the stern's fire as she dies, and the soul coal raining off her in the fall. */
+	/** The wall lanterns' lights below the deck (shadowless, warm). */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TArray<TObjectPtr<UPointLightComponent>> Lanterns;
+
+	/** Instanced looks: rails, the stairs' treads and stringers, the vents (cold, their rims and slats, glowing, their fire),
+	 *  the hall's wall panels and catwalk, her hose's sections, the stern's fire as she dies, and the soul coal raining off
+	 *  her in the fall. */
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UInstancedStaticMeshComponent> RailLook;
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
-	TObjectPtr<UInstancedStaticMeshComponent> CoverLook;
+	TObjectPtr<UInstancedStaticMeshComponent> StairLook;
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UInstancedStaticMeshComponent> VentCold;
+
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UInstancedStaticMeshComponent> VentFrame;
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UInstancedStaticMeshComponent> VentGlow;
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UInstancedStaticMeshComponent> VentFire;
+
+	/** The vents' hoods under the deck seen from the hall (the model only): dark, or glowing with their vent. */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UInstancedStaticMeshComponent> HoodCold;
+
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UInstancedStaticMeshComponent> HoodGlow;
+
+	/** The work lamps' brackets (iron) and their lanterns. */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UInstancedStaticMeshComponent> WorkLampIron;
+
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UInstancedStaticMeshComponent> WorkLampLanterns;
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UInstancedStaticMeshComponent> HallWallLook;
@@ -288,9 +324,13 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UInstancedStaticMeshComponent> CoalRain;
 
-	/** The office's radio set (Ned's call comes out of it). */
+	/** The stoker's radio set on his desk (Ned's call comes out of it). */
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> Radio;
+
+	/** The stoker's desk (the manifest lies on its top: GetOfficeSpot reads it). */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> Desk;
 
 protected:
 	virtual void BeginPlay() override;
@@ -320,20 +360,38 @@ private:
 		const FVector& Size, const FRotator& Turn = FRotator::ZeroRotator, bool bWalkable = true);
 	/** An unseen solid box (the hall's iron, a hidden plate): stops pawns and shots alike; any look is laid apart. */
 	UBoxComponent* MakeWall(const TCHAR* Name, const FVector& Center, const FVector& Half, const FRotator& Turn = FRotator::ZeroRotator);
-	/** An unseen solid box standing Up tall on the deck over a flat footprint (her house, her tank: BargeRules::DeckBlocks). */
-	UBoxComponent* MakeBlock(const TCHAR* Name, const FBox2D& Footprint, float Up);
+	/** A stair's unseen ramp (Width wide, its top face on the run's line: walked smoothly; its treads are looks). */
+	UBoxComponent* MakeRamp(const TCHAR* Name, const BargeRules::FStairRun& Stair, float Width = BargeRules::StairWidth);
 	UInstancedStaticMeshComponent* MakeInstanced(const TCHAR* Name, UStaticMesh* Mesh, UMaterialInterface* Look);
 	void BuildDeck();
-	/** The instanced looks that never change (rails, cover, vents; the hall's through LayHallLooks), laid once (OnConstruction
-	 *  and BeginPlay). */
+	/** The instanced looks that never change (rails, stairs, vents; the hall's through LayHallLooks), laid once
+	 *  (OnConstruction and BeginPlay). */
 	void LayStaticLooks();
+	/** A vent's plate (cold or glowing) and its column's fire at Spot (her frame), as the vent and fire models or the
+	 *  stand-in shapes lay them; its hood under the deck, and whether it has one (inside the hall's round). */
+	FTransform VentPlate(const FVector& Spot) const;
+	FTransform VentColumn(const FVector& Spot) const;
+	static FTransform VentHood(const FVector& Spot);
+	static bool HasHood(int32 Vent);
+
+	// --- BargeBoardingProps.cpp ---
+	/** A prop at its own size, its bounds' bottom middle at Foot, turned Yaw: with bSolid, its mesh's simple collision, or an
+	 *  unseen box of its bounds where it has none. Without the mesh, a block of FallbackHalf in Look. */
+	UStaticMeshComponent* MakeProp(const TCHAR* Name, UStaticMesh* Mesh, UMaterialInterface* Look, const FVector& Foot, float Yaw,
+		const FVector& FallbackHalf, bool bSolid);
+	/** The deck's cover (BargeRules::CoverPieces). */
+	void BuildCover();
+	/** Below the deck: the stoker's desk, safe and radio on the catwalk, the coal, the wall lanterns and their lights. */
+	void BuildDressing();
+	/** The deck's work lamps (BargeRules::WorkLamps): their lights, and the instanced looks LayWorkLamps lays. */
+	void BuildWorkLamps();
+	void LayWorkLamps();
 
 	// --- BargeBoardingHall.cpp ---
-	/** The vestibule inside the house's door: its walls, the lining round the door, its roof, its aft wall round the doorway
-	 *  into the office (its floor is a deck plate). */
-	void BuildVestibule();
-	/** The furnace hall: floor, wall panels and lintels, ceiling, catwalk and its stairs, stokehold alcoves; the stoker's office. */
+	/** The furnace hall: floor, wall panels and lintels, ceiling, catwalk and its stairs, stokehold alcoves. */
 	void BuildHall();
+	/** The hatch's stair from the cross walk down onto the catwalk. */
+	void BuildHatchStair();
 	/** The hall's instanced looks (its walls, alcoves and lintels as their boxes stand; the catwalk's grating). */
 	void LayHallLooks();
 
@@ -358,7 +416,9 @@ private:
 	bool bStoryRead = false;
 	float StepClock = 0.f;
 
-	// Vents.
+	// Vents (and which looks were found: the kit's vent and fire models, else engine shapes).
+	bool bVentModel = false;
+	bool bFireModel = false;
 	float VentClock = 0.f;
 	uint32 VentGlowMask = 0u;
 	uint32 VentFireMask = 0u;
@@ -410,5 +470,5 @@ private:
 	TArray<TObjectPtr<UPrimitiveComponent>> PlateParts;
 
 	UPROPERTY()
-	TArray<TObjectPtr<UBoxComponent>> BlockWalls;
+	TArray<TObjectPtr<UStaticMeshComponent>> CoverParts;
 };

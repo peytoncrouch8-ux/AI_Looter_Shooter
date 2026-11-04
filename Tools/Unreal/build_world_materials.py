@@ -515,7 +515,7 @@ DETAIL_WORLD = 'DetailWorld'
 # The layer's numbers (group Detail): meters a tile; how much of the set's light and dark, normal and roughness; the
 # distance (cm, from the camera) where it starts to fade and where it is gone.
 DETAIL_DEFAULTS = {'DetailScale': 1.0, 'DetailStrength': 0.6, 'DetailNormal': 0.7, 'DetailRoughness': 0.6,
-                   'DetailNear': 200.0, 'DetailFar': 1500.0, 'DetailGrainUp': 0.0}
+                   'DetailNear': 200.0, 'DetailFar': 1500.0, 'DetailGrainUp': 0.0, 'DetailTopTint': 1.0}
 # Riveted plates drawn by the layer (none of our sets has plate seams): DetailPlates x a plate's length (m, along the
 # side's u: a top's runs along the mesh's X), y its width (m), z how dark its seams are (0: no plates, nothing worked out),
 # w the rivets' strength; DetailPlateShape x a seam's half width (cm), y the rivets' pitch (cm), z a rivet's radius (cm),
@@ -550,11 +550,16 @@ DETAIL_INSTANCES = {
     # until the split mesh (Round 3) is imported.
     BARGE_MI: {'set': 'MetalWorn'},
     # The split barge's three slots, all on the same atlas (the REWORK lane's Blender materials TripoDredgeBarge_Deck,
-    # _Hull and _Super, each lt.material('TripoDredgeBarge', name=..., master='World')). Decks: riveted plates that read
-    # at 1-3 m, 2.4 x 1.2 m along her length, over MetalWorn's grain and pits.
+    # _Hull and _Super, each lt.material('TripoDredgeBarge', name=..., master='World')). Decks (round 5, after a PIE look:
+    # near-black, MetalWorn's 1 m blotches read as dirt): worn riveted iron plates, 2.4 x 1.2 m along her length, dark
+    # seams and bright-topped rivets that read at 1-5 m; MetalWorn only as fine grain and pits (0.3 at 0.7 m); the base
+    # 1.8x lighter (Tripo's deck paint averages 0.045 linear luma: near-black in shade) and the walked faces 1.25x over
+    # the risers, so the step and its stairs read in shade.
     '/Game/Art/Materials/MI_TripoDredgeBarge_Deck': {
-        'set': 'MetalWorn', 'like': BARGE_MI, 'plates': (2.4, 1.2, 0.6, 0.55),
-        'numbers': {'DetailStrength': 0.7, 'DetailNormal': 0.8, 'DetailRoughness': 0.6}},
+        'set': 'MetalWorn', 'like': BARGE_MI, 'plates': (2.4, 1.2, 0.85, 0.9), 'shape': (1.0, 12.0, 1.4, 0.08),
+        'base': {'Tint': (1.8, 1.75, 1.7, 1.0)},
+        'numbers': {'DetailStrength': 0.3, 'DetailScale': 0.7, 'DetailNormal': 0.8, 'DetailRoughness': 0.6,
+                    'DetailTopTint': 1.25}},
     # The hull below the rubbing strake: MetalRust's blooms and pitting at 1.5 m (Tripo paints its strakes and rivets;
     # drawn plates would fight them).
     '/Game/Art/Materials/MI_TripoDredgeBarge_Hull': {
@@ -718,6 +723,9 @@ if (Ws > 0.0)
 // rubbed bright and smooth on top.
 Result.rgb *= (1.0 - PSeam * Plates.z) * (1.0 + PTone) * lerp(1.0, 0.7 + 0.65 * PHead, PRivet * Plates.w);
 Result.a += PSeam * 0.2 * Plates.z - PRivet * PHead * 0.15 * Plates.w;
+// Walked surfaces (the frame's up faces: decks, treads) TopTint lighter than the faces beside them (risers, walls), so a
+// stair or a step reads as such in shade; at every distance (a lift only near would show as a ring).
+Result.rgb *= lerp(1.0, TopTint, saturate(N.z * 2.0 - 1.0));
 """
 
 # The frame's normal leaned by the set's normal map on each side (n.x along the side's u, n.y along its v) x
@@ -855,6 +863,7 @@ def detail_layer(g, color, x, y):
         ('RoughAmount', number('DetailRoughness', DETAIL_DEFAULTS['DetailRoughness'], x, y + 1000), ''),
         ('MeanLuma', number('DetailMeanLuma', means['DetailMeanLuma'], x, y + 1100), ''),
         ('MeanRough', number('DetailMeanRough', means['DetailMeanRough'], x, y + 1200), ''),
+        ('TopTint', number('DetailTopTint', DETAIL_DEFAULTS['DetailTopTint'], x - 300, y + 1200), ''),
         ('NormalMap', texture_object('DetailNormalMap', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL,
                                      detail_map(DETAIL_DEFAULT_SET, 'N', FLAT_NORMAL), y + 1300), ''),
         ('Amount', number('DetailNormal', DETAIL_DEFAULTS['DetailNormal'], x, y + 1400), ''),

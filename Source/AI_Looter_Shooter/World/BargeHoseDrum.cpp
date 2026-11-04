@@ -9,6 +9,7 @@
 #include "Missions/MissionRunner.h"
 #include "World/BargeBoarding.h"
 #include "World/BargeLooks.h"
+#include "World/BargeRules.h"
 #include "World/LamplighterEffects.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -28,8 +29,10 @@ namespace
 	constexpr float TurnRate = 40.f;
 	constexpr float RatchetEvery = 0.45f;
 	constexpr float Earshot = 4500.f;
-	/** The lever on the housing's side (its frame: +X toward the barge's middle line), thrown in this long. */
-	const FVector LeverAt(140.0, -160.0, 110.0);
+	/** The jam lever on the housing's -Y side (its frame): its pin (the gantry model's LeverPivot socket: the lever model
+	 *  turns about it), and its arm's middle (where it's grabbed, and the stand-in rod's middle); thrown in this long. */
+	const FVector LeverPivot(140.0, -172.0, 96.0);
+	const FVector LeverAt(140.0, -172.0, 150.0);
 	constexpr float LeverSeconds = 0.25f;
 }
 
@@ -42,7 +45,9 @@ ABargeHoseDrum::ABargeHoseDrum()
 
 	static UStaticMesh* const CubeMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::Cube);
 	static UStaticMesh* const CylinderMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::Cylinder);
-	static UStaticMesh* const Tripo = BargeLooks::Find<UStaticMesh>(BargeLooks::TripoHoseDrum);
+	static UStaticMesh* const GantryMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::DrumGantry);
+	static UStaticMesh* const DrumMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::HoseDrum);
+	static UStaticMesh* const LeverMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::DrumLever);
 	static UMaterialInterface* const Iron = BargeLooks::Find<UMaterialInterface>(BargeLooks::Iron);
 	static UMaterialInterface* const IronBlack = BargeLooks::Find<UMaterialInterface>(BargeLooks::IronBlack);
 	static UMaterialInterface* const Rubber = BargeLooks::Find<UMaterialInterface>(BargeLooks::Rubber);
@@ -52,12 +57,18 @@ ABargeHoseDrum::ABargeHoseDrum()
 	Root->SetMobility(EComponentMobility::Movable);
 	RootComponent = Root;
 
-	// The gantry's housing: an iron box 4 m long over the drum's well, cover to crouch behind.
+	// The gantry's housing over the drum's well, cover to crouch behind: the kit's riveted box and red gantry (its pivot on
+	// the deck, scaled flat to the rules' footprint; its five hulls block), else an iron box 4 m long.
 	Housing = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Housing"));
 	Housing->SetupAttachment(Root);
 	Housing->SetMobility(EComponentMobility::Movable);
-	Housing->SetStaticMesh(Tripo ? Tripo : CubeMesh);
-	if (!Tripo)
+	Housing->SetStaticMesh(GantryMesh ? GantryMesh : CubeMesh);
+	if (GantryMesh)
+	{
+		Housing->SetRelativeScale3D(FVector(BargeRules::DrumGantryHalf.X / BargeLooks::GantryModelHalf.X,
+			BargeRules::DrumGantryHalf.Y / BargeLooks::GantryModelHalf.Y, 1.0));
+	}
+	else
 	{
 		Housing->SetMaterial(0, Iron);
 		Housing->SetRelativeLocation(FVector(0.0, 0.0, 70.0));
@@ -67,25 +78,45 @@ ABargeHoseDrum::ABargeHoseDrum()
 	Housing->SetCollisionObjectType(ECC_WorldStatic);
 	Housing->SetCanEverAffectNavigation(false);
 
-	// The drum's top showing over the housing, wound with black hose, turning.
+	// The drum turning in its well, wound with black hose: the kit's drum on the well's floor (its axle in the gantry's top
+	// bearing), else a rubber-black cylinder showing over the box.
 	Drum = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Drum"));
 	Drum->SetupAttachment(Root);
 	Drum->SetMobility(EComponentMobility::Movable);
-	Drum->SetStaticMesh(CylinderMesh);
-	Drum->SetMaterial(0, Rubber ? Rubber : IronBlack);
-	Drum->SetRelativeLocation(FVector(0.0, 0.0, 170.0));
-	Drum->SetRelativeScale3D(FVector(2.2, 2.2, 2.4));
+	Drum->SetStaticMesh(DrumMesh ? DrumMesh : CylinderMesh);
+	if (DrumMesh)
+	{
+		Drum->SetRelativeLocation(FVector(0.0, 0.0, BargeLooks::DrumOnGantry));
+		if (Rubber)
+		{
+			// Its hose the same rubber as her hanging hose.
+			BargeLooks::SetSlot(*Drum, BargeLooks::HoseSlot, Rubber);
+		}
+	}
+	else
+	{
+		Drum->SetMaterial(0, Rubber ? Rubber : IronBlack);
+		Drum->SetRelativeLocation(FVector(0.0, 0.0, 170.0));
+		Drum->SetRelativeScale3D(FVector(2.2, 2.2, 2.4));
+	}
 	Drum->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Drum->SetCanEverAffectNavigation(false);
-	Drum->SetVisibility(Tripo == nullptr);
 
+	// The jam lever: the kit's iron arm with its brass grip turning about its pin, else a brass rod about its middle.
 	Lever = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Lever"));
 	Lever->SetupAttachment(Root);
 	Lever->SetMobility(EComponentMobility::Movable);
-	Lever->SetStaticMesh(CylinderMesh);
-	Lever->SetMaterial(0, Brass);
-	Lever->SetRelativeLocation(LeverAt);
-	Lever->SetRelativeScale3D(FVector(0.09, 0.09, 1.2));
+	Lever->SetStaticMesh(LeverMesh ? LeverMesh : CylinderMesh);
+	if (LeverMesh)
+	{
+		Lever->SetRelativeLocation(LeverPivot);
+	}
+	else
+	{
+		Lever->SetMaterial(0, Brass);
+		Lever->SetRelativeLocation(LeverAt);
+		Lever->SetRelativeScale3D(FVector(0.09, 0.09, 1.2));
+	}
 	Lever->SetRelativeRotation(FRotator(0.f, 0.f, -35.f));
 	Lever->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Lever->SetCanEverAffectNavigation(false);

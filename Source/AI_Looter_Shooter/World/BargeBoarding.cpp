@@ -1,7 +1,7 @@
 // ABargeBoarding: Vane's barge brought down over the chapel in Main 6: her life in the level (the hull, shown or not), her
 // place in the story, her pieces, and the beats the furnace, valves and drum tell her. BargeBoardingSpots.cpp has the
-// getters the sortie and the build scripts read, BargeBoardingKit.cpp her deck kit, BargeBoardingHall.cpp the vestibule
-// and the hall below, BargeBoardingDeck.cpp her tick, BargeBoardingDying.cpp her end.
+// getters the sortie and the build scripts read, BargeBoardingKit.cpp her deck kit, BargeBoardingProps.cpp her props,
+// BargeBoardingHall.cpp the hall and the office below the deck, BargeBoardingDeck.cpp her tick, BargeBoardingDying.cpp her end.
 
 #include "World/BargeBoarding.h"
 #include "AI_Looter_Shooter.h"
@@ -63,21 +63,25 @@ ABargeBoarding::ABargeBoarding()
 	Hull->SetMobility(EComponentMobility::Movable);
 	if (HullMesh)
 	{
-		// The reworked Tripo hull carries its own collision (its UCX boxes: the deck slab, the bulwark round its gap, the hull's
-		// body, the house's walls round its door and its roof, the stacks, the tower, the scoop; nothing inside the house, where
-		// the kit's vestibule, office and hall are): she's walked and shot on as she is.
+		// The jumboed Tripo hull carries its own collision (its UCX boxes: the decks, the rails round the berth's gap, the
+		// coaming round the hatch's hole, the forecastle's step, the house, the casing, the stacks, the scoop; nothing in the
+		// hollow below the well deck, where the kit's hall and office are): she's walked and shot on as she is.
 		Hull->SetStaticMesh(HullMesh);
 		Hull->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 		Hull->SetCollisionObjectType(ECC_WorldStatic);
 	}
 	else
 	{
-		// Without it: an iron box of her size up to her deck, only to see; the kit lays its own deck plate and rails on it
-		// (and builds the house's rooms on it as on the hull, with no house round them).
+		// Without it: an iron box of her size up to her well deck, only to see; the kit lays its own deck plates, coaming and
+		// rails on it (and builds the rooms below the deck inside it as in the hull).
+		const double Length = BargeRules::HullFore - BargeRules::HullAft;
 		Hull->SetStaticMesh(CubeMesh);
 		Hull->SetMaterial(0, Iron);
-		Hull->SetRelativeLocation(FVector(0.0, 0.0, BargeRules::DeckTop * 0.5));
-		Hull->SetRelativeScale3D(FVector(BargeRules::HullLength / 100.0, BargeRules::HullHalfBeam / 50.0, BargeRules::DeckTop / 100.0));
+		// Its top under the kit's plates' undersides (never in their plane: no flicker). It still roofs the rooms below seen
+		// through the hatch's hole: a stand-in only.
+		const double Top = BargeRules::WellDeckZ - BargeRules::PlateThickness;
+		Hull->SetRelativeLocation(FVector((BargeRules::HullAft + BargeRules::HullFore) * 0.5, 0.0, Top * 0.5));
+		Hull->SetRelativeScale3D(FVector(Length / 100.0, BargeRules::HullHalfBeam / 50.0, Top / 100.0));
 		Hull->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	}
 	Hull->SetCanEverAffectNavigation(false);
@@ -189,8 +193,8 @@ void ABargeBoarding::SpawnPieces()
 		return Piece;
 	};
 
-	// The furnace on the hall's floor, its cage's window facing the office.
-	Furnace = Cast<ABargeFurnace>(Spawn(ABargeFurnace::StaticClass(), BargeRules::HallPoint(0.f, 0.f), 0.f));
+	// The furnace on the hall's floor, its cage's window facing the office's doorway (its grate ring turns with it).
+	Furnace = Cast<ABargeFurnace>(Spawn(ABargeFurnace::StaticClass(), BargeRules::HallPoint(0.f, 0.f), BargeRules::OfficeAngle));
 	if (Furnace)
 	{
 		Furnace->SetBarge(this);
@@ -202,7 +206,7 @@ void ABargeBoarding::SpawnPieces()
 	for (const float Angle : BargeRules::ValveAngles)
 	{
 		if (AFurnaceDraftValve* Valve = Cast<AFurnaceDraftValve>(Spawn(AFurnaceDraftValve::StaticClass(),
-			BargeRules::HallPoint(Angle, BargeRules::HallRadius - 30.f), Angle + 180.f)))
+			BargeRules::HallPoint(Angle, BargeRules::HallRadius - BargeRules::ValveIn), BargeRules::OfficeAngle + Angle + 180.f)))
 		{
 			Valve->SetBarge(this);
 			Valve->ShutWhen.DuringMission = BargeRules::Mission();
@@ -211,7 +215,8 @@ void ABargeBoarding::SpawnPieces()
 			Valves.Add(Valve);
 		}
 	}
-	// The drum's gantry on the deck over the drum under her keel. Jammable through the deck fight (the step's optional).
+	// The drum's gantry on the well deck's aft port quarter (a drive shaft to the drum under her keel). Jammable through the
+	// deck fight (the step's optional).
 	HoseDrum = Cast<ABargeHoseDrum>(Spawn(ABargeHoseDrum::StaticClass(), BargeRules::DrumOnDeck, 0.f));
 	if (HoseDrum)
 	{
@@ -260,6 +265,17 @@ void ABargeBoarding::ForceStep(int32 Step)
 		if (Furnace)
 		{
 			Furnace->SetCageBurst(false);
+		}
+		// Her lights back on (BeginDying put them out).
+		for (const TArray<TObjectPtr<UPointLightComponent>>* Lights : { &DeckLamps, &Lanterns })
+		{
+			for (UPointLightComponent* Lamp : *Lights)
+			{
+				if (Lamp)
+				{
+					Lamp->SetVisibility(true);
+				}
+			}
 		}
 	}
 	RefreshStory();

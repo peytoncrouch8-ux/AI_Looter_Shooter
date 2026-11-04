@@ -3,7 +3,15 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
-## START HERE (session end 2026-11-04 day: Art round 1 BUILT, the audit's steps 1-2 on the REWORKED Tripo hull; Phase 3 below is still UNPLAYED)
+## START HERE (2026-11-04 ~11:00, IN PROGRESS: the barge's ROUND 3; the committed a81c52ab has the boxed house the user REJECTED)
+The user on a81c52ab's barge: "why the fuck did you put a big box on the Tripo model. This does not look good in slightest. Use
+the Tripo model and adjust it, don't just throw a structure on the ship and call it a day." Then: pieces may be moved, resized,
+retextured ("act like a senior game designer and developer"); the hall "Below deck, smaller". Round 3 (`CONTRACT.md` "Round
+3": the look bar, the jumbo design, BARGE_LAYOUT.md owned by the model) runs on lanes REWORK (the model), MATERIAL (per-slot
+detail, world-space iron for the kit), REUSE (props), KIT (round 6: zones, the hall below deck). Lesson: Main judges every
+preview against the bought model's own preview before passing it; a contract that forces geometry onto a bought model is wrong.
+
+## Before round 3 (2026-11-04 day: Art round 1 built and committed, a81c52ab)
 The user's calls today, in order: "Art: steps 1-2" (not play-testing Phase 3 yet); "more agents for faster delivery"; after the
 measurement, the barge on a scripted hull in our sets; after seeing it in PIE: **"remove the hull we just made, and use the Tripo
 model but rework the model to fit our needs and expectations"**, then **"Reshape for the kit"** and **"Tripo paint + our tiled

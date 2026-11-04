@@ -40,7 +40,10 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
      (M_World and its instances still 317 VS / 229 PS instructions, 5 samplers, 0 interpolators). Static `DetailWorld`: world
      metres in the piece's own axes (scaled engine cubes tile true; rides with a listing barge, which pure world space
      would not). `DetailPlates` draws riveted plates (seams, rivets, each plate's tone; none of our sets has plate seams).
-     `DetailGrainUp` 1 turns the sides' picture a quarter (grain up posts and upright boards).
+     `DetailGrainUp` 1 turns the sides' picture a quarter (grain up posts and upright boards). `DetailTopTint` lightens the
+     frame's up faces over the rest at every distance (treads over risers: a step reads in shade). The barge's `_Deck`
+     (round 5): plates 0.85/0.9, MetalWorn 0.3 at 0.7 m (its 1 m blotches read as dirt), Tint 1.8 (Tripo's deck paint
+     averages 0.045 linear luma), TopTint 1.25.
      One Custom node does it all (`Leaned` an additional output). On, object space: 442 PS, 8 samplers, 6 interpolator
      scalars; DetailWorld: 340 VS, 450 PS, 9 interpolators (the frame worked out per vertex: per pixel it cost ~0.1 ms
      more). Editor viewport (Epic, 1885x866), BasePass: barge filling the view +0.09-0.12 ms (round 1); a kit wall filling

@@ -28,9 +28,13 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
   bias back to the engine's Medium (1). Final (10:34, step 1 as picked, the reworked Tripo barge with the detail layer in the
   level): the tour mean 7.39 ms over 42 views (7.19 before step 1 at a quieter PC), the heaviest Aerial 9.36, Aerial_Dusk 9.36,
   PointOverValley_FarShadow 9.10 (nine views over 8.3, mostly aerial and noise); the barge views SpyglassBarge 7.38 -> 7.82,
-  FarmBarge 7.84 -> 8.17, DeckFight_Dusk 7.50 -> 7.40 (the reworked hull 56k triangles, 47 hulls, the detail layer ~0.1 ms);
-  the horde 8.4 ms, LMG fire 8.6 ("Art round 1 final" rows; the earlier "scripted barge hull" rows measured the hull the user
-  then dropped).
+  FarmBarge 7.84 -> 8.17, DeckFight_Dusk 7.50 -> 7.40 (that was round 2's boxed hull, 56k triangles, which the user then
+  rejected too); the horde 8.4 ms, LMG fire 8.6 ("Art round 1 final" rows; the earlier "scripted barge hull" rows measured the
+  hull the user dropped first). Round 3 (15:38, the Tripo hull adjusted piece by piece and lengthened: 135k triangles, 152
+  hulls, three detail slots; the kit's 16 models; 9 work lamps without shadows): ON the barge's well deck (`Looter.Landfall 4,
+  Looter.Barge.Show 3 aboard, Looter.Pilot.State Grappled`; the first perf row there) 9.2 ms / 108 fps, render thread bound
+  (render 9.2, GPU 8.0, game 4.2): her deck is 47 m over the town, an aerial view like the tour's Aerial (9.36); the town horde
+  8.5. Not yet split: the lamps', the hull's and the detail's shares of the deck view.
 - Small instanced scatter (meshes under 1.5 m radius) stays out of Lumen and the distance fields (`ULumenScatterSubsystem`):
   Ransom's Rest's ~66k grass/flower/pebble instances made Lumen's surface cache recapture ~6,900 tiny cards
   (`LumenSceneUpdate` 400+ ms, frames of 1.3 s alternating with normal ones, even standing still).
@@ -157,3 +161,5 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-11-04 | Art round 1 final: LMG 30 s into 10 Basic spiders | 3c85407f | 1920x1080 | 8.9 | 113 | 11.2 | 8.8 | 4.8 | 2.0 | 7.0 | 1525 | 1311132 | 5.23 |
 | 2026-11-04 | Art round 1 final (step 1 as picked, reworked Tripo hull + detail layer): 10 Basic spiders in town | 3c85407f | 1920x1080 | 8.4 | 119 | 9.2 | 6.8 | 8.2 | 1.8 | 7.1 | 1914 | 1889788 | 5.82 |
 | 2026-11-04 | Art round 1 final (reworked Tripo hull): LMG 30 s into 10 Basic spiders | 3c85407f | 1920x1080 | 8.6 | 116 | 10.1 | 8.5 | 5.2 | 2.0 | 7.1 | 1631 | 1443430 | 4.67 |
+| 2026-11-04 | Art round 3: on the reworked barge's well deck (9 work lamps, kit props) | 527a6d5d | 1920x1080 | 9.2 | 108 | 9.9 | 4.2 | 9.2 | 1.7 | 8.0 | 1228 | 1760609 | 6.19 |
+| 2026-11-04 | Art round 3: 10 Basic spiders in town | 527a6d5d | 1920x1080 | 8.5 | 118 | 9.1 | 6.2 | 8.5 | 1.7 | 7.2 | 1911 | 2077555 | 4.14 |

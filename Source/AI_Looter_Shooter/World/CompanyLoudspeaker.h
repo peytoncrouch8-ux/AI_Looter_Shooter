@@ -46,9 +46,11 @@ struct AI_LOOTER_SHOOTER_API FLoudspeakerCue
  * next time the level loads (the Company mends its horns): nothing is saved.
  *
  * With bShowPost off it's a voice only (no post, no horns, nothing to shoot): where another lane's post already stands
- * (WORLD's instanced posts on Main Street) the voice is placed at its horns. Stand-in look: an existing fence post
- * stretched to 4.2 m, two engine cones in brass, a black plate; ModelPath (the Tripo loudspeaker, TRIPO_MODELS.md 18)
- * replaces all three once it's imported. Tagged Obstacle (the minimap) and LoudspeakerTag.
+ * (WORLD's instanced posts on Main Street) the voice is placed at its horns. Its look: ModelPath, the user's Tripo post
+ * (SM_LoudspeakerPost, TRIPO_MODELS.md 18: 4 m, its horns and plate on it facing +X, socket Horns), its foot set on the
+ * ground from its bounds and its horns' target at the socket (the barge's horns, 2026-11-04: the stand-in's pale post was
+ * out of the Company's palette). Without it the stand-in: an existing fence post stretched to 4.2 m, two engine cones in
+ * brass, a black plate. Tagged Obstacle (the minimap) and LoudspeakerTag.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ACompanyLoudspeaker : public AActor
@@ -61,7 +63,7 @@ public:
 	/** Every loudspeaker carries it. */
 	static const FName LoudspeakerTag;
 
-	/** The Tripo model (one path): used in place of the stand-in's post, horns and plate once it's in the project. */
+	/** The Tripo model (one path): used in place of the stand-in's post, horns and plate when it's in the project. */
 	static const TCHAR* const ModelPath;
 
 	/**

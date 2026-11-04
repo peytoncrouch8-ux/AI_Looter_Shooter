@@ -9,7 +9,9 @@
 #include "Missions/MissionRunner.h"
 #include "World/BargeBoarding.h"
 #include "World/BargeLooks.h"
+#include "World/BargeRules.h"
 #include "World/LamplighterEffects.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
@@ -24,8 +26,10 @@ namespace
 	/** The wheel spins down in this long once the hold is done, three and a half turns, slowing as it seats. */
 	constexpr float SpinSeconds = 1.2f;
 	constexpr float SpinTurns = 3.5f;
-	/** The wheel's middle in front of the wall (its frame: +X into the hall), at a hand's height. */
+	/** The wheel's middle in front of the wall (its frame: +X into the hall), at a hand's height (the model's Wheel socket);
+	 *  the valve model's top flange, where its riser to the ceiling starts (its PipeTop socket). */
 	const FVector WheelAt(45.0, 0.0, 130.0);
+	const FVector RiserFoot(-10.0, 0.0, 300.0);
 	/** Steam spits from the pipe's joint while the wheel turns, this often. */
 	constexpr float SteamEvery = 0.08f;
 }
@@ -38,7 +42,9 @@ AFurnaceDraftValve::AFurnaceDraftValve()
 	Tags.Add(ValveTag);
 
 	static UStaticMesh* const CylinderMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::Cylinder);
-	static UStaticMesh* const Tripo = BargeLooks::Find<UStaticMesh>(BargeLooks::TripoValve);
+	static UStaticMesh* const ValveMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::DraftValve);
+	static UStaticMesh* const WheelMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::ValveWheel);
+	static UStaticMesh* const PipeMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::Pipe);
 	static UMaterialInterface* const Iron = BargeLooks::Find<UMaterialInterface>(BargeLooks::Iron);
 	static UMaterialInterface* const Brass = BargeLooks::Find<UMaterialInterface>(BargeLooks::Brass);
 
@@ -46,11 +52,13 @@ AFurnaceDraftValve::AFurnaceDraftValve()
 	Root->SetMobility(EComponentMobility::Movable);
 	RootComponent = Root;
 
+	// The valve: the kit's model at the floor (its pipe stub, body, bonnet and straps; its two hulls block), else an iron
+	// pipe up the wall from the floor to the ceiling.
 	Pipe = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Pipe"));
 	Pipe->SetupAttachment(Root);
 	Pipe->SetMobility(EComponentMobility::Movable);
-	Pipe->SetStaticMesh(Tripo ? Tripo : CylinderMesh);
-	if (!Tripo)
+	Pipe->SetStaticMesh(ValveMesh ? ValveMesh : CylinderMesh);
+	if (!ValveMesh)
 	{
 		Pipe->SetMaterial(0, Iron);
 		// Up the wall from the floor to the ceiling, where the draught runs to the furnace's crown.
@@ -62,17 +70,31 @@ AFurnaceDraftValve::AFurnaceDraftValve()
 	Pipe->SetCanEverAffectNavigation(false);
 	Pipe->SetCastShadow(false);
 
+	// The hand wheel on the bonnet's stem (the model's Wheel socket): the kit's brass wheel, else a brass disc.
+	bWheelModel = WheelMesh != nullptr;
 	Wheel = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Wheel"));
 	Wheel->SetupAttachment(Root);
 	Wheel->SetMobility(EComponentMobility::Movable);
-	Wheel->SetStaticMesh(CylinderMesh);
-	Wheel->SetMaterial(0, Brass);
+	Wheel->SetStaticMesh(bWheelModel ? WheelMesh : CylinderMesh);
+	if (!bWheelModel)
+	{
+		Wheel->SetMaterial(0, Brass);
+		Wheel->SetRelativeScale3D(FVector(0.9, 0.9, 0.08));
+	}
 	Wheel->SetRelativeLocation(WheelAt);
-	Wheel->SetRelativeScale3D(FVector(0.9, 0.9, 0.08));
 	Wheel->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Wheel->SetCanEverAffectNavigation(false);
 	Wheel->SetCastShadow(false);
-	Wheel->SetVisibility(Tripo == nullptr);
+
+	// With the valve model, its riser on up to the hall's ceiling in pipe sections (they block, as the stand-in's pipe did).
+	Riser = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Riser"));
+	Riser->SetupAttachment(Root);
+	Riser->SetMobility(EComponentMobility::Movable);
+	Riser->SetStaticMesh(ValveMesh ? PipeMesh : nullptr);
+	Riser->SetCollisionProfileName(TEXT("BlockAll"));
+	Riser->SetCollisionObjectType(ECC_WorldStatic);
+	Riser->SetCanEverAffectNavigation(false);
+	Riser->SetCastShadow(false);
 
 	Prompt = LOCTEXT("Shut", "Shut the draft valve");
 	PoseWheel();
@@ -81,6 +103,13 @@ AFurnaceDraftValve::AFurnaceDraftValve()
 void AFurnaceDraftValve::BeginPlay()
 {
 	Super::BeginPlay();
+	if (Riser->GetStaticMesh())
+	{
+		TArray<FTransform> Runs;
+		BargeLooks::AddPipeRun(Runs, RiserFoot, BargeRules::HallHeight - RiserFoot.Z, BargeRules::ValveRiserWidth);
+		Riser->ClearInstances();
+		Riser->AddInstances(Runs, /*bShouldReturnIndices*/ false);
+	}
 	if (UInteractionSubsystem* Registry = UInteractionSubsystem::Get(this))
 	{
 		Registry->Register(this);
@@ -168,9 +197,11 @@ void AFurnaceDraftValve::PoseWheel()
 	{
 		return;
 	}
-	// Slowing as it seats (an ease out over its turns), spun about its axle into the hall (+X).
+	// Slowing as it seats (an ease out over its turns), spun about its axle into the hall (+X): the model's axle is its own X;
+	// the stand-in disc's is its Z, turned onto X.
 	const float Eased = 1.f - FMath::Square(1.f - Turn);
-	Wheel->SetRelativeRotation(FQuat(FVector::XAxisVector, UE_TWO_PI * SpinTurns * Eased) * FQuat(FVector::YAxisVector, UE_HALF_PI));
+	const FQuat Spin(FVector::XAxisVector, UE_TWO_PI * SpinTurns * Eased);
+	Wheel->SetRelativeRotation(bWheelModel ? Spin : Spin * FQuat(FVector::YAxisVector, UE_HALF_PI));
 }
 
 FInteractionOptions AFurnaceDraftValve::GetInteractionOptions(const UInteractionComponent& User) const

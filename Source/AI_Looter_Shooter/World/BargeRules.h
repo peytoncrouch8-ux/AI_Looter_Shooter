@@ -6,16 +6,16 @@
 /**
  * The boarding stage's numbers and rules as plain math (Main 6 "The Pilot Light", MAINS_2_7.md section 10; lane MAIN67's
  * W3), so the tests check them without a level: the barge's own frame (cm; X along it, its bow +X; Y across, its berth side
- * -Y; Z up from its keel's pivot, as SM_DredgeBarge is built), the walkable kit's sizes, the furnace hall that fits inside
- * the hull, the floor grate ring's turning pattern, the deck vents' clock, the dying list and drift, and the fall's pose.
- * ABargeBoarding builds and plays them; ABargeFurnace plays the grate ring.
+ * -Y; Z up from its keel's pivot, as SM_DredgeBarge is built), her decks as zones, the berth and the deck's pieces. The
+ * furnace hall below the deck, its hatch, stair and side room, the grate ring, the vents' clock, the dying and the fall are
+ * BargeHallRules.h (included at the end). ABargeBoarding builds and plays them; ABargeFurnace plays the grate ring.
  *
- * Since 2026-11-04 (round 4) the hull is the user's Tripo SM_DredgeBarge reworked for the kit (Tools/Blender/
- * looter_tripo_wardens.py's rework step; Docs/Work/2026-11-04-Art/CONTRACT.md "the Tripo hull REWORKED"): one flat open deck,
- * the bulwark with its gap, the aft house raised and widened to the full beam with a real door, the stacks and the tower on
- * its roof, all with their own collision. The kit adds what the hull hasn't got: the vestibule and the office inside the
- * door, the furnace hall at deck level in the house, the cover, vents, horns, the falling third stack and the drum's gantry.
- * The numbers marked "the hull's" are the shared contract with that model: change both together.
+ * Since 2026-11-04 the hull is the user's Tripo SM_DredgeBarge jumboed (Docs/Work/2026-11-04-Art/CONTRACT.md "Round 3": "Use
+ * the Tripo model and adjust it"): a well deck between the house and the scoop's raised floor (the forecastle), walks past
+ * the house to the cross walk between the house and the casing, where a hatch opens over the hall's hollow under the
+ * casing; all with the hull's own collision. The kit adds no structure on her: the hall below, the cover, vents, horns,
+ * the falling third stack and the drum's gantry. Numbers marked "the hull's" are the shared contract with that model,
+ * measured on the built mesh in BARGE_LAYOUT.md (round 9): change both together.
  */
 namespace BargeRules
 {
@@ -33,424 +33,376 @@ namespace BargeRules
 	inline constexpr int32 EscapeStep = 7;
 	inline constexpr int32 ReadyStep = 8;
 
-	// --- The hull (the hull's numbers: 75 m long, 24.75 m in the beam, pivot under its middle at the bottom where the hose
-	// drum hangs, bow +X) and the walkable deck on it ---
-
-	inline constexpr float HullLength = 7500.f;
-	inline constexpr float HullHalfBeam = 1237.5f;
-	/** The open deck's walking surface over the keel (the hull's). */
-	inline constexpr float DeckTop = 2250.f;
-	/** The arena on the open deck the kit's spots stand in: from just fore of the house to the bow, inside the bulwark's
-	 *  waterway (the hull's open deck runs x -400..3350, walkable |y| <= 1100). */
-	inline constexpr float DeckAft = -300.f;
-	inline constexpr float DeckFore = 3300.f;
-	inline constexpr float DeckHalfBeam = 1100.f;
-	/** The kit's floor plates' thickness; the bulwark (the hull's: 110 high, 15 thick, its outer face on the beam); the unseen
-	 *  rail walls' height over the deck (pawns only, as the Lamplighter's: nobody climbs the bulwark and falls). */
-	inline constexpr float PlateThickness = 30.f;
-	/** The kit's floors inside the house stand this hair over the deck's height: over any surface the hull keeps there, so the
-	 *  two never fight (a 2 cm step at the door is nothing). */
-	inline constexpr float InteriorFloorLift = 2.f;
-	inline constexpr float RailHeight = 110.f;
-	inline constexpr float BulwarkHalfBeam = HullHalfBeam;
-	inline constexpr float BulwarkThick = 15.f;
-	inline constexpr float RailWallHeight = 320.f;
-	/** The bulwark gap's sill over the deck at the berth (the hull's; the plank must pass over it). */
-	inline constexpr float SillUp = 15.f;
-	/** The kit draws its own low rail round the deck only over the stand-in box (the hull has its bulwark); true draws it
-	 *  over the hull too. */
-	inline constexpr bool bDrawRails = false;
-
-	// --- The house (the hull's aft block, reworked): hollow, the full beam, from the deck to its roof; the furnace hall stands
-	// in it at deck level, through its door ---
-
-	inline constexpr float HouseAft = -3300.f;
-	inline constexpr float HouseFore = -400.f;
-	inline constexpr float HouseHalfBeam = 1237.5f;
-	inline constexpr float HouseRoof = 3300.f;
-	/** Its door: 240 wide, 300 tall, at y 0 in the fore face, its threshold on the deck (the hull's). */
-	inline constexpr float DoorHalfWidth = 120.f;
-	inline constexpr float DoorHeight = 300.f;
-	/** The house's walls (the hull's: 20 thick, so its inside is 1217.5 to a side): the kit's lining stands just inside. */
-	inline constexpr float HouseWallThick = 20.f;
-	/**
-	 * The vestibule just inside the door, at deck level: a small lobby the kit floors, walls, lines and roofs (the house is
-	 * empty inside), its aft wall the office's fore wall with a doorway as big as the house's. From the house's fore wall's
-	 * lining back to VestibuleAft, this wide, this high, its walls this thick.
-	 */
-	inline constexpr float VestibuleAft = -580.f;
-	inline constexpr float VestibuleHalfWidth = 300.f;
-	inline constexpr float VestibuleHeight = 360.f;
-	inline constexpr float VestibuleWall = 20.f;
-	/** The vestibule's room inside its walls and lining (flat, the barge's frame). */
-	AI_LOOTER_SHOOTER_API FBox2D VestibuleArea();
-
-	/**
-	 * The kit's floor plates (the barge's frame). One on the hull's own deck (bOnHullDeck) is laid only over the stand-in box
-	 * (the hull's deck has its collision); the rest are always laid, drawn iron, InteriorFloorLift over the deck.
-	 */
-	struct FDeckPlate
-	{
-		float XMin;
-		float XMax;
-		float YMin;
-		float YMax;
-		bool bOnHullDeck;
-	};
-	inline constexpr FDeckPlate DeckPlates[] = {
-		// The open deck, to the bulwark's inner face (the stand-in's only).
-		{ HouseFore, DeckFore, -(BulwarkHalfBeam - BulwarkThick), BulwarkHalfBeam - BulwarkThick, true },
-		// The vestibule's floor under its walls (the kit floors the house's inside).
-		{ VestibuleAft - VestibuleWall, HouseFore, -(VestibuleHalfWidth + VestibuleWall), VestibuleHalfWidth + VestibuleWall, false },
-	};
-
-	/**
-	 * Superstructure footprints on the deck the kit walls off with unseen boxes (pawns and shots stopped, nothing drawn), Up
-	 * tall over the deck: for a hull without its own collision. The reworked hull has it: none.
-	 */
-	struct FDeckBlock
-	{
-		float XMin;
-		float XMax;
-		float YMin;
-		float YMax;
-		float Up;
-	};
-	inline TConstArrayView<FDeckBlock> DeckBlocks() { return {}; }
-
-	/** True when a flat point (the barge's frame) is in the deck's arena and out of every DeckBlock: where a spot on the deck
-	 *  may stand. */
-	AI_LOOTER_SHOOTER_API bool IsOpenDeck(const FVector2D& At);
-
-	/** One of the unseen pawn-only rail walls (the barge's frame, flat; RailWallHeight tall over the deck). */
-	struct FRailWall
-	{
-		const TCHAR* Name;
-		FBox2D Footprint;
-	};
-	/** The rail walls the kit stands, by name: on the bulwark's line fore and aft of its gap and along the far side, and
-	 *  across the bow (the house is the full beam: no side walks beside it to close). */
-	AI_LOOTER_SHOOTER_API TArray<FRailWall> RailWallLayout();
-	/** The bow's rail wall's thickness (it doesn't stand on the bulwark): a hand's. */
-	inline constexpr float RailWallThick = 30.f;
-
-	// --- The berth: where the Lamplighter lies grappled (W2's ship flies to it), her starboard to the barge's -Y side ---
-
-	/** The berth side (-1: the barge's port, -Y) and the berth's place along the barge: the bulwark's gap (the hull's), forward,
-	 *  so the deck fight runs aft to the house. */
-	inline constexpr float BerthSide = -1.f;
-	inline constexpr float BerthX = 2000.f;
-	/** Her keel's line out from the barge's middle: the barge's half beam, her bag's (SM_Lamplighter 10.54 m), and a gap. */
-	inline constexpr float BerthOut = 1950.f;
-	/** Her deck under the barge's (negative: over it, so the plank runs down over the bulwark gap's sill onto the deck), her
-	 *  keel 4.22 m under her deck (ALamplighterShip::DeckTop), her rail 3.75 m out (::RailOut), her bag 5.27 m out from her
-	 *  keel line. */
-	inline constexpr float BerthUnderDeck = -100.f;
-	inline constexpr float ShipDeckOverKeel = 422.f;
-	inline constexpr float ShipRailOut = 375.f;
-	inline constexpr float ShipBagHalfBeam = 527.f;
-	/** The plank lands this far in from the arena's edge; its floor lies this far under its line. */
-	inline constexpr float BoardingInset = 150.f;
-	inline constexpr float PlankUnderside = 10.f;
-	/** A player put aboard by the plank stands this far in from the arena's edge (a step past the landing); anyone put aboard
-	 *  stands this far over the floor (a capsule's half height and a hand: never sunk into it). */
-	inline constexpr float PlankStartIn = 200.f;
-	inline constexpr float StandUp = 100.f;
-	/** Step 7: she hangs under the broken gangway this far down, this far out from the barge's middle: far enough that her
-	 *  bag clears the bulwark's top when the barge has listed her full 12 degrees toward her. */
-	inline constexpr float JumpUnderDeck = 350.f;
-	inline constexpr float JumpOut = 2050.f;
-	/** The grapples bite the bulwark's top fore and aft of the berth by this much (the ship's own bites are at +-600). */
-	inline constexpr float GrappleSpread = 600.f;
-	/** The bulwark's gap where the gangplank lands (and the jump is), along the barge either side of the berth (the hull's
-	 *  300 wide gap). */
-	inline constexpr float GapHalf = 150.f;
-	/** The plank's floor over the gap's sill where it crosses the bulwark's inner face (cm; above 0 it clears). */
-	AI_LOOTER_SHOOTER_API float PlankSillClearance();
-	/** Her bag's inner edge outside the bulwark's outer face at the berth (cm; above 0 it clears). */
-	AI_LOOTER_SHOOTER_API float BerthBagClearance();
-	/** At the jump berth with the barge listed ListDegrees toward her: how far her bag's inner edge stays out of the bulwark's
-	 *  top (cm, in her level frame; above 0 it clears). */
-	AI_LOOTER_SHOOTER_API float JumpBagClearance();
-
-	// --- The deck's pieces: the arena (x DeckAft..DeckFore, |y| <= DeckHalfBeam), the house its aft wall, the berth's gap on
-	// its port side; the deck fight runs aft from the berth to the house's door ---
-
-	/** The hose drum under the keel (the hull's SOCKET_HoseDrum), and its gantry with the jam lever on the deck, port side by
-	 *  the house (the drum is under the house, which has no deck to stand a gantry on: a drive shaft runs between). */
-	inline const FVector DrumUnderKeel(-889.0, 323.0, 0.0);
-	inline const FVector DrumOnDeck(-100.0, -750.0, DeckTop);
-	/** The gantry's housing on the deck, half its size (ABargeHoseDrum's 4 x 2.6 m housing: change both together). */
-	inline const FVector2D DrumGantryHalf(200.0, 130.0);
-	/** The kit's own third stack, just fore of the house's fore face on the starboard side (10 cm of air to the wall's
-	 *  collision at x -400): it breaks off in step 7 and falls about its foot across the after deck toward the port lane, a
-	 *  little forward (degrees off -Y toward -X: negative, the bow), lying to (352, -469). */
-	inline const FVector FallingStackFoot(-240.0, 800.0, DeckTop);
-	inline constexpr float StackRadius = 150.f;
-	inline constexpr float StackHeight = 1400.f;
-	inline constexpr float StackFallAft = -25.f;
-	/** The work lamp over the house's door (the reworked hull has no crane to hang a second on: dropped, round 5);
-	 *  shadowless, warm, this bright (candelas), this far. */
-	inline const FVector DeckLampSpots[] = { FVector(HouseFore + 60.0, 0.0, HouseRoof - 120.0) };
-	inline constexpr float DeckLampCandelas = 35.f;
-	inline constexpr float DeckLampReach = 2600.f;
-	inline const FLinearColor DeckLampColor(1.f, 0.72f, 0.42f);
-	/** The furnace vents in the arena, each a 2 x 2 m grille glowing through its slots: two by the berth, two each in the
-	 *  middle lanes, one right before the house's door. */
-	inline const FVector VentSpots[] = { FVector(2300.0, 0.0, DeckTop), FVector(1950.0, 400.0, DeckTop), FVector(1400.0, -550.0, DeckTop),
-		FVector(1400.0, 450.0, DeckTop), FVector(850.0, 0.0, DeckTop), FVector(750.0, -700.0, DeckTop), FVector(250.0, 0.0, DeckTop),
-		FVector(2900.0, 450.0, DeckTop) };
-	inline constexpr int32 NumVents = UE_ARRAY_COUNT(VentSpots);
-	/** A grille's plate this thick, its middle this far over the deck: sunk to a centimetre proud (flush underfoot, nothing to
-	 *  trip on or to fight the deck; its glow and fire stand on it the same). */
-	inline constexpr float VentGrilleThick = 10.f;
-	inline constexpr float VentGrilleUp = 1.f - VentGrilleThick * 0.5f;
-	inline constexpr float VentHalf = 100.f;
-	/** Riflemen's cover: crates and plate stacks in five rows from the berth to the house (centre, half size). */
-	inline const FVector CoverSpots[] = { FVector(2500.0, 350.0, DeckTop), FVector(2400.0, -350.0, DeckTop), FVector(1700.0, -300.0, DeckTop),
-		FVector(1700.0, 750.0, DeckTop), FVector(1150.0, 200.0, DeckTop), FVector(1100.0, -750.0, DeckTop), FVector(550.0, 700.0, DeckTop),
-		FVector(500.0, -250.0, DeckTop), FVector(100.0, 350.0, DeckTop), FVector(-50.0, -350.0, DeckTop) };
-	inline const FVector CoverHalf(110.0, 80.0, 65.0);
-	/** The four horn clusters (ACompanyLoudspeaker posts the build script attaches here), at the walkable deck's sides (|y|
-	 *  980, inside its 1100; the bulwark's inner face is at 1222.5). */
-	inline const FVector HornSpots[] = { FVector(2800.0, -980.0, DeckTop), FVector(1900.0, 980.0, DeckTop), FVector(800.0, -980.0, DeckTop),
-		FVector(300.0, 980.0, DeckTop) };
-	/** Her back half's fires as she dies, each on the surface it burns from: the after deck by the house, the house's roof
-	 *  (clear of its stacks and of the tower over x -2000..-1200). */
-	inline const FVector SternFireSpots[] = { FVector(-200.0, -450.0, DeckTop), FVector(150.0, 750.0, DeckTop), FVector(-2900.0, -600.0, HouseRoof),
-		FVector(-2400.0, 700.0, HouseRoof), FVector(-600.0, -800.0, HouseRoof), FVector(-900.0, 500.0, HouseRoof) };
-	inline constexpr int32 NumSternFires = UE_ARRAY_COUNT(SternFireSpots);
-	/** Where her smoke trails from in the fall: over the house's roof. */
-	inline const FVector FallSmokeSpot(-2600.0, 0.0, HouseRoof + 150.0);
-	/** The deck fight's nine spots (BargeDeck), each just aft of a crate: aft of the berth, so the fight runs to the house. The
-	 *  build script and the spawner's groups count on nine. */
-	inline const FVector DeckFightSpots[] = { FVector(2350.0, 350.0, DeckTop), FVector(2250.0, -350.0, DeckTop), FVector(1550.0, -300.0, DeckTop),
-		FVector(1550.0, 750.0, DeckTop), FVector(1000.0, 200.0, DeckTop), FVector(950.0, -750.0, DeckTop), FVector(400.0, 700.0, DeckTop),
-		FVector(350.0, -250.0, DeckTop), FVector(-50.0, 350.0, DeckTop) };
-	/** Every spawn spot stands this far over its floor (a hand: the spawner's probes find the floor under it). */
-	inline constexpr float SpotUp = 20.f;
-
-	// --- The furnace hall at deck level, in the house ---
-
-	/** The design asks 26 m across; the house is 24.35 m inside, so the hall is the widest round room that keeps a hull
-	 *  wall's 85 cm all round inside it: 22 m (HallRadius). Its middle in the house's aft part, the office and vestibule
-	 *  between its rim and the door. */
-	inline constexpr float DesignHallRadius = 1300.f;
-	inline constexpr float HullWall = 85.f;
-	/** The half-beam the hall keeps inside: the house's walls' inner faces. */
-	inline constexpr float HallSkinHalfBeam = HouseHalfBeam - HouseWallThick;
-	inline constexpr float HallRadius = 1100.f;
-	inline const FVector HallCenter(-2050.0, 0.0, 0.0);
-	/** The hall's floor this far under the deck: none, it's on the deck's level, walked into from the office through the
-	 *  house's door (its 9 m walls and its ceiling fit under the house's roof). */
-	inline constexpr float HallUnderDeck = 0.f;
-	inline constexpr float HallFloor = DeckTop - HallUnderDeck;
-	inline constexpr float HallHeight = 900.f;
-	inline constexpr float WallThickness = 30.f;
-	inline constexpr int32 WallPanels = 24;
-	/** The floor's box (what's stood on) runs this far past the hall's wall along the barge (under the alcoves and the
-	 *  stairs' feet), across it to the skin less SkinGap; this thick. */
-	inline constexpr float HallFloorOut = 140.f;
-	inline constexpr float HallFloorThick = 30.f;
-	/** The hall's ceiling on its walls' top, this thick, under the house's roof: the house is empty inside, so without it the
-	 *  hall would look up into the shell. */
-	inline constexpr float CeilingThickness = 30.f;
-	/** The catwalk ring 4 m up, its inner edge, its middle (where the floor stairs run), and the stokehold doors (degrees
-	 *  round the hall from its +X). */
-	inline constexpr float CatwalkUp = 400.f;
-	inline constexpr float CatwalkInner = 880.f;
-	inline constexpr float CatwalkMiddle = (CatwalkInner + HallRadius) * 0.5f;
-	inline constexpr float StokeholdAngles[] = { 90.f, 270.f };
-	/** Kit pieces past the hall's wall keep this far inside the hull's skin (so its curve never shows them through it). */
-	inline constexpr float SkinGap = 20.f;
-	/** A stokehold's alcove: as deep past the hall's wall's inner face as the skin allows (the design's 1.2 m at most), this
-	 *  wide, its walls this thick and this high (under the catwalk; a lintel closes the hall's wall above it). */
-	inline constexpr float AlcoveMostDepth = 120.f;
-	inline constexpr float AlcoveWall = 20.f;
-	inline constexpr float AlcoveDepth = HallSkinHalfBeam - SkinGap - AlcoveWall - HallRadius < AlcoveMostDepth
-		? HallSkinHalfBeam - SkinGap - AlcoveWall - HallRadius : AlcoveMostDepth;
-	inline constexpr float AlcoveHalfWidth = 190.f;
-	inline constexpr float AlcoveUp = CatwalkUp - 20.f;
-	/**
-	 * The stoker's office off the hall at 0 degrees (toward the bow), at deck level: from the hall's rim to the vestibule's
-	 * aft wall (x -950..-600), this wide, as high as the vestibule and roofed, its walls this thick. Its aft wall closes it but
-	 * for the doorway onto the hall's floor, as wide as the hall wall's gap there and as tall as the house's door (a lintel
-	 * in the hall's wall over it).
-	 */
-	inline constexpr float OfficeAngle = 0.f;
-	inline constexpr float OfficeDepth = 350.f;
-	inline constexpr float OfficeHalfWidth = 500.f;
-	inline constexpr float OfficeHeight = VestibuleHeight;
-	inline constexpr float OfficeWall = 20.f;
-	inline constexpr float OfficeDoorHalf = 190.f;
-	inline constexpr float OfficeDoorUp = DoorHeight;
-	inline constexpr float OfficeAftWall = 30.f;
-	/** The office's floor (flat, the barge's frame; the office stands at 0 degrees, so it's square to the barge). */
-	AI_LOOTER_SHOOTER_API FBox2D OfficeArea();
-	/** The stoker's desk in the office (out from the hall's wall, across toward the port end, out of the way between the two
-	 *  doorways), its top over the floor; the radio on its corner; the safe at the starboard end, this far out. */
-	inline constexpr float DeskOut = 220.f;
-	inline constexpr float DeskAcross = -300.f;
-	inline constexpr float DeskTopUp = 82.f;
-	inline const FVector RadioOnDesk(30.0, -50.0, 15.0);
-	inline constexpr float SafeAcross = 400.f;
-	inline constexpr float SafeOut = 120.f;
-	/** The desk's top's middle (the barge's frame): where the manifest lies. */
-	AI_LOOTER_SHOOTER_API FVector DeskTop();
-	/** The soul furnace in the middle: 6 m across, 6 m tall; its cage's window faces the hall's +X (toward the office). */
-	inline constexpr float FurnaceRadius = 300.f;
-	inline constexpr float FurnaceHeight = 600.f;
-	inline constexpr float CageUp = 250.f;
-	/** Its three pipes rise from this far under its crown into the hall's ceiling (they used to run on up through the deck). */
-	inline constexpr float PipeUnderCrown = 25.f;
-	/** The floor grate ring: twelve wedges between these radii; the safe floor inside it, by the furnace, and outside it. */
-	inline constexpr int32 Grates = 12;
-	inline constexpr float GrateInner = 420.f;
-	inline constexpr float GrateOuter = 860.f;
-	/** The three draft valves on their pipe runs at the hall's wall (degrees). */
-	inline constexpr float ValveAngles[] = { 60.f, 180.f, 300.f };
-	inline constexpr int32 NumValves = UE_ARRAY_COUNT(ValveAngles);
-	inline constexpr float ValveInset = 160.f;
-	/** The hall fight's eight spots (FurnaceHall): four at each stokehold door. */
-	inline constexpr int32 HallFightSpots = 8;
-	/** Each door's four in two rows: this far either side of its middle, the first row this far in from the hall's wall, the
-	 *  second this much further in. */
-	inline constexpr float HallSpotAcross = 120.f;
-	inline constexpr float HallSpotIn = 150.f;
-	inline constexpr float HallSpotRow = 180.f;
-
-	/** True when a round hall of Radius fits the hull's beam (HallSkinHalfBeam) with a hull wall's thickness all round. */
-	AI_LOOTER_SHOOTER_API bool HallFits(float Radius);
-
-	/** The flat rectangle the hall's ceiling covers: the hall to its wall's outer face (the office has its own roof). */
-	AI_LOOTER_SHOOTER_API FBox2D HallCeilingArea();
-
-	// --- The hall's stairs and the hatch (the barge's frame) ---
-
-	/**
-	 * The two stairs from the hall's floor up to the catwalk (Dredgers on it shoot down; the player can climb to them), mirror
-	 * images either side of the hall's middle line: each a chord of the ring under the catwalk's middle, its top on a span's
-	 * edge (degrees round the hall), running this far round the ring the way given (+1: the angles grow toward its foot) down
-	 * to the floor. The catwalk is open over every stair (its spans whose middles lie over a stair aren't laid): it rises up
-	 * through the ring and lands on the span past its top; an unseen wall closes the ring's end past its foot.
-	 */
-	inline constexpr float FloorStairAngles[] = { 220.f, 140.f };
-	inline constexpr float FloorStairWays[] = { 1.f, -1.f };
-	inline constexpr int32 NumFloorStairs = UE_ARRAY_COUNT(FloorStairAngles);
-	inline constexpr float FloorStairSpan = 35.f;
-	/** The catwalk ring in this many straight spans, each this much longer than its share (they overlap at the joints). */
-	inline constexpr int32 CatwalkSpans = 18;
-	inline constexpr float CatwalkSpanStretch = 1.06f;
-	/** Span Index's middle (degrees round the hall), and whether it's laid (not over a stair). */
-	AI_LOOTER_SHOOTER_API float CatwalkSpanAngle(int32 Index);
-	AI_LOOTER_SHOOTER_API bool IsCatwalkSpanLaid(int32 Index);
-	/** Where the ring ends past each stair's foot (degrees round the hall, one per stair, in FloorStairAngles' order): the near
-	 *  edge of the first laid span there, where the unseen end wall stands. */
-	AI_LOOTER_SHOOTER_API float CatwalkEndAngle(int32 Stair);
-	/** No stair may be steeper (the player walks up to 44.8 degrees, creatures 50): the tests hold every stair to it. */
-	inline constexpr float StairMostSlope = 40.f;
-	inline constexpr float StairWidth = 180.f;
-	inline constexpr float StairThick = 24.f;
-	/** Put back aboard after the manifest: this far out on the deck from the house's door, facing it. */
-	inline constexpr float HatchStartOut = 150.f;
-
 	/** A straight stair: its top's and its foot's middles (the barge's frame, Z from the keel). */
 	struct FStairRun
 	{
 		FVector From;
 		FVector To;
 	};
-	/** A stair from the catwalk down to the hall's floor (Index into FloorStairAngles). */
-	AI_LOOTER_SHOOTER_API FStairRun FloorStair(int32 Index);
-	/** A stair's slope (degrees over the flat). */
-	AI_LOOTER_SHOOTER_API float StairSlope(const FStairRun& Stair);
-	/** The hatch, as the story knows it: the house's door's threshold on the deck (the Reach marker and the getter). */
-	AI_LOOTER_SHOOTER_API FVector HatchSpot();
 
-	/** A point in the hall at Angle (degrees from the hall's +X), Radius out, Up over its floor (barge frame). */
-	AI_LOOTER_SHOOTER_API FVector HallPoint(float AngleDegrees, float Radius, float Up = 0.f);
+	// --- The hull (the hull's: BARGE_LAYOUT.md's bounds; the pivot at the bottom, where the hose drum hangs; bow +X) ---
 
-	// --- The grate ring: a roulette wheel of heat ---
+	inline constexpr float HullAft = -3750.f;
+	inline constexpr float HullFore = 5590.f;
+	inline constexpr float HullHalfBeam = 1237.5f;
+	inline constexpr float HullTop = 4809.f;
 
-	/** Each turn lasts this long; for its first TellSeconds the hot wedges only glow, then they burn. */
-	inline constexpr float GrateTurnSeconds = 3.f;
-	inline constexpr float GrateTellSeconds = 1.f;
-	/** Hot wedges with no valve shut (4 of 12), cooling one notch a valve: 4, 3, 2, then none once all three are shut. */
-	AI_LOOTER_SHOOTER_API int32 HotGrates(int32 ValvesShut);
+	// --- Her decks as zones (the hull's, BARGE_LAYOUT.md): where the kit's spots and pieces may stand, each a flat box at
+	// its own height, kept to what the layout measured clear (the walks and the well deck are wider than their boxes) ---
 
-	/** The wedges hot Time seconds into the fight (spread evenly round the ring, the whole pattern stepping one wedge each
-	 *  turn): a bit per wedge. */
-	AI_LOOTER_SHOOTER_API uint32 HotMask(float Time, int32 ValvesShut);
+	enum class EDeckZone : uint8 { WellDeck, Forecastle, Walk, CrossWalk, Stern };
+	struct FDeckZone
+	{
+		const TCHAR* Name;
+		EDeckZone Kind;
+		float XMin;
+		float XMax;
+		float YMin;
+		float YMax;
+		float Z;
+		FBox2D Box() const { return FBox2D(FVector2D(XMin, YMin), FVector2D(XMax, YMax)); }
+	};
+	/** The well deck: the arena from the house's fore face (its low hull to x 2238) to the forecastle stairs' foot, the
+	 *  bulwark's inner face's nearest station either side (18.8 x 13.3 m: the hull's own beam), the berth's gap in its port
+	 *  rail. */
+	inline constexpr float WellDeckAft = 2245.f;
+	inline constexpr float WellDeckFore = 4031.f;
+	inline constexpr float WellDeckHalfBeam = 665.f;
+	/**
+	 * The decks' heights. The level's drops in play find some decks a few cm under the hull's own collision tops (PIE,
+	 * 2026-11-04, the round-3 hull: the forecastle 2370-2371 over a 2376.8 top, the cross walk 2252.6 over 2260.2; the
+	 * editor's traces find the tops), so each zone's height sits between the two, within the hand (5 cm) every floor check
+	 * holds to. Round 4's tops (BARGE_LAYOUT.md "Deck zones"): the well deck 2254 (its look 2249..2252), the forecastle
+	 * 2373, the walks 2257 / 2258, the cross walk 2260, the stern 2252.
+	 */
+	inline constexpr float WellDeckZ = 2250.f;
+	/** The forecastle: the scoop's floor, the high ground over the well deck; the stairs top out at its aft edge. The scoop's
+	 *  frame (round 4: 17 tube hulls, x 4320..4518) stands across it between its two clear parts: aft, from the stairs'
+	 *  heads to the frame (the scoop's walls at |y| 508 / 566), and fore of it, narrowing between the walls (traced clear to
+	 *  2 m over the floor on a 20 cm grid, 2026-11-04). */
+	inline constexpr float ForecastleAft = 4130.f;
+	inline constexpr float ForecastleAftFore = 4320.f;
+	inline constexpr float ForecastleAftPort = -490.f;
+	inline constexpr float ForecastleAftStarboard = 540.f;
+	inline constexpr float ForecastleFrontAft = 4530.f;
+	inline constexpr float ForecastleFore = 5015.f;
+	inline constexpr float ForecastleFrontPort = -360.f;
+	inline constexpr float ForecastleFrontStarboard = 420.f;
+	inline constexpr float ForecastleZ = 2371.f;
+	/** The house walks (a flank each, well deck to the cross walk): the strip clear at every station (the wall's foot's
+	 *  outermost to the bulwark's innermost; the walks are 2.4 m at their median); a walk's mouth its fore end this deep. */
+	inline constexpr float WalkAft = -294.f;
+	inline constexpr float WalkFore = 2000.f;
+	inline constexpr float WalkPortOuter = -790.f;
+	inline constexpr float WalkPortInner = -725.f;
+	inline constexpr float WalkStarboardInner = 745.f;
+	inline constexpr float WalkStarboardOuter = 815.f;
+	inline constexpr float WalkZ = 2257.f;
+	inline constexpr float WalkMouth = 300.f;
+	/** The cross walk between the casing's fore face and the house's aft face (its wall's hull from x -315), where the hatch
+	 *  is; the hatch's stair starts at its height. */
+	inline constexpr float CrossWalkAft = -665.f;
+	inline constexpr float CrossWalkFore = -320.f;
+	inline constexpr float CrossWalkHalfBeam = 935.f;
+	inline constexpr float CrossWalkZ = 2256.f;
+	/** The stern platform aft of the casing: clear inside its corner bulwarks and aft of the casing's aft wall (its hull x
+	 *  -3411..-3361; the walks' floors start at -3360); its floor is wider (the aft rail wall spans that). */
+	inline constexpr float SternAft = -3650.f;
+	inline constexpr float SternFore = -3420.f;
+	inline constexpr float SternHalfBeam = 500.f;
+	inline constexpr float SternFloorHalfBeam = 700.f;
+	inline constexpr float SternZ = 2250.f;
+	inline constexpr FDeckZone DeckZones[] = {
+		{ TEXT("WellDeck"), EDeckZone::WellDeck, WellDeckAft, WellDeckFore, -WellDeckHalfBeam, WellDeckHalfBeam, WellDeckZ },
+		{ TEXT("ForecastleAft"), EDeckZone::Forecastle, ForecastleAft, ForecastleAftFore, ForecastleAftPort, ForecastleAftStarboard, ForecastleZ },
+		{ TEXT("Forecastle"), EDeckZone::Forecastle, ForecastleFrontAft, ForecastleFore, ForecastleFrontPort, ForecastleFrontStarboard, ForecastleZ },
+		{ TEXT("WalkPort"), EDeckZone::Walk, WalkAft, WalkFore, WalkPortOuter, WalkPortInner, WalkZ },
+		{ TEXT("WalkStarboard"), EDeckZone::Walk, WalkAft, WalkFore, WalkStarboardInner, WalkStarboardOuter, WalkZ },
+		{ TEXT("CrossWalk"), EDeckZone::CrossWalk, CrossWalkAft, CrossWalkFore, -CrossWalkHalfBeam, CrossWalkHalfBeam, CrossWalkZ },
+		{ TEXT("Stern"), EDeckZone::Stern, SternAft, SternFore, -SternHalfBeam, SternHalfBeam, SternZ },
+	};
+	inline constexpr int32 NumDeckZones = UE_ARRAY_COUNT(DeckZones);
+	/** The zone a flat point stands in (the first that holds it), or null. */
+	AI_LOOTER_SHOOTER_API const FDeckZone* DeckZoneAt(const FVector2D& At);
+	/** The point on her decks at its zone's height, Up over it (off every zone: the well deck's height). */
+	AI_LOOTER_SHOOTER_API FVector OnDeck(const FVector2D& At, float Up = 0.f);
 
-	/** The hot wedges are burning now (past the turn's tell). */
-	AI_LOOTER_SHOOTER_API bool IsBurning(float Time);
+	/** A flat footprint on her decks (the barge's frame). */
+	struct FDeckFootprint
+	{
+		float XMin;
+		float XMax;
+		float YMin;
+		float YMax;
+	};
+	/** Her own fittings over the decks the kit keeps its pieces off (the hull's): the scoop's lattice frame over the
+	 *  forecastle (its tubes from 27 cm over the floor). */
+	inline constexpr FDeckFootprint DeckFittingList[] = { { 4320.f, 4518.f, -395.f, 558.f } };
+	inline TConstArrayView<FDeckFootprint> DeckFittings() { return DeckFittingList; }
+	/** True when a flat point is on a deck zone and clear of her fittings, the hatch's coaming and the forecastle's stairs:
+	 *  where a spot or a piece of the kit may stand. */
+	AI_LOOTER_SHOOTER_API bool IsOpenDeck(const FVector2D& At);
 
-	/** The wedge (0-11) under a point in the hall's frame (flat), or INDEX_NONE off the ring. */
-	AI_LOOTER_SHOOTER_API int32 GrateAt(const FVector2D& FromHallMiddle);
+	/**
+	 * Her rail line (the hull's, from BARGE_LAYOUT.md's bulwark hulls: each run its stretch along her, its inner face (signed:
+	 * + starboard, - port) and its deck's height), stern to bow on each side. The bulwark curves and is low in places (a few
+	 * runs stand 7 cm over the deck), so the kit stands an unseen pawn-only wall on each run, just outside its inner face,
+	 * so nobody climbs or steps over it and falls. The well deck's port run has no collision of the hull's (its rail is
+	 * Tripo's railing): its inner face mirrors the starboard's, and it's cut at the berth's gap.
+	 */
+	struct FRailRun
+	{
+		float XMin;
+		float XMax;
+		float YInner;
+		float Z;
+	};
+	inline constexpr FRailRun RailLine[] = {
+		{ -3585.f, -3396.f, 518.f, SternZ }, { -3396.f, -3087.f, 705.f, SternZ }, { -3087.f, -2784.f, 882.f, WalkZ },
+		{ -2784.f, -2494.f, 920.f, WalkZ }, { -2494.f, -2193.f, 930.f, WalkZ }, { -2193.f, -1898.f, 937.f, WalkZ },
+		{ -1898.f, -1592.f, 938.f, WalkZ }, { -1592.f, -1270.f, 947.f, WalkZ }, { -1270.f, -999.f, 951.f, WalkZ },
+		{ -999.f, -680.f, 960.f, WalkZ }, { -680.f, -398.f, 979.f, CrossWalkZ }, { -398.f, -82.f, 979.f, WalkZ },
+		{ -82.f, 228.f, 971.f, WalkZ }, { 228.f, 512.f, 966.f, WalkZ }, { 512.f, 814.f, 960.f, WalkZ },
+		{ 814.f, 1110.f, 956.f, WalkZ }, { 1110.f, 1400.f, 921.f, WalkZ }, { 1400.f, 1745.f, 885.f, WalkZ },
+		{ 1745.f, 2002.f, 851.f, WalkZ }, { 2002.f, 2321.f, 783.f, WellDeckZ }, { 2321.f, 4096.f, 757.f, WellDeckZ },
+		{ -3553.f, -3392.f, -526.f, SternZ }, { -3392.f, -3080.f, -674.f, SternZ }, { -3080.f, -2790.f, -844.f, WalkZ },
+		{ -2790.f, -2486.f, -890.f, WalkZ }, { -2486.f, -2194.f, -894.f, WalkZ }, { -2194.f, -1898.f, -901.f, WalkZ },
+		{ -1898.f, -1597.f, -905.f, WalkZ }, { -1597.f, -1296.f, -912.f, WalkZ }, { -1296.f, -998.f, -914.f, WalkZ },
+		{ -998.f, -695.f, -920.f, WalkZ }, { -695.f, -391.f, -941.f, CrossWalkZ }, { -391.f, -89.f, -940.f, WalkZ },
+		{ -89.f, 201.f, -934.f, WalkZ }, { 201.f, 505.f, -930.f, WalkZ }, { 505.f, 802.f, -924.f, WalkZ },
+		{ 802.f, 1108.f, -909.f, WalkZ }, { 1108.f, 1400.f, -879.f, WalkZ }, { 1400.f, 1706.f, -851.f, WalkZ },
+		{ 1706.f, 2003.f, -820.f, WalkZ }, { 2003.f, 2287.f, -777.f, WellDeckZ }, { 2287.f, 4096.f, -757.f, WellDeckZ },
+	};
+	/** One of the unseen pawn-only rail walls (flat, the barge's frame), RailWallHeight tall over its Z. */
+	struct FRailWall
+	{
+		FName Name;
+		FBox2D Footprint;
+		float Z;
+	};
+	/** The rail walls, by name: one on each rail run (the well deck's port one cut at the berth's gap), and one across the
+	 *  stern platform's aft edge (the hull has none there). */
+	AI_LOOTER_SHOOTER_API TArray<FRailWall> RailWallLayout();
+	inline constexpr float RailWallThick = 30.f;
+	inline constexpr float RailWallHeight = 320.f;
+	/** The kit draws its own low rail along the rail walls only over the stand-in box (the hull has Tripo's); true draws it
+	 *  over the hull too. */
+	inline constexpr bool bDrawRails = false;
+	/** The kit's floor plates over the stand-in box (one per zone, cut round the hatch's hole), this thick. */
+	inline constexpr float PlateThickness = 30.f;
+	/** A flat piece cut round a hole: the up to four pieces of it outside the hole (the piece whole if they don't meet). */
+	AI_LOOTER_SHOOTER_API TArray<FBox2D> CutAround(const FBox2D& Piece, const FBox2D& Hole);
 
-	/** A burning wedge hurts this share of the player's health a second; a vent's column this. */
-	inline constexpr float GrateBurnShare = 0.14f;
-	inline constexpr float VentBurnShare = 0.22f;
-	/** Hurt is dealt in pulses this far apart (no stream of tiny numbers). */
-	inline constexpr float HurtEvery = 0.25f;
+	/** The forecastle's two stairs up from the well deck (the hull's: the model has them, two flights at |y| 150..450; the
+	 *  kit lays its own only over the stand-in box), port (0) and starboard (1): from the forecastle's aft edge down this far
+	 *  to the well deck, this far either side of the middle, this wide either side of that. */
+	inline constexpr float ForecastleStairAcross = 300.f;
+	inline constexpr float ForecastleStairRun = 180.f;
+	inline constexpr float ForecastleStairHalfWidth = 150.f;
+	inline constexpr int32 NumForecastleStairs = 2;
+	inline constexpr bool bKitForecastleStairs = false;
+	AI_LOOTER_SHOOTER_API FStairRun ForecastleStair(int32 Index);
 
-	// --- The deck vents ---
+	// --- The berth: where the Lamplighter lies grappled (W2's ship flies to it), her starboard to the barge's -Y side ---
 
-	inline constexpr float VentEvery = 6.f;
-	inline constexpr float VentTellSeconds = 1.f;
-	inline constexpr float VentBurnSeconds = 1.4f;
-	inline constexpr float VentColumnRadius = 130.f;
-	inline constexpr float VentColumnHeight = 450.f;
-	/** Each vent's clock starts this much after the one before, so the deck flares in a running pattern, never all at once. */
-	inline constexpr float VentStagger = 0.75f;
+	/** The berth side (-1: the barge's port, -Y) and its place along her: the gap in the well deck's port rail (the hull's:
+	 *  x 3005..3300, its Gangway socket at 3150), so the plank lands mid-deck and the fight is all round it. */
+	inline constexpr float BerthSide = -1.f;
+	inline constexpr float BerthX = 3150.f;
+	/** Her rail at the berth (the hull's: its rim this far over the well deck, from its inner face to her side outboard this
+	 *  thick, her side this far out), its gap's sill over the deck (the plank must pass over it), the gap this wide either
+	 *  side of the berth. */
+	inline constexpr float RailHeight = 90.f;
+	inline constexpr float BulwarkThick = 70.f;
+	inline constexpr float BulwarkHalfBeam = 827.f;
+	inline constexpr float SillUp = 12.f;
+	inline constexpr float GapHalf = 145.f;
+	/** Her keel's line out from the barge's middle: her side's, her bag's (SM_Lamplighter 10.54 m) and a gap. */
+	inline constexpr float BerthOut = 1520.f;
+	/** Her deck under the barge's (negative: over it, so the plank runs down over the gap's sill onto the deck), her keel
+	 *  4.22 m under her deck (ALamplighterShip::DeckTop), her rail 3.75 m out (::RailOut), her bag 5.27 m out from her keel. */
+	inline constexpr float BerthUnderDeck = -100.f;
+	inline constexpr float ShipDeckOverKeel = 422.f;
+	inline constexpr float ShipRailOut = 375.f;
+	inline constexpr float ShipBagHalfBeam = 527.f;
+	/** The plank lands this far in from the well deck's edge; its floor lies this far under its line. */
+	inline constexpr float BoardingInset = 150.f;
+	inline constexpr float PlankUnderside = 10.f;
+	/** A player put aboard by the plank stands this far in from the deck's edge (a step past the landing); anyone put aboard
+	 *  stands this far over the floor (a capsule's half height and a hand: never sunk into it). */
+	inline constexpr float PlankStartIn = 200.f;
+	inline constexpr float StandUp = 100.f;
+	/** Step 7: she hangs under the broken gangway this far down, this far out from the barge's middle: far enough that her
+	 *  bag clears the rail's top when the barge has listed her full 12 degrees toward her. */
+	inline constexpr float JumpUnderDeck = 350.f;
+	inline constexpr float JumpOut = 1630.f;
+	/** The grapples bite the rail's top fore and aft of the berth by this much (the ship's own bites are at +-600). */
+	inline constexpr float GrappleSpread = 600.f;
+	/** The plank's floor over the gap's sill where it crosses the rail's inner face (cm; above 0 it clears). */
+	AI_LOOTER_SHOOTER_API float PlankSillClearance();
+	/** Her bag's inner edge outside her side at the berth (cm; above 0 it clears). */
+	AI_LOOTER_SHOOTER_API float BerthBagClearance();
+	/** At the jump berth with the barge listed ListDegrees toward her: how far her bag's inner edge stays out of the rail's
+	 *  top (cm, in her level frame; above 0 it clears). */
+	AI_LOOTER_SHOOTER_API float JumpBagClearance();
 
-	enum class EVentPhase : uint8 { Quiet, Tell, Burn };
-	/** Vent Index's phase Time seconds after the vents woke. */
-	AI_LOOTER_SHOOTER_API EVentPhase VentPhase(int32 Index, float Time);
+	// --- The deck's pieces (the plan: BARGE.md "Round 9"). The player lands mid-deck on the port side; nine Dredgers come in
+	// two pushes: four on the well deck behind cover facing the landing, three on the forecastle (the high ground: two in the
+	// clear strip beside the scoop's frame, one fore of it), one in each house walk's mouth (the flanks). The way on: a house
+	// walk aft to the cross walk, its hatch, the hall under the casing ---
 
-	// --- The hose ---
-
-	/** How far the hose reaches toward the chapel's roof (0-1): hanging short while she's grappled, snaking lower through the
-	 *  deck fight and the office, nearly on the roof by the hall (never on it: she's stopped before it gets there). */
-	AI_LOOTER_SHOOTER_API float HoseReach(int32 Step, float SecondsInStep);
-	inline constexpr float HoseLowerPerSecond = 0.004f;
-
-	// --- Dying (step 7) and the fall (BargeFall) ---
-
-	inline constexpr float ListDegrees = 12.f;
-	inline constexpr float ListSeconds = 6.f;
-	/** She drifts west on the dusk wind (world -Y: the level's X is north, Y east), easing in, then holding this speed. */
-	inline constexpr float DriftSpeed = 150.f;
-	inline constexpr float DriftEaseSeconds = 4.f;
-	inline constexpr float DriftMost = 6000.f;
-	inline constexpr float StackFallsAt = 3.5f;
-	inline constexpr float StackFallSeconds = 1.6f;
-	/** How far she's drifted DyingSeconds after she began to die (cm, along the drift). */
-	AI_LOOTER_SHOOTER_API float DriftAt(float DyingSeconds);
-	/** Her list (degrees, her berth side down) DyingSeconds after she began to die. */
-	AI_LOOTER_SHOOTER_API float ListAt(float DyingSeconds);
-
-	/** BargeFall: 12 s; the glide west over the Rest, then the plunge into the canyon from PlungeAt; the fireball at ImpactAt. */
-	inline constexpr float FallSeconds = 12.f;
-	inline constexpr float PlungeAt = 9.f;
-	inline constexpr float ImpactAt = 11.2f;
-	/** Without a placed target: the fall ends this far on from where it began (world cm). */
-	inline const FVector FallFallback(0.0, -30000.0, -9000.0);
-	/** Her pose Seconds into the fall, from From to To (world), nosing down and rolling as she goes. */
-	AI_LOOTER_SHOOTER_API FTransform FallPose(const FTransform& From, const FVector& To, float Seconds);
-
-	/** Soul coal raining off her in the fall: this many lumps, one every CoalEvery, each seen this long. */
-	inline constexpr int32 CoalLumps = 40;
-	inline constexpr float CoalEvery = 0.25f;
-	inline constexpr float CoalLife = 4.f;
-
-	// --- Keeping the player aboard ---
-
-	/** A player off both the barge and the Lamplighter this long is put back (steps 3-6), or caught onto her deck (step 7). */
-	inline constexpr float OffGrace = 0.6f;
-	inline constexpr float OffGraceEscape = 1.6f;
-	/** Aboard: anywhere on her, from the house's stern to the bow, out to her bulwark, from under the deck to this far over
-	 *  the house's roof (the barge's frame). */
-	inline constexpr float AboardOverRoof = 300.f;
-	AI_LOOTER_SHOOTER_API bool IsAboard(const FVector& BargeLocal);
+	/** The hose drum under the keel (the hull's SOCKET_HoseDrum), and its gantry with the jam lever on the well deck's aft
+	 *  port quarter (a drive shaft runs between; its housing is cover too): half its housing's size (ABargeHoseDrum's
+	 *  4 x 2.6 m: change both together). */
+	inline const FVector DrumUnderKeel(-889.0, 323.0, 0.0);
+	inline const FVector DrumOnDeck(2500.0, -430.0, WellDeckZ);
+	inline const FVector2D DrumGantryHalf(200.0, 130.0);
+	/** The kit's third stack at the well deck's aft starboard corner, against the house's fore face (clear of the starboard
+	 *  walk's mouth): in step 7 it breaks off and falls (degrees off -Y toward -X: -90 is toward the bow) along the deck's
+	 *  starboard side, clear of the landing, the port way from the walks to the gap, and the forecastle's stairs. Its tube
+	 *  this round and tall (13 m); its bolted foot flange this round: it topples about the flange's edge on the fall's side,
+	 *  so it lands on its side on the deck, its doubler plate (this half size) staying behind. */
+	inline const FVector FallingStackFoot(2440.0, 420.0, WellDeckZ);
+	inline constexpr float StackRadius = 150.f;
+	inline constexpr float StackHeight = 1300.f;
+	inline constexpr float StackFallAft = -90.f;
+	inline constexpr float StackFootRadius = 175.f;
+	inline constexpr float StackFootHalf = 190.f;
+	/** The way it falls (flat, unit), the edge it turns about (the pivot), and its top's end lying on the deck. */
+	AI_LOOTER_SHOOTER_API FVector StackFallDir();
+	AI_LOOTER_SHOOTER_API FVector StackFallPivot();
+	AI_LOOTER_SHOOTER_API FVector StackTip();
+	/** The work lamp on the house's fore face over the well deck; shadowless, warm, this bright (candelas), this far. */
+	inline const FVector DeckLampSpots[] = { FVector(2300.0, 0.0, 3200.0) };
+	inline constexpr float DeckLampCandelas = 35.f;
+	inline constexpr float DeckLampReach = 2600.f;
+	inline const FLinearColor DeckLampColor(1.f, 0.72f, 0.42f);
+	/**
+	 * The work lamps (the PIE look check, 2026-11-04: in Main 6's low sun the Lamplighter's shadow lies over the port half
+	 * and the walks, the forecastle's stairs and the hatch are near black): the mine lantern (BargeLooks::HallLantern) on a
+	 * short iron bracket, each with a shadowless light in DeckLampColor this bright (candelas), this far; dark as she dies
+	 * and lit again with her, like the hall's. Each: where it's fixed (her frame), how, and the way it faces (flat; a post's
+	 * arm reaches that way): standing on a rim's top on an iron foot plate; on a post up from a wall's top, hung from the
+	 * arm's end; or hung from a rod down from a roof's underside. The posts and rods start a hand inside the iron they're
+	 * fixed to (the layout gives the tops and undersides by their hulls), so none floats off it.
+	 *  - The well deck's bulwarks, on the rim's top (its middle, |y| 792, z 2341), aft and fore of the gantry and the gap:
+	 *    a lantern's height over the rail, under the Lamplighter's bag even listed at the jump (79 over the rail), clear of
+	 *    the grapples' bites (x 2550 and 3750 on the port rim).
+	 *  - The forecastle: posts on the scoop's side walls' tops (z 2564 / 2569) by the stairs' heads, fore of the port
+	 *    strip's spots.
+	 *  - Each walk's mouth, from the house's overhang (underside z 2701); the hatch, from the house's aft overhang (x
+	 *    -358..-315, z 2700) over the cross walk by the restart.
+	 */
+	enum class ELampMount : uint8 { Rim, Post, Drop };
+	struct FWorkLamp
+	{
+		ELampMount Mount;
+		FVector Fixed;
+		FVector2D Out;
+	};
+	inline const FWorkLamp WorkLamps[] = {
+		{ ELampMount::Rim, FVector(2400.0, 792.0, 2341.0), FVector2D(0.0, -1.0) }, { ELampMount::Rim, FVector(3550.0, 792.0, 2341.0), FVector2D(0.0, -1.0) },
+		{ ELampMount::Rim, FVector(2400.0, -792.0, 2341.0), FVector2D(0.0, 1.0) }, { ELampMount::Rim, FVector(3550.0, -792.0, 2341.0), FVector2D(0.0, 1.0) },
+		{ ELampMount::Post, FVector(4170.0, 590.0, 2564.0), FVector2D(0.0, -1.0) }, { ELampMount::Post, FVector(4170.0, -530.0, 2569.0), FVector2D(0.0, 1.0) },
+		{ ELampMount::Drop, FVector(1950.0, -757.0, 2701.0), FVector2D(1.0, 0.0) }, { ELampMount::Drop, FVector(1950.0, 780.0, 2701.0), FVector2D(1.0, 0.0) },
+		{ ELampMount::Drop, FVector(-336.0, 300.0, 2700.0), FVector2D(-1.0, 0.0) },
+	};
+	inline constexpr int32 NumWorkLamps = UE_ARRAY_COUNT(WorkLamps);
+	inline constexpr float WorkLampCandelas = 12.f;
+	inline constexpr float WorkLampReach = 1200.f;
+	/** The iron (cm): a post's arm this long, the post this tall over the top it stands in, a roof's rod this long under the
+	 *  underside, all this thick, each sunk this far into what it's fixed to; a rim's foot plate this thick. */
+	inline constexpr float WorkLampArm = 40.f;
+	inline constexpr float WorkLampPostUp = 50.f;
+	inline constexpr float WorkLampDrop = 80.f;
+	inline constexpr float WorkLampIron = 5.f;
+	inline constexpr float WorkLampSunk = 10.f;
+	inline constexpr float WorkLampPlate = 2.f;
+	/** Where a work lamp's lantern is seated (her frame): standing on a rim, the plate's top under its bounds' bottom;
+	 *  hung, the arm's end or the rod's foot over its bounds' top. */
+	AI_LOOTER_SHOOTER_API FVector WorkLampSeat(const FWorkLamp& Lamp);
+	inline bool WorkLampHangs(const FWorkLamp& Lamp) { return Lamp.Mount != ELampMount::Rim; }
+	/** The furnace vents, each a 2 x 2 m grille glowing through its slots, in the lanes between the cover (one across the
+	 *  landing's way inboard). */
+	inline const FVector VentSpots[] = { FVector(3000.0, -100.0, WellDeckZ), FVector(3350.0, 350.0, WellDeckZ), FVector(2550.0, -130.0, WellDeckZ),
+		FVector(3800.0, -50.0, WellDeckZ) };
+	inline constexpr int32 NumVents = UE_ARRAY_COUNT(VentSpots);
+	inline constexpr float VentHalf = 100.f;
+	/** A grille's plate this thick, its middle this far over the deck: a centimetre proud (nothing to trip on or to fight the
+	 *  deck). Its rim and slats (looks only, no collision) stand this high and this wide over it, so it reads as a grille. */
+	inline constexpr float VentGrilleThick = 10.f;
+	inline constexpr float VentGrilleUp = 1.f - VentGrilleThick * 0.5f;
+	inline constexpr float VentRimUp = 6.f;
+	inline constexpr float VentRimWidth = 12.f;
+	inline constexpr int32 VentSlats = 6;
+	inline constexpr float VentSlatUp = 3.f;
+	inline constexpr float VentSlatWidth = 7.f;
+	/** The cover: props the Dredgers crouch behind (REUSE's picks: BargeLooks' Barrel, Crate, Sandbags, HoseCart, Winch;
+	 *  BargeBoardingProps.cpp lays them), each where its rifleman faces the landing past it, mid-deck cover for the player
+	 *  and his first off the plank. Each its mesh's own size and collision (a block of the mesh's bounds where it has none);
+	 *  without the mesh a block of CoverFallbackHalf. Barrels stand in twos and threes. */
+	enum class ECover : uint8 { Barrel, BarrelPair, BarrelTrio, Crate, Sandbags, HoseCart, Winch };
+	struct FCoverPiece
+	{
+		ECover Kind;
+		float X;
+		float Y;
+		float Z;
+		float Yaw;
+	};
+	inline constexpr FCoverPiece CoverPieces[] = {
+		{ ECover::Crate, 3616.f, 176.f, WellDeckZ, 0.f }, { ECover::BarrelTrio, 3605.f, -310.f, WellDeckZ, 0.f },
+		{ ECover::HoseCart, 2760.f, 60.f, WellDeckZ, 0.f }, { ECover::BarrelTrio, 3000.f, 150.f, WellDeckZ, 30.f },
+		{ ECover::Barrel, 3400.f, -250.f, WellDeckZ, 0.f }, { ECover::BarrelPair, 4790.f, 150.f, ForecastleZ, 0.f },
+		{ ECover::Winch, 4950.f, -200.f, ForecastleZ, 90.f },
+	};
+	inline constexpr int32 NumCoverPieces = UE_ARRAY_COUNT(CoverPieces);
+	/** The stand-in blocks' half sizes, in ECover's order (only without the mesh: each mesh is laid at its own size): about
+	 *  the props' own, from their makers' notes. */
+	inline const FVector CoverFallbackHalves[] = { FVector(30.0, 30.0, 44.0), FVector(30.0, 60.0, 44.0), FVector(55.0, 60.0, 44.0),
+		FVector(50.0, 40.0, 40.0), FVector(100.0, 30.0, 50.0), FVector(110.0, 55.0, 90.0), FVector(60.0, 50.0, 45.0) };
+	AI_LOOTER_SHOOTER_API FVector CoverFallbackHalf(ECover Kind);
+	/** The sandbag wall is stacked two high when one is lower than this (riflemen crouch behind it). Barrels in a cluster
+	 *  stand this far apart, each turned this much more than the one before (their bungs and dents don't line up). */
+	inline constexpr float SandbagsStackUnder = 90.f;
+	inline constexpr float BarrelGap = 2.f;
+	inline constexpr float BarrelTurn = 37.f;
+	/** The four horn clusters (ACompanyLoudspeaker posts the build script attaches here): two along each of the well deck's
+	 *  rails, off the gap. */
+	inline const FVector HornSpots[] = { FVector(2700.0, 640.0, WellDeckZ), FVector(3700.0, 640.0, WellDeckZ), FVector(2800.0, -640.0, WellDeckZ),
+		FVector(3700.0, -640.0, WellDeckZ) };
+	/** The casing's roof (the hull's: its high hulls' tops), where her two stacks stand. */
+	inline constexpr float CasingRoofAft = -3290.f;
+	inline constexpr float CasingRoofFore = -680.f;
+	inline constexpr float CasingRoofHalfBeam = 600.f;
+	inline constexpr float CasingRoofZ = 3200.f;
+	AI_LOOTER_SHOOTER_API FBox2D CasingRoof();
+	/** Her back half's fires as she dies, each on the surface it burns from: the stern platform, the casing's roof (clear of
+	 *  its cabins and her two stacks). */
+	inline const FVector SternFireSpots[] = { FVector(-3500.0, -400.0, SternZ), FVector(-3500.0, 400.0, SternZ), FVector(-3000.0, -400.0, CasingRoofZ),
+		FVector(-2900.0, 450.0, CasingRoofZ), FVector(-1950.0, -470.0, CasingRoofZ), FVector(-1200.0, 450.0, CasingRoofZ) };
+	inline constexpr int32 NumSternFires = UE_ARRAY_COUNT(SternFireSpots);
+	/** Where her smoke trails from in the fall: over the casing's roof. */
+	inline const FVector FallSmokeSpot(-2000.0, 0.0, CasingRoofZ + 150.0);
+	/** The deck fight's nine spots (BargeDeck): four on the well deck behind cover facing the landing, three on the
+	 *  forecastle (two in the strip beside the frame, one fore of it), one in each house walk's mouth. The build script and
+	 *  the spawner's groups count on nine. */
+	inline const FVector DeckFightSpots[] = { FVector(3700.0, 300.0, WellDeckZ), FVector(3750.0, -350.0, WellDeckZ), FVector(2700.0, 180.0, WellDeckZ),
+		FVector(2350.0, -200.0, WellDeckZ), FVector(4250.0, -440.0, ForecastleZ), FVector(4250.0, 380.0, ForecastleZ),
+		FVector(4885.0, 150.0, ForecastleZ), FVector(1850.0, -757.0, WalkZ), FVector(1850.0, 780.0, WalkZ) };
+	/** Every spawn spot stands this far over its floor (a hand: the spawner's probes find the floor under it). */
+	inline constexpr float SpotUp = 20.f;
+	/** The plan's lines of sight (the tests hold it): from the plank's landing the player sees at least this many of the
+	 *  nine over the cover (the walks' flankers and the one behind the frame are hidden by design), and from each forecastle
+	 *  stair's top at least this many; an eye this high, a chest this high. */
+	inline constexpr int32 PlankSightLines = 4;
+	inline constexpr int32 StairSightLines = 4;
+	inline constexpr float EyeUp = 160.f;
+	inline constexpr float ChestUp = 120.f;
+	/** The plank's landing keeps this much deck clear round it (no cover or vent in the player's first step). */
+	inline constexpr float LandingApron = 200.f;
+	/** The well deck's middle (the deck fight's spawner stands there). */
+	AI_LOOTER_SHOOTER_API FVector DeckMiddle();
 }
+
+#include "World/BargeHallRules.h"

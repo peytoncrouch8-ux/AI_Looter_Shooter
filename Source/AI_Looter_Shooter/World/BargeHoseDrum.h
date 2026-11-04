@@ -20,7 +20,8 @@ class UStaticMeshComponent;
  * hears of it at Main 7's turn-in). The missions hear the held Interact on the actor tagged Barge_HoseDrum. Jammed stays
  * jammed (the flag). It ticks only while it turns and the player is within earshot.
  *
- * Stand-in look: an iron housing, a drum and a lever from engine shapes (Tripo 32's hose drum replaces the housing: ModelPath).
+ * Its look is the PROPS lane's gantry, drum and jam lever (BargeLooks::DrumGantry, HoseDrum, DrumLever: the lever turns
+ * about its pin); an iron housing, a drum and a lever from engine shapes stand in until they're imported.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API ABargeHoseDrum : public AActor, public IInteractable

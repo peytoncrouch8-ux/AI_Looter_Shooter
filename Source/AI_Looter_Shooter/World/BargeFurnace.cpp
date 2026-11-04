@@ -1,4 +1,5 @@
-// ABargeFurnace: the barge's soul furnace, Abel's light beating in its cage, and the grate ring that heats round it.
+// ABargeFurnace: the barge's soul furnace, Abel's light beating in its cage, and the grate ring that heats round it. The
+// cage (its opening, its burst, the furnace going out, its interaction) is BargeFurnaceCage.cpp.
 
 #include "World/BargeFurnace.h"
 #include "AI_Looter_Shooter.h"
@@ -19,6 +20,7 @@
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshSocket.h"
 #include "Engine/World.h"
 #include "GameFramework/DamageType.h"
 #include "GameFramework/Pawn.h"
@@ -29,8 +31,8 @@
 #define LOCTEXT_NAMESPACE "BargeFurnace"
 
 const FName ABargeFurnace::CageTag(TEXT("Furnace_SoulCage"));
-const TCHAR* const ABargeFurnace::BodyPath = BargeLooks::TripoFurnace;
-const TCHAR* const ABargeFurnace::GratePath = BargeLooks::TripoGrate;
+const TCHAR* const ABargeFurnace::BodyPath = BargeLooks::Furnace;
+const TCHAR* const ABargeFurnace::GratePath = BargeLooks::FurnaceGrate;
 
 namespace
 {
@@ -41,9 +43,32 @@ namespace
 	constexpr float HeartPeak = 150.f;
 	constexpr float SmogRest = 120.f;
 	constexpr float SmogPeak = 165.f;
-	/** Where the heart hangs in front of the furnace's face (its frame). */
-	const FVector HeartAt(330.0, 0.0, BargeRules::CageUp);
+	/** Where the heart hangs (its frame), past the drum's face: in the boiler model, this far inside it, in the cavity behind
+	 *  its barred porthole (its Heart socket, BARGE_PROPS.md); before the plain stand-in drum, this far out in front of it.
+	 *  The cage's light this far in front of the heart (out through the porthole); the cage's mouth (where the burst comes
+	 *  out) this far in front of the porthole (clear of the boiler's plinth). */
+	constexpr float HeartIn = -100.f;
+	constexpr float HeartOut = 30.f;
+	constexpr float LightOut = 60.f;
+	constexpr float MouthOut = 60.f;
+	const FName HeartSocket(TEXT("Heart"));
+	const FName WindowSocket(TEXT("Window"));
+	const FName CrownSocket(TEXT("Crown"));
+	/** The crown's pipe collars stand this far over the model's crown (its Pipe_N sockets). */
+	constexpr float PipeCollarUp = 40.f;
+	/** The stand-in grate plate's middle over the floor (half its 12 cm); the model's fire socket on its rails' top; a burning
+	 *  wedge's fire this big (fire-tongue units: 1.6 m across, 1.3 m tall). */
+	constexpr float GratePlateUp = 6.f;
+	constexpr float GrateFireUp = 9.f;
+	const FVector GrateFireSize(1.6, 1.6, 1.3);
 	const FLinearColor HeartColor(1.f, 0.86f, 0.6f);
+
+	/** A socket's place on Mesh (its own frame), else Fallback. */
+	FVector SocketOr(const UStaticMesh* Mesh, FName Name, const FVector& Fallback)
+	{
+		const UStaticMeshSocket* Socket = Mesh ? Mesh->FindSocket(Name) : nullptr;
+		return Socket ? Socket->RelativeLocation : Fallback;
+	}
 	/** A player's feet within this of the floor stand on the ring. */
 	constexpr float OnFloor = 80.f;
 
@@ -102,8 +127,12 @@ ABargeFurnace::ABargeFurnace()
 	static UStaticMesh* const CylinderMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::Cylinder);
 	static UStaticMesh* const SphereMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::Sphere);
 	static UStaticMesh* const ConeMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::Cone);
-	static UStaticMesh* const TripoBody = BargeLooks::Find<UStaticMesh>(BodyPath);
-	static UStaticMesh* const TripoWedge = BargeLooks::Find<UStaticMesh>(GratePath);
+	static UStaticMesh* const FurnaceMesh = BargeLooks::Find<UStaticMesh>(BodyPath);
+	static UStaticMesh* const BurstMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::FurnaceBurst);
+	static UStaticMesh* const GrateMesh = BargeLooks::Find<UStaticMesh>(GratePath);
+	static UStaticMesh* const FireMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::FireTongue);
+	static UStaticMesh* const ShardMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::CageShard);
+	static UStaticMesh* const PipeMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::Pipe);
 	static UMaterialInterface* const Iron = BargeLooks::Find<UMaterialInterface>(BargeLooks::Iron);
 	static UMaterialInterface* const IronBlack = BargeLooks::Find<UMaterialInterface>(BargeLooks::IronBlack);
 	static UMaterialInterface* const Glow = BargeLooks::Find<UMaterialInterface>(BargeLooks::Glow);
@@ -114,26 +143,41 @@ ABargeFurnace::ABargeFurnace()
 	Root->SetMobility(EComponentMobility::Movable);
 	RootComponent = Root;
 
+	WholeMesh = FurnaceMesh;
+	BrokenMesh = BurstMesh;
+	bGrateModel = GrateMesh != nullptr;
+	bFireModel = FireMesh != nullptr;
+	bShardModel = ShardMesh != nullptr;
 	const float D = BargeRules::FurnaceRadius * 2.f / 100.f;
-	// The body: the Tripo furnace at its size (its pivot on the floor), else a riveted iron drum 6 m across and 6 m tall.
-	Body = MakeFurnacePart(*this, Root, TEXT("Body"), TripoBody ? TripoBody : CylinderMesh, TripoBody ? nullptr : Iron,
-		TripoBody ? FVector::ZeroVector : FVector(0.0, 0.0, BargeRules::FurnaceHeight * 0.5), TripoBody ? FVector::OneVector : FVector(D, D, BargeRules::FurnaceHeight / 100.f));
-	// Its iron is what bullets and boots meet (a 6 m drum the fight goes round).
+	// The body: the kit's riveted boiler (its pivot on the floor, scaled to the rules' radius and height), else an iron drum
+	// FurnaceRadius round and 6 m tall.
+	BodyScale = FVector(BargeRules::FurnaceRadius / BargeLooks::FurnaceModelRadius, BargeRules::FurnaceRadius / BargeLooks::FurnaceModelRadius,
+		BargeRules::FurnaceHeight / BargeLooks::FurnaceModelHeight);
+	Body = MakeFurnacePart(*this, Root, TEXT("Body"), FurnaceMesh ? FurnaceMesh : CylinderMesh, FurnaceMesh ? nullptr : Iron,
+		FurnaceMesh ? FVector::ZeroVector : FVector(0.0, 0.0, BargeRules::FurnaceHeight * 0.5), FurnaceMesh ? BodyScale : FVector(D, D, BargeRules::FurnaceHeight / 100.f));
+	// Its iron is what bullets and boots meet (a 5 m drum the fight goes round).
 	Body->SetCollisionProfileName(TEXT("BlockAll"));
 	Body->SetCollisionObjectType(ECC_WorldStatic);
 	Crown = MakeFurnacePart(*this, Root, TEXT("Crown"), SphereMesh, IronBlack, FVector(0.0, 0.0, BargeRules::FurnaceHeight), FVector(D * 0.92f, D * 0.92f, 2.2f));
-	Crown->SetVisibility(TripoBody == nullptr);
+	Crown->SetVisibility(FurnaceMesh == nullptr);
 	Ironwork = MakeFurnaceInstances(*this, Root, TEXT("Ironwork"), CylinderMesh, IronBlack);
+	Pipes = MakeFurnaceInstances(*this, Root, TEXT("Pipes"), PipeMesh, nullptr);
 	CageFrame = MakeFurnacePart(*this, Root, TEXT("CageFrame"), CubeMesh, IronBlack, FVector(BargeRules::FurnaceRadius - 15.0, 0.0, BargeRules::CageUp),
 		FVector(0.3, 2.1, 2.1));
+	CageFrame->SetVisibility(FurnaceMesh == nullptr);
+	// The heart: inside the boiler's cavity behind its barred porthole (its Heart socket), else hanging out before the plain
+	// drum's face.
+	HeartAt = FurnaceMesh ? SocketOr(FurnaceMesh, HeartSocket, FVector(BargeLooks::FurnaceModelRadius + HeartIn, 0.0, BargeRules::CageUp / BodyScale.Z)) * BodyScale
+		: FVector(BargeRules::FurnaceRadius + HeartOut, 0.0, BargeRules::CageUp);
+	MouthAt = FurnaceMesh ? SocketOr(FurnaceMesh, WindowSocket, HeartAt / BodyScale) * BodyScale + FVector(MouthOut, 0.0, 0.0) : HeartAt;
 	Heart = MakeFurnacePart(*this, Root, TEXT("Heart"), SphereMesh, Soul, HeartAt, FVector(HeartRest / 100.f));
 	HeartSmog = MakeFurnacePart(*this, Root, TEXT("HeartSmog"), SphereMesh, Smog, HeartAt, FVector(SmogRest / 100.f));
-	Shards = MakeFurnaceInstances(*this, Root, TEXT("Shards"), CubeMesh, IronBlack);
+	Shards = MakeFurnaceInstances(*this, Root, TEXT("Shards"), ShardMesh ? ShardMesh : CubeMesh, ShardMesh ? nullptr : IronBlack);
 
 	CageLight = CreateDefaultSubobject<UPointLightComponent>(TEXT("CageLight"));
 	CageLight->SetupAttachment(Root);
 	CageLight->SetMobility(EComponentMobility::Movable);
-	CageLight->SetRelativeLocation(HeartAt + FVector(60.0, 0.0, 0.0));
+	CageLight->SetRelativeLocation(HeartAt + FVector(LightOut, 0.0, 0.0));
 	CageLight->SetIntensityUnits(ELightUnits::Candelas);
 	CageLight->SetIntensity(LitCandelas);
 	CageLight->SetAttenuationRadius(LightRadius);
@@ -141,9 +185,16 @@ ABargeFurnace::ABargeFurnace()
 	// The hall's one light, never a shadow (the area keeps to three shadowless lights in view).
 	CageLight->SetCastShadows(false);
 
-	GrateCold = MakeFurnaceInstances(*this, Root, TEXT("GrateCold"), TripoWedge ? TripoWedge : CubeMesh, TripoWedge ? nullptr : IronBlack);
-	GrateHot = MakeFurnaceInstances(*this, Root, TEXT("GrateHot"), TripoWedge ? TripoWedge : CubeMesh, Glow);
-	GrateFire = MakeFurnaceInstances(*this, Root, TEXT("GrateFire"), ConeMesh, Glow);
+	// The ring: the kit's wedge (its ember bed on the CinderGlow slot: iron while cold, its own glow when hot), else plates;
+	// its fire the tongue model, else the engine cone.
+	GrateCold = MakeFurnaceInstances(*this, Root, TEXT("GrateCold"), GrateMesh ? GrateMesh : CubeMesh, GrateMesh ? nullptr : IronBlack);
+	GrateHot = MakeFurnaceInstances(*this, Root, TEXT("GrateHot"), GrateMesh ? GrateMesh : CubeMesh, GrateMesh ? nullptr : Glow);
+	GrateFire = MakeFurnaceInstances(*this, Root, TEXT("GrateFire"), FireMesh ? FireMesh : ConeMesh, FireMesh ? nullptr : Glow);
+	if (GrateMesh)
+	{
+		BargeLooks::SetSlot(*GrateCold, BargeLooks::GlowSlot, IronBlack);
+	}
+	DarkGlow = IronBlack;
 
 	Prompt = LOCTEXT("Open", "Open the soul cage");
 	NeedsLanternPrompt = LOCTEXT("NeedsLantern", "Abel's lantern is needed to carry him");
@@ -152,26 +203,55 @@ ABargeFurnace::ABargeFurnace()
 void ABargeFurnace::BeginPlay()
 {
 	Super::BeginPlay();
-	// The pipes up into the hall's ceiling (from under its crown: never through the deck over it), the bands round the drum,
-	// the cage's bars across its window.
+	// The pipes up into the hall's ceiling (from the crown's collars: never through the deck over it). The boiler model has
+	// its own bands and its porthole's bars; the stand-in drum gets them as iron cylinders, its pipes from under its crown.
 	TArray<FTransform> Iron;
-	const double PipeFoot = BargeRules::FurnaceHeight - BargeRules::PipeUnderCrown;
-	const double PipeLength = BargeRules::HallHeight - PipeFoot;
-	for (const FVector& Pipe : { FVector(-120.0, 150.0, 0.0), FVector(-120.0, -150.0, 0.0), FVector(-220.0, 0.0, 0.0) })
+	TArray<FTransform> Runs;
+	const FVector PipeFeet[] = { FVector(-120.0, 150.0, 0.0), FVector(-120.0, -150.0, 0.0), FVector(-220.0, 0.0, 0.0) };
+	if (WholeMesh)
 	{
-		Iron.Add(FTransform(FQuat::Identity, Pipe + FVector(0.0, 0.0, PipeFoot + PipeLength * 0.5), FVector(0.55, 0.55, PipeLength / 100.0)));
+		for (int32 Index = 0; Index < static_cast<int32>(UE_ARRAY_COUNT(PipeFeet)); ++Index)
+		{
+			const FVector Foot = SocketOr(WholeMesh, FName(*FString::Printf(TEXT("Pipe_%d"), Index + 1)),
+				PipeFeet[Index] + FVector(0.0, 0.0, BargeLooks::FurnaceModelHeight + PipeCollarUp)) * BodyScale;
+			if (Pipes->GetStaticMesh())
+			{
+				BargeLooks::AddPipeRun(Runs, Foot, BargeRules::HallHeight - Foot.Z, BargeRules::FurnacePipeWidth);
+			}
+			else
+			{
+				const double Length = BargeRules::HallHeight - Foot.Z;
+				Iron.Add(FTransform(FQuat::Identity, Foot + FVector(0.0, 0.0, Length * 0.5),
+					FVector(BargeRules::FurnacePipeWidth / 100.0, BargeRules::FurnacePipeWidth / 100.0, Length / 100.0)));
+			}
+		}
 	}
-	const float D = BargeRules::FurnaceRadius * 2.f / 100.f + 0.12f;
-	for (const float Up : { 60.f, 300.f, 540.f })
+	else
 	{
-		Iron.Add(FTransform(FQuat::Identity, FVector(0.0, 0.0, Up), FVector(D, D, 0.14)));
-	}
-	for (int32 Bar = -2; Bar <= 2; ++Bar)
-	{
-		Iron.Add(FTransform(FQuat::Identity, FVector(HeartAt.X + 70.0, Bar * 38.0, BargeRules::CageUp), FVector(0.07, 0.07, 1.9)));
+		const double PipeFoot = BargeRules::FurnaceHeight - BargeRules::PipeUnderCrown;
+		const double PipeLength = BargeRules::HallHeight - PipeFoot;
+		for (const FVector& Pipe : PipeFeet)
+		{
+			Iron.Add(FTransform(FQuat::Identity, Pipe + FVector(0.0, 0.0, PipeFoot + PipeLength * 0.5),
+				FVector(BargeRules::FurnacePipeWidth / 100.0, BargeRules::FurnacePipeWidth / 100.0, PipeLength / 100.0)));
+		}
+		const float D = BargeRules::FurnaceRadius * 2.f / 100.f + 0.12f;
+		for (const float Up : { 60.f, 300.f, 540.f })
+		{
+			Iron.Add(FTransform(FQuat::Identity, FVector(0.0, 0.0, Up), FVector(D, D, 0.14)));
+		}
+		for (int32 Bar = -2; Bar <= 2; ++Bar)
+		{
+			Iron.Add(FTransform(FQuat::Identity, FVector(HeartAt.X + 70.0, Bar * 38.0, BargeRules::CageUp), FVector(0.07, 0.07, 1.9)));
+		}
 	}
 	Ironwork->ClearInstances();
 	Ironwork->AddInstances(Iron, /*bShouldReturnIndices*/ false);
+	if (Pipes->GetStaticMesh())
+	{
+		Pipes->ClearInstances();
+		Pipes->AddInstances(Runs, false);
+	}
 	LaidMask = 0xFFFFFFFFu;
 	LayGrates(0u, false);
 	SetCageBurst(bCageBurst);
@@ -239,13 +319,15 @@ void ABargeFurnace::SetValvesShut(int32 Shut)
 	if (ValvesShut > Was && !bOut)
 	{
 		// A notch colder: a lurch of the flame through the window and a gout of sparks off the crown.
-		LamplighterEffects::Sparks(this, GetActorTransform().TransformPosition(FVector(0.0, 0.0, BargeRules::FurnaceHeight)), FVector::UpVector, 8, 0.8f);
+		LamplighterEffects::Sparks(this, GetActorTransform().TransformPosition(SocketOr(WholeMesh, CrownSocket, FVector(0.0, 0.0, BargeRules::FurnaceHeight / BodyScale.Z)) * BodyScale),
+			FVector::UpVector, 8, 0.8f);
 		LamplighterEffects::Shake(this, 0.25f, 0.5f);
 	}
 	if (ValvesShut >= BargeRules::NumValves)
 	{
 		SetRingRunning(false);
 	}
+	UpdateGlow();
 	LayGrates(GetHotMask(), IsRingBurning());
 }
 
@@ -274,6 +356,12 @@ FTransform ABargeFurnace::WedgeTransform(int32 Wedge, float Up) const
 	const float Middle = (BargeRules::GrateInner + BargeRules::GrateOuter) * 0.5f;
 	const float Turn = FMath::DegreesToRadians(Angle);
 	const FVector At(FMath::Cos(Turn) * Middle, FMath::Sin(Turn) * Middle, Up);
+	if (bGrateModel)
+	{
+		// The kit's wedge on the floor at the ring's middle radius, +X out along it, scaled from the ring it was built for.
+		return FTransform(FRotator(0.f, Angle, 0.f), At, FVector((BargeRules::GrateOuter - BargeRules::GrateInner) / BargeLooks::GrateModelDepth,
+			Middle * BargeLooks::GrateModelCount / (BargeLooks::GrateModelMiddle * BargeRules::Grates), 1.0));
+	}
 	// A plate the ring's depth long and its share of the middle circle wide, a little narrow so the wedges read apart.
 	const float Width = UE_TWO_PI * Middle / BargeRules::Grates * 0.92f;
 	return FTransform(FRotator(0.f, Angle, 0.f), At, FVector((BargeRules::GrateOuter - BargeRules::GrateInner) / 100.f, Width / 100.f, 0.12f));
@@ -291,14 +379,13 @@ void ABargeFurnace::LayGrates(uint32 Mask, bool bBurning)
 	for (int32 Wedge = 0; Wedge < BargeRules::Grates; ++Wedge)
 	{
 		const bool bHot = (Mask & (1u << Wedge)) != 0u;
-		(bHot ? Hot : Cold).Add(WedgeTransform(Wedge, 6.f));
+		// The model stands on the floor; the stand-in plate is centred, half its 12 cm over it.
+		(bHot ? Hot : Cold).Add(WedgeTransform(Wedge, bGrateModel ? 0.f : GratePlateUp));
 		if (bHot && bBurning)
 		{
-			// Tongues of furnace fire up through the burning wedge's slots.
-			FTransform Tongue = WedgeTransform(Wedge, 70.f);
-			Tongue.SetRotation(FQuat::Identity);
-			Tongue.SetScale3D(FVector(1.6, 1.6, 1.3));
-			Fire.Add(Tongue);
+			// Tongues of furnace fire up through the burning wedge's bars, standing on its rails (the model's Fire socket).
+			const FVector Foot = WedgeTransform(Wedge, bGrateModel ? GrateFireUp : 0.f).GetLocation();
+			Fire.Add(BargeLooks::FireAt(Foot, GrateFireSize, bFireModel));
 		}
 	}
 	const auto Lay = [](UInstancedStaticMeshComponent* Look, const TArray<FTransform>& Where)
@@ -346,129 +433,6 @@ void ABargeFurnace::HurtOnGrates(float DeltaSeconds)
 	HurtClock = 0.f;
 	UGameplayStatics::ApplyDamage(Player, Amount, nullptr, this, UDamageType::StaticClass());
 	LooterSound::PlayAt(this, LooterSoundCue::Spitter::Burn, Player->GetActorLocation(), 0.8f);
-}
-
-// ---------------------------------------------------------------------------
-// The cage
-// ---------------------------------------------------------------------------
-
-bool ABargeFurnace::CanOpenCage(bool bForce) const
-{
-	if (bCageBurst || bOut)
-	{
-		return false;
-	}
-	if (bForce)
-	{
-		return true;
-	}
-	return ValvesShut >= BargeRules::NumValves && StoryHolds(OpenWhen) && AKeepersLantern::IsTakenIn(this);
-}
-
-bool ABargeFurnace::BurstCage(AActor* By, bool bForce)
-{
-	if (!CanOpenCage(bForce))
-	{
-		return false;
-	}
-	UE_LOG(LogLooter, Log, TEXT("%s: the soul cage is opened. What comes out isn't Abel."), *GetActorNameOrLabel());
-	ABargeBoarding* Boarding = Barge.Get();
-	// The scene bursts it and sets the barge dying as it ends; with scenes off it leaves that end state at once.
-	if (!Boarding || !CageBurst::Play(*Boarding, *this))
-	{
-		SetCageBurst(true);
-		if (Boarding)
-		{
-			Boarding->NoteCageBurst();
-		}
-	}
-	return true;
-}
-
-void ABargeFurnace::SetCageBurst(bool bBurst)
-{
-	bCageBurst = bBurst;
-	Heart->SetVisibility(!bBurst && !bOut);
-	HeartSmog->SetVisibility(!bBurst && !bOut);
-	CageFrame->SetVisibility(true);
-	CageLight->SetVisibility(!bBurst && !bOut);
-	Shards->ClearInstances();
-	if (bBurst)
-	{
-		// The window's glass and two of its bars flung across the floor, fanned out from the cage.
-		FRandomStream Spread(6006);
-		TArray<FTransform> Flung;
-		for (int32 Index = 0; Index < 12; ++Index)
-		{
-			const float Out = Spread.FRandRange(420.f, 1000.f);
-			const float Across = Spread.FRandRange(-420.f, 420.f);
-			Flung.Add(FTransform(FRotator(Spread.FRandRange(-20.f, 20.f), Spread.FRandRange(0.f, 360.f), Spread.FRandRange(-20.f, 20.f)),
-				FVector(Out, Across, 8.0), FVector(Spread.FRandRange(0.2f, 0.5f), Spread.FRandRange(0.06f, 0.3f), 0.04)));
-		}
-		Shards->AddInstances(Flung, /*bShouldReturnIndices*/ false);
-	}
-}
-
-void ABargeFurnace::PutOut()
-{
-	bOut = true;
-	SetRingRunning(false);
-	Heart->SetVisibility(false);
-	HeartSmog->SetVisibility(false);
-	CageLight->SetVisibility(false);
-}
-
-FVector ABargeFurnace::GetCageLocation() const
-{
-	return GetActorTransform().TransformPosition(HeartAt);
-}
-
-FVector ABargeFurnace::GetCageFacing() const
-{
-	return GetActorForwardVector().GetSafeNormal2D();
-}
-
-FVector ABargeFurnace::GetBackWall() const
-{
-	return GetActorTransform().TransformPosition(FVector(-BargeRules::HallRadius, 0.0, BargeRules::CageUp + 200.0));
-}
-
-FInteractionOptions ABargeFurnace::GetInteractionOptions(const UInteractionComponent& User) const
-{
-	if (bCageBurst || bOut || ValvesShut < BargeRules::NumValves || !StoryHolds(OpenWhen))
-	{
-		return FInteractionOptions::None();
-	}
-	FInteractionOptions Options;
-	if (!AKeepersLantern::IsTakenIn(this))
-	{
-		// Shown, not usable: the reason the cage won't be opened yet (he can only be carried in his own lantern).
-		Options.bUsable = false;
-		Options.bTap = true;
-		Options.TapPrompt = NeedsLanternPrompt;
-		return Options;
-	}
-	Options.bTap = false;
-	Options.bHold = true;
-	Options.HoldSeconds = HoldSeconds;
-	Options.HoldPrompt = Prompt;
-	return Options;
-}
-
-bool ABargeFurnace::Interact(UInteractionComponent& User, bool bHeld)
-{
-	return bHeld && BurstCage(User.GetOwner());
-}
-
-TOptional<FVector> ABargeFurnace::GetInteractionLocation() const
-{
-	return TOptional<FVector>(GetActorTransform().TransformPosition(HeartAt + FVector(80.0, 0.0, 0.0)));
-}
-
-TOptional<FInteractionBox> ABargeFurnace::GetInteractionBox() const
-{
-	// The cage's window and an arm's reach in front of it.
-	return InteractionFocus::BoxAround(GetActorTransform().TransformPosition(HeartAt + FVector(40.0, 0.0, 0.0)), FVector(110.0, 140.0, 140.0), GetActorQuat());
 }
 
 #undef LOCTEXT_NAMESPACE

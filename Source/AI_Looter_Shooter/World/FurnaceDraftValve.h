@@ -7,6 +7,7 @@
 #include "FurnaceDraftValve.generated.h"
 
 class ABargeBoarding;
+class UInstancedStaticMeshComponent;
 class USceneComponent;
 class UStaticMeshComponent;
 
@@ -18,8 +19,9 @@ class UStaticMeshComponent;
  * cools, a line). The missions hear the held Interact on the actor tagged Furnace_DraftValve (three spots, one each: a shut
  * valve can't be shut again). A session loaded on step 5 finds it open again (the count starts over with it); past it, shut.
  *
- * Stand-in look: an iron pipe and a wheel from engine shapes (Tripo 34's draft valve replaces both: ModelPath). The barge
- * spawns it at the wall (BargeRules::ValveAngles) and moves it with her. It ticks only while its wheel turns.
+ * Its look is the PROPS lane's valve, wheel and pipe riser (BargeLooks::DraftValve, ValveWheel, Pipe); an iron pipe and a
+ * wheel from engine shapes stand in until they're imported. The barge spawns it at the wall (BargeRules::ValveAngles) and
+ * moves it with her. It ticks only while its wheel turns.
  */
 UCLASS()
 class AI_LOOTER_SHOOTER_API AFurnaceDraftValve : public AActor, public IInteractable
@@ -71,6 +73,10 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> Wheel;
 
+	/** With the valve model: its riser from the valve's top flange up to the hall's ceiling, in the kit's pipe sections. */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UInstancedStaticMeshComponent> Riser;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -80,6 +86,8 @@ private:
 	void PoseWheel();
 
 	TWeakObjectPtr<ABargeBoarding> Barge;
+	/** The wheel is the kit's model (its axle its own X), not the stand-in cylinder (its axle Z, turned onto X). */
+	bool bWheelModel = false;
 	bool bShut = false;
 	float Turn = 0.f;
 	float SteamWait = 0.f;

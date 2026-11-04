@@ -193,7 +193,8 @@ bool CageBurst::Play(ABargeBoarding& Barge, ABargeFurnace& Furnace)
 	State->Scenes = Scenes;
 	State->Barge = &Barge;
 	State->Furnace = &Furnace;
-	State->Cage = Furnace.GetCageLocation();
+	// The burst's place: the cage's mouth, in front of the boiler's porthole (its heart sits inside, behind the bars).
+	State->Cage = Furnace.GetCageMouth();
 	State->BackWall = Furnace.GetBackWall();
 	State->StreakEnd = State->BackWall + StreakTo;
 

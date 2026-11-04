@@ -398,11 +398,25 @@ def _new_hull(obj, points):
     return hull
 
 
-def refit_hulls(obj, shell, keep=(), drop=(), margin=(0.25, 0.25, 0.03)):
-    """Each of obj's UCX hulls (scripted, boxes round the scripted parts) becomes the convex hull (a k-DOP) of the shell's
-    vertices inside its box grown by margin, so walls and roofs collide where the shell's are. A hull whose box centre
-    lies in one of keep (scripted parts kept in the model) stays as it is; one whose centre lies in drop goes (parts the
-    shell has elsewhere: porch posts), and so does one with too few shell vertices in it."""
+def old_hulls():
+    """LOOTER_TRIPO_HULLS=kdop: the old refit (each scripted box's k-DOP of the shell's vertices inside it grown by 25 cm:
+    walls stood 25-50 cm proud of the look, the art audit's finding 6), for comparing."""
+    return os.environ.get('LOOTER_TRIPO_HULLS', '').strip().lower() == 'kdop'
+
+
+def refit_hulls(obj, shell, keep=(), drop=(), margin=(0.25, 0.25, 0.12), name=''):
+    """obj's UCX hulls (scripted, boxes round the scripted parts) refitted to the shell (an object, or a list: the shell
+    and the trim boards joined to it), so walls and roofs collide where the shell's are: looter_tripo_collision.
+    refit_building (walls fitted as planes to the faces rays meet, a hull per band where a wall steps or a roof bends;
+    Docs/Work/2026-11-04-Art/COLLISION.md). A hull whose box centre lies in one of keep (scripted parts kept in the model)
+    stays as it is; one whose centre lies in drop goes (parts the shell has elsewhere: porch posts). With old_hulls(), the
+    old k-DOP refit below."""
+    if not old_hulls():
+        import looter_tripo_collision as tc
+        made = tc.refit_building(obj, shell, name=name, keep=keep, drop=drop, grow=margin)
+        log(f'{obj.name}: {made} hulls fitted to the shell')
+        return
+    margin = (0.25, 0.25, 0.03)
     world = shell.matrix_world
     verts = [world @ v.co for v in shell.data.vertices]
     for hull in [c for c in obj.children if c.name.startswith('UCX_')]:
@@ -605,9 +619,9 @@ def swap(obj, name, front='+X', cut=(), keep=(), keep_whole=(), anchors=None, fa
         log(f'{name}: decimated {before} -> {triangles(shell)} triangles')
     for box in cut:
         log(f'{name}: cut {cut_box(shell, box)} shell faces in {box}')
-    if refit:
+    if refit and old_hulls():
         before = len([c for c in obj.children if c.name.startswith('UCX_')])
-        refit_hulls(obj, shell, keep=hulls_keep, drop=hulls_drop)
+        refit_hulls(obj, shell, keep=hulls_keep, drop=hulls_drop, name=name)
         found = posts(shell, post_region, band=post_band) if post_region else []
         for lo_, hi_ in found:
             add_box_hull(obj, lo_, hi_)
@@ -651,6 +665,21 @@ def swap(obj, name, front='+X', cut=(), keep=(), keep_whole=(), anchors=None, fa
         added = more_pieces(shell, obj)
         pieces += added
         log(f'{name}: {len(added)} more scripted pieces placed')
+    if refit and not old_hulls():
+        # The hulls fitted to the shell with the trim boards joined to it (its fascias, rakes and ridge board are what
+        # the player sees at the edges: _farm_edges cut the shell's own), then whatever they still leave out its own
+        # hulls (a porch roof's front, a stovepipe). The scripted parts kept have their scripted hulls, the posts and the
+        # steps theirs: they are left out.
+        import looter_tripo_collision as tc
+        before = len([c for c in obj.children if c.name.startswith('UCX_')])
+        meshes = [p for p in pieces if p is shell or p.name.startswith(('_TripoTrim', '_TripoLitWindow'))]
+        refit_hulls(obj, meshes, keep=hulls_keep, drop=hulls_drop, name=name)
+        found = posts(shell, post_region, band=post_band) if post_region else []
+        for lo_, hi_ in found:
+            add_box_hull(obj, lo_, hi_)
+        tc.cover_leftovers(obj, meshes)
+        log(f'{name}: hulls refitted to the shell ({before} scripted, {len(found)} posts found: '
+            f'{[tuple(round(v, 2) for v in (a + b) * 0.5)[:2] for a, b in found]})')
 
     # Occlusion on the shell (the kept parts have theirs): the shell and kept parts shade each other and the ground.
     lt.bake_vertex_ao(shell, ground=True, children=False)

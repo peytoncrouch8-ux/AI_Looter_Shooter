@@ -1,496 +1,488 @@
-"""The dredge barge's rework (Docs/Work/2026-11-04-Art/CONTRACT.md, round 2: "the Tripo hull REWORKED"): Tripo's barge
-(Art/Tripo/DredgeBarge) reshaped by script so the game's walkable kit fits it. looter_tripo_wardens.build runs rework() on
-the fitted mesh (its SPECS['DredgeBarge'] 'rework'), before the maps, sockets and LODs, so every export reproduces it.
+"""The dredge barge reworked from Tripo's own pieces (Docs/Work/2026-11-04-Art/CONTRACT.md, "Round 3"): no new structure;
+Tripo's faces are moved, squeezed and copied (their UVs with them) so the walkable kit fits the ship as the player knows
+it from the spyglass: the low boiler casing with its two stacks aft, the tall house with its portholes and the white
+tanks midship, the raked scoop at the bow. looter_tripo_wardens.build runs rework() on the fitted mesh (the 'rework' of
+SPECS['DredgeBarge']) before the maps, sockets and LODs, and slots() after the maps (the material slots). Its floors are
+measured by looter_tripo_barge_floors, its collision is looter_tripo_barge_collision, its previews and the measured
+layout (Docs/Work/2026-11-04-Art/BARGE_LAYOUT.md) are looter_tripo_barge_check.
 
-Frame: the barge's (BargeRules.h), cm, pivot bottom-centre at z 0, bow +X, the berth side -Y, Z up; B() turns a point into
-the model's Blender metres (front -Y: Unreal +X is Blender -Y, Unreal +Y is Blender -X).
+Frame: the barge's, cm, pivot bottom-centre at z 0, bow +X, the berth side -Y, Z up (B() into Blender metres).
+What Tripo made (measured on the fitted mesh): one closed skin, 75,775 triangles. The hull is fullest amidships
+(half-beam 1050-1120 at z 1700-2300 over x -2200..800) and narrows forward (930 at x 1800, 810 at 2300). Floors: the
+stern platform, the cross walk between the casing and the house (x -670..-534) and the side walks all ~2255; the walks
+are trenches 16-160 cm wide between the casing's or the house's skirt and the bulwark's inner face (|y| 875-960), the
+casing's at its dome end and aft end roofed by the bulwark's lip; the foredeck 2254 inside a bulwark rim (inner face |y|
+~723, top 2343) over x 1990..2300; the scoop's floor 2371 between its walls over x 2300..3250 (Tripo's 1.2 m step: the
+forecastle). Under the hull a cradle with the hose drum (x -1790..-10, z 0..950) and a front strut (x 1850..2450, z
+714..1062, its root in the keel's underside).
 
-What Tripo made (BARGE_MEASURE.md, and this lane's sections of the fitted mesh): ONE closed skin (one island, 75,775
-triangles, 37 open edges), nothing modelled inside. Its open deck is terraces at 2250-2371 between a midship block
-(x -575..1990, |y| ~800, roof ~3150 with a railed walk to |y| 1000), a cabin on it (x -250..1825, to 3790) with two white
-tanks (x 100..1000, y +-800, to 4849: "the 46 m tower"), an aft engine casing (x -3250..-650, to 3020), two stacks (axes
-(-1107, 21) and (-2373, 19), r ~200 from 3300 up, rings r 240 at 4500-4600, tops 4808), a scoop at the bow (x 2300..3750,
-walls |y| 400-650 to ~3000). The hull is round: half-beam 1050-1100 at z 2000-2200 amidships, 950 at x 2000, 700 at
-x 3000, 880 at x -3300; never the bounds' 1237.5 (only thin plates reach it).
-
-The rework, in order:
-1. The tower (the cabin over x TOWER_SRC from TOWER_FOOT up, with the tanks) is copied out, squeezed along x to fit
-   between the stacks and set on the house roof over x TOWER_DST (its foot on the roof; its cut ends capped).
-2. Cut away above CUT between the house's aft wall and the scoop (x HOUSE_AFT..DECK_FORE): the midship block, cabin and
-   tanks, the casing, the foredeck terraces (2371, 2300), the side rails and the scoop's part aft of DECK_FORE. Above the
-   roof the stacks, their pipes and stays stay (but not where the tower stands); below ROOF inside the house nothing stays
-   (the kit's hall fills it: its .Hull test traces z 2350 and 3100), so the stacks start at the roof.
-3. Fill: one flat deck at DECK over x DECK_AFT..DECK_FORE to the bulwark; the scoop's cut face at DECK_FORE capped.
-4. The house: x HOUSE_AFT..HOUSE_FORE, full beam BEAM, roof at ROOF, walls WALL_T thick, hollow (no floor at deck level:
-   the kit floors it), a door DOOR_W x DOOR_H at y 0 in its fore face with its threshold at DECK.
-5. The bulwark: RAIL_H high, RAIL_T thick, outer face at BEAM, x DECK_AFT..DECK_FORE, a GAP_W gap over a SILL_H sill at
-   GAP_X on -Y; short end walls across the bow beside the scoop (else the deck's front edge is open).
-6. The guard: Tripo's hull is narrower than BEAM everywhere at the deck, so the deck and the house overhang it; a belt
-   (fascia at BEAM from GUARD_LO, a chamfer, a flat underside running GUARD_INTO into the hull skin) closes the overhang
-   all along x HOUSE_AFT..DECK_FORE, like a tug's deck guard.
-7. Collision (UCX_ boxes): deck slab, bulwarks (split round the gap and at RAIL_SPLIT_X), the hull body below the deck,
-   the house walls round the door, its roof, the stacks and tower from the roof up, the scoop, the stern; none inside the
-   house. Sockets Door and Gangway (Tripo's HoseDrum, Stack_1, Stack_2 are placed by the build).
-8. UV0: Tripo's atlas has no tiling area, so new faces take plain patches of it (looter_tripo_rework.Paint): tiny squares
-   inside the UV charts of a matching Tripo surface (PAINTS: the old foredeck for the deck, the midship block's walls for
-   the house, the casing's roof for the roof, the hull's sheer band for the bulwark and guard) where colour and normal map
-   are flattest and the colour is that surface's usual one; each ~3 m tile of a new surface (laid like plating) gets one
-   at random (SEED), so the paint is Tripo's and plates differ a little in tone. The detail layer (M_World's, object
-   space) draws the plates at close range. The maps and write_maps are unchanged.
-9. Clean-up (looter_tripo_rework.tidy): nearly level faces are not cut level (LEVEL_FACE), cut Tripo polygons are
-   triangulated the best way round and hairline slivers dropped: the export's tangent check (Tools/Blender/tangentcheck.py)
-   finds nothing Unreal would warn about.
-Round 2 (the coordinator, after round 1's previews): the scoop moved forward and the house dressed.
-10. The scoop: Tripo's bucket lay on the foredeck over x ~2280..3380 (its X-frame arms and the bow's rail ring in front,
-   to x 3683), so the flat deck out to DECK_FORE cut most of it away. Everything of it above SCOOP_FOOT inside
-   x > SCOOP_X0, |y| < SCOOP_HALF is moved SCOOP_SHIFT forward (its aft end onto the deck's fore edge; it overhangs the
-   bow and the bounds grow forward) on a new seat (a plate from the bow's end walls to past its front, following its
-   plan, top at SCOOP_FOOT, underside SCOOP_SEAT); its cut sides are capped.
-11. The house dressed (looter_tripo_barge_house): ribs, portholes, a catwalk ring with Tripo's walk railing re-used, the
-   door's frame, lintel plate and steps, vents on the roof; all outside the walls.
+The rework, in order (every number a constant below):
+1. Squeeze in y about the centreline: the casing by SQUEEZE_CASING, the house by SQUEEZE (blended over the cross walk),
+   from just under the walk floors up. Over a walk's floor everything inboard of the bulwark's inner face squeezes whole
+   (walls, skirts, what stands out of them); the floor stretches from the walls' moved feet to the bulwark, whose inner
+   face stays; what stands over the bulwark's top (the casing's waist ledges) squeezes too. The stacks keep their round
+   (their axes move), the two tanks scale whole by SQUEEZE.
+0. Walks cleared (looter_tripo_barge_clear, before the squeeze): what Tripo's pieces carry across the side walks at a
+   pawn's height (the casing's capping lips and band straps, the house's horn pipes) cut where it crosses, capped.
+2. Jumbo, fore (looter_tripo_barge_jumbo): everything fore of FORE_CUT moves FORE_DX forward; the gap is filled with
+   unmirrored copies of three different slabs of the foredeck side in a searched run, each warped to the cut's section
+   and its ends morphed onto it, the joints zipped watertight. The front strut stays whole where it hangs (cut off at
+   STRUT_ROOT, or each copy carries a stub of its root); a keel plate under each copy closes the root's slot.
+3. Jumbo, midship: the same with MID_SLAB (the cross walk from the casing's fore face to under the house's overhang)
+   MID_COPIES times, opening the cross walk to 3.8 m for the hatch. The cradle and drum stay whole.
+4. The berth: a GAP_W gap in the -Y bulwark rim of the well deck at GAP_X, cut at the sill's height first, its cut ends
+   and sill filled in the paint next to them.
+5. The forecastle's stairs: two flights (STAIR_Y) from the well deck up to the scoop's floor, their treads, risers and
+   sides plates cut from the well deck's own (copied) deck.
+6. The hatch: a HATCH hole in the cross walk over the hall's rim, its coaming COAMING_H high on three sides (the +Y
+   edge open: the kit's stair goes down there) from the well deck's bulwark band laid flat, topped with the rim's top.
+7. Material slots (slots()): Hull (below HULL_TOP), Deck (walkable surfaces), Super (house, casing, stacks, tanks,
+   scoop, rails and fittings), all on Tripo's atlas: TripoDredgeBarge_Hull, _Deck, _Super (Unreal: MI_<name>).
+8. Collision and sockets (looter_tripo_barge_collision; sockets here): HoseDrum (Tripo's), Stack_1 and Stack_2 (their
+   axes moved by the squeeze), Gangway (on the gap's sill, facing out), Hatch (the hole's centre).
 """
 import math
 
 import bmesh
-from mathutils import Vector
+import numpy as np
 
 import looter_model as lm
-import looter_tripo_barge_house as house
+import looter_textures as lt
+import looter_tripo_barge_clear as clear
+import looter_tripo_barge_jumbo as jumbo
 import looter_tripo_rework as rw
-from looter_tripo_rework import (B, Build, Paint, U, above, bisect, box_of, cap, outline, over, reaching, spanning,
-                                 steep, strip, ue_centre)
+from looter_tripo_barge_floors import DECK_UP, RIM_CLEAR, RIM_OUT, WALK_FLOOR, rim_at, rims, trench_at, trenches
+from looter_tripo_rework import B, U, bisect, copy, patch, spanning, steep, turn, ue_centre
 
-# --- The contract's numbers (cm) ---
-DECK = 2250.0                         # BargeRules DeckTop
-CUT = 2220.0                          # Tripo's skin goes above this from HOUSE_AFT to DECK_FORE (30 under the deck)
-DECK_AFT, DECK_FORE = -400.0, 3350.0  # the open deck; the scoop beyond DECK_FORE stays as Tripo made it
-BEAM = 1237.5                         # the bulwark's and the house's outer faces
-RAIL_H, RAIL_T = 110.0, 15.0          # BargeRules RailHeight; the bulwark's thickness
-GAP_X, GAP_W, SILL_H = 2000.0, 300.0, 2.0   # BerthX: the gangway's gap on -Y (BerthSide), over a sill
-RAIL_SPLIT_X = 3200.0                 # the bulwark's collision splits here too
-HOUSE_AFT, HOUSE_FORE = -3300.0, -400.0
-ROOF, WALL_T, ROOF_T = 3300.0, 20.0, 20.0
-BAND_LO, BAND_HI = 50.0, 70.0         # the house's outer walls: a dark foot band and a band under the roof's edge
-COAMING_H, COAMING_T = 30.0, 20.0     # the roof's rim
-DOOR_W, DOOR_H = 240.0, 300.0         # at y 0 in the fore face, threshold at DECK (GetHatchSpot)
-# --- Measured on Tripo's mesh, and this lane's choices ---
+# --- Tripo's barge as fitted (cm) ---
+WELL = 2254.0                          # the foredeck's level: the well deck
+CROSS = 2250.0                         # the cross walk between the casing and the house
+FORECASTLE = 2371.0                    # the scoop's floor (terrace B): Tripo's 1.2 m step
 STACKS = ((-1107.0, 21.0), (-2373.0, 19.0))
-STACK_KEEP_R = 330.0                  # the stacks' rings reach r 240; pipes and stays are kept above the roof anyway
-TOWER_SRC = (90.0, 1010.0)            # the cabin slice under the tanks (tanks x 100..1000)
-TOWER_FOOT = 3300.0                   # cut at the midship block's railed walk: the slice's foot lands on ROOF
-TOWER_DST = (-2140.0, -1340.0)        # between the stacks (shafts r ~200: free x -2173..-1307); the contract's
-                                      # -2000..-1200 would put the cabin into stack 1
-TOWER_CABIN_TOP = 3800.0              # the cabin's roof under the tanks (for its collision)
-GUARD_LO, GUARD_CHAMFER, GUARD_INTO = 2000.0, 40.0, 100.0
-SCOOP_X0, SCOOP_FOOT, SCOOP_HALF = 2250.0, 2310.0, 700.0   # the bucket, its arms and rail: above the bow's deck (2300)
-SCOOP_SHIFT = DECK_FORE - SCOOP_X0    # forward, so its aft end meets the deck's fore edge
-SCOOP_SEAT, SEAT_MARGIN, SEAT_MIN = 2200.0, 30.0, 200.0   # its seat's underside; how far the seat runs past it
-STATION = 100.0                       # x step of the guard's underside and the house's ledge along the hull
-HULL_BOXES = (                        # the hull's collision below the deck (x0, x1, z0, z1): each as wide as the skin's
-    ('hull top', -2800.0, 1200.0, 1700.0, CUT),          # narrowest section over its x range, HULL_BOX_IN inside it
-    ('hull top fore', 1200.0, 2400.0, 1800.0, CUT),
-    ('hull top bow', 2400.0, DECK_FORE, 1950.0, CUT),
-    ('hull top stern', -3400.0, -2800.0, 1700.0, CUT),
-    ('hull middle', -2500.0, 1500.0, 1300.0, 1700.0),
-    ('hull belly', -2000.0, 1000.0, 1100.0, 1300.0))
-HULL_BOX_IN = 25.0
-SEED = 1104
-PAINTS = {                            # Tripo faces a paint is taken from: normal test, x, z, |y| ranges (cm)
-    'deck': dict(up=0.9, x=(1300.0, 3300.0), z=(2240.0, 2400.0), y=(0.0, 1000.0)),
-    'wall': dict(side=0.2, x=(-500.0, 1950.0), z=(2350.0, 3050.0), y=(700.0, 1100.0)),
-    'roof': dict(up=0.9, x=(-3200.0, -800.0), z=(2750.0, 3100.0), y=(0.0, 1000.0)),
-    'hull': dict(side=0.35, x=(-2500.0, 1500.0), z=(1850.0, 2200.0), y=(900.0, 1300.0)),
-    'glass': dict(side=0.3, x=(-250.0, 1825.0), z=(3300.0, 3750.0), y=(700.0, 1000.0), dark=0.12),  # cabin windows
-}
+STACK_R, STACK_FOOT = 260.0, 2900.0
+TANKS = (90.0, 1010.0, 760.0, 3830.0, 3900.0)    # x0, x1, |y| within, blend from z .. to z: the two white tanks
+CRADLE = (-1850.0, 50.0, 950.0)        # x0, x1, below z: the cradle with the hose drum (stays whole)
+STRUT = (1800.0, 2500.0, 300.0, 1000.0)          # x0, x1, |y| within, below z: the front strut (stays whole)
+STRUT_ROOT = 1062.0                    # aft of the fore cut the root reaches the keel's underside (1054-1080): cut
+                                       # there, or every copy carries a stub of it (a row of teeth under the keel)
+# --- 1. The squeeze ---
+SQUEEZE = 0.85                         # the house (the asked 0.85-0.9): its walks open from Tripo's 16-160 cm to >= 150
+SQUEEZE_CASING = 0.82                  # the casing: 0.85 left 126 cm by its waist ledges' brackets (x -2700..-2200)
+SQ_SPLIT = (-660.0, -620.0)            # x: the casing's factor blends into the house's over the cross walk
+SQ_X, SQ_X_BLEND = (-3360.0, 2005.0), 40.0       # behind the casing's aft pillar (x -3354..-3300: across the blend
+                                                 # its sides sheared into streaks) .. the house's fore face
+SQ_Z = (2235.0, 2245.0)                # from just under the walk floors up: the skirts at the walls' feet squeeze too
+BULWARK_KEEP = 10.0                    # the floor's last 10 cm by the bulwark stays: its inner face does not move
+WALK_FALLBACK = (880.0, 900.0)         # a station with no floor found: |y| squeezed up to .. kept from
+FLOOR_BAND, WALL_FADE = 6.0, 5.0       # cm: over the floor's top the walls' rule takes over; its fade at the bulwark
+SQ_FULL_Z = (2450.0, 2700.0)           # above the rails everything squeezes (the walk canopies overhang the walks)
 
-UCX = []                              # (name, centre, size) in cm, for the log
+# --- 2, 3. The jumbo ---
+FORE_MIRRORED, FORE_MIRROR_SLAB = False, (2030.0, 2190.0)   # True: round 3's mirrored run (10 copies) instead
+FORE_CUT, FORE_DX = jumbo.CUT, 1600.0  # the bow parts at Tripo's x 2190 and moves 16 m (the most asked): looter_tripo_barge_jumbo
+MID_SLAB, MID_COPIES = (-664.0, -604.0), 4       # 60 cm x 4 = 2.4 m: the cross walk from the casing to under the house's
+                                                 # overhang (x -600), one rail post in it (a 12 cm slab smeared its paint)
+MID_DX = (MID_SLAB[1] - MID_SLAB[0]) * MID_COPIES
+KEEL_LINE = (1100.0, 70.0)             # z under, |y| within: the jumbo's keel line, painted as one strip
+MID_POST = (2355.0, 850.0)             # z, |y|: the slab's rail post (x -644..-620, to 2445) left out of its copies
+# --- 4. The berth gap (final coordinates) ---
+GAP_X, GAP_W, GAP_SILL = 3150.0, 300.0, 2262.0
+# --- 5. The forecastle's stairs ---
+STAIR_Y = ((150.0, 450.0), (-450.0, -150.0))
+STAIR_STEPS, TREAD = 6, 30.0
+# --- 6. The hatch and the hall under it (final coordinates) ---
+HATCH = (-615.0, -435.0, -225.0, 225.0)          # x0, x1, y0, y1 in the cross walk
+COAMING_H, COAMING_T = 60.0, 15.0
+HALL = dict(x=-1185.0, y=0.0, r=750.0, floor=1300.0, ceiling=2220.0)   # its fore rim under the hatch's fore edge
+# --- 7. Material slots ---
+SLOTS = ('Hull', 'Deck', 'Super')
+HULL_TOP = 2170.0                      # below the rubbing strake
+DECK_Z = (2230.0, 2390.0)
+# Parts (the face tag)
+TRIPO, FORE, MID, STAIRS, COAMING, FILL, KEEP, STRUT_PART = 0, 1, 2, 3, 4, 5, 6, 7
+
+UCX = []
 
 
 def log(message):
     print(f'LOOTER: DredgeBarge rework: {message}', flush=True)
 
 
-# --- The rework ---
+def final_x(x):
+    """Where a point of Tripo's fitted barge at x ends up after both jumbo cuts."""
+    return x + (MID_DX if x > MID_SLAB[1] else 0.0) + (FORE_DX if x > FORE_CUT else 0.0)
+
+
+def smooth(a, b, t):
+    return min(max((t - a) / (b - a), 0.0), 1.0)
+
 
 def rework(obj, report, maps):
-    """Reshapes the fitted barge obj in place (see the module's docstring); adds its UCX_ boxes and its Door and Gangway
-    sockets; notes what it did in report."""
+    import looter_tripo_barge_collision as collision   # here, not at the top: it imports this module's constants
     UCX.clear()
     bm = bmesh.new()
     bm.from_mesh(obj.data)
     uv = bm.loops.layers.uv.active
-    tag = bm.faces.layers.int.new('rework_part')     # 0 Tripo's, 1 the moved tower, 2 new
-    paint = Paint(bm, uv, maps, PAINTS, SEED)
-    build = Build(bm, uv, paint, tag)
-    stations = [HOUSE_AFT + STATION * k for k in range(int(round((DECK_FORE - HOUSE_AFT) / STATION)) + 1)]
-    guard = {s: [y - GUARD_INTO for y in outline(bm, GUARD_LO, s, stations, STATION)] for s in (-1, 1)}
-    hull = _hull_widths(bm)
-    ledge = {s: [y - GUARD_INTO for y in outline(bm, CUT, s, stations, STATION)] for s in (-1, 1)}
-    log('hull half-beam at z %.0f (x, port, stbd; every 5 m): %s' % (GUARD_LO, [
-        (round(stations[k]), round(guard[-1][k] + GUARD_INTO), round(guard[1][k] + GUARD_INTO))
-        for k in range(0, len(stations), 5)]))
-
-    railed = house.rail_copies(bm, tag, 4)          # (Tripo's walk railing, before the clear takes it)
-    moved = _tower(bm, tag)
-    scooped = _scoop(bm, tag)
-    deleted = _clear(bm, tag)
-    cap(bm, build, tag, 0, 0, DECK_FORE, CUT, (-1.0, 0.0, 0.0), 'hull')
-    cut_edge = _scoop_edges(bm, tag)
-    cap(bm, build, tag, 1, 0, TOWER_DST[0], ROOF, (-1.0, 0.0, 0.0), 'wall')
-    cap(bm, build, tag, 1, 0, TOWER_DST[1], ROOF, (1.0, 0.0, 0.0), 'wall')
-    cap(bm, build, tag, 3, 0, SCOOP_X0 + SCOOP_SHIFT, SCOOP_FOOT, (-1.0, 0.0, 0.0), 'hull')
-    for s in (-1, 1):
-        cap(bm, build, tag, 3, 1, s * SCOOP_HALF, SCOOP_FOOT, (0.0, float(s), 0.0), 'hull')
-    _deck(build)
-    _house(build, ledge, stations)
-    _guard(build, guard, stations, cut_edge)
-    seat = _seat(build, bm, tag)
-    dressing = house.dress(build)
-    split = rw.tidy(bm, lambda f: f[tag] != 2)
-    measured = {'scoop': box_of(bm, tag, 3), 'seat': seat,
-                'stern': box_of(bm, tag, 0, lambda p: p[0] < HOUSE_AFT - 1.0 and p[2] > CUT - 1.0),
-                'cradle': box_of(bm, tag, 0, lambda p: p[2] < 700.0),
-                'cabin': box_of(bm, tag, 1, lambda p: 3420.0 < p[2] < 3700.0),
-                'tanks': box_of(bm, tag, 1, lambda p: p[2] > TOWER_CABIN_TOP + 50.0),
-                'tower': box_of(bm, tag, 1),
-                'stack tops': [max((U(v.co)[2] for v in bm.verts
-                                    if math.hypot(U(v.co)[0] - sx, U(v.co)[1] - sy) < 260.0), default=4800.0)
-                               for sx, sy in STACKS]}
+    tag = bm.faces.layers.int.new('rework_part')
+    nearest = rw.Nearest(bm, uv)
+    _keep(bm, tag)
+    cut, caps = clear.walks(bm, tag, nearest, FILL)
+    log(f'walks cleared: {cut} faces crossing them cut, {caps} cap faces')
+    _squeeze(bm)
+    if FORE_MIRRORED:      # round 3's run: one slab, every other copy mirrored (butterfly seams, its knee every 3.2 m)
+        _insert(bm, tag, FORE_MIRROR_SLAB, int(FORE_DX // (FORE_MIRROR_SLAB[1] - FORE_MIRROR_SLAB[0])), FORE, nearest,
+                still=(KEEP, STRUT_PART))
+    else:
+        jumbo.build(bm, tag, nearest, FORE_DX, FORE, FILL, TRIPO, (KEEP, STRUT_PART), STRUT_ROOT)
+    fore = FORE_DX
+    mid = _insert(bm, tag, MID_SLAB, MID_COPIES, MID, nearest, still=(KEEP,), trim=MID_POST)
+    gap = _gap(bm, tag, nearest)
+    stairs = _stairs(bm, tag)
+    hatch = _hatch(bm, tag)
+    posts, post_faces = clear.posts(bm, tag, nearest, FILL)
+    log(f'forecastle: {posts} stub posts ({post_faces} faces) taken off its floor')
+    split = rw.tidy(bm, lambda f: f[tag] != STAIRS)
+    # Every fill painted again on its final shape (the jumbo's morph and zip moved them), the jumbo's keel line as one
+    # strip, any face left without UV area; the stairs' plates triangulated (a corner on a straight edge made the
+    # exporter cut a zero-area triangle there).
+    keel = [f for f in bm.faces if FORE_CUT - 5.0 < ue_centre(f)[0] < final_x(FORE_CUT) + FORE_DX + 5.0
+            and any(U(v.co)[2] < KEEL_LINE[0] and abs(U(v.co)[1]) < KEEL_LINE[1] for v in f.verts)]
+    rw.repaint(bm, tag, FILL, nearest, keel)
+    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if f[tag] == STAIRS and len(f.verts) > 3], quad_method='BEAUTY',
+                          ngon_method='BEAUTY')
+    rw.tidy(bm, lambda f: False)
+    _slot_layer(bm, tag)
+    pieces = collision.pieces(bm, tag)
     bm.faces.layers.int.remove(tag)
     bm.normal_update()
     bm.to_mesh(obj.data)
     bm.free()
     obj.data.update()
-    _collision(obj, measured, hull, dressing)
-    for name, p, yaw in (('Door', (HOUSE_FORE, 0.0, DECK), 0.0), ('Gangway', (GAP_X, -BEAM, DECK), -90.0)):
-        # An Unreal yaw turns the other way about Blender's Z; an empty's -Y is the socket's front.
+    collision.build(obj, pieces)
+    sq = lambda y: y * SQUEEZE_CASING                  # both stacks stand on the casing
+    sockets = {'Gangway': ((GAP_X, -gap['outer'], GAP_SILL), -90.0),     # on the sill's outboard edge, facing out
+               'Hatch': ((sum(HATCH[:2]) / 2.0, 0.0, CROSS), 0.0)}
+    for name, (p, yaw) in sockets.items():
         lm.socket(obj, name, tuple(B(p)), (0.0, 0.0, -yaw))
         report.setdefault('sockets', {})[name] = p
-    obj['Fallback'] = 100.0
-    report['rework'] = {'polygons triangulated, slivers dropped': split, 'tower faces moved': moved,
-                        'faces cut away': deleted, 'new faces': build.faces,
-                        'scoop faces moved': scooped, 'railing faces laid': railed, 'measured': measured,
-                        'ucx': len(UCX)}
-    for name, centre, size in UCX:
+    report['socket_at'] = {f'Stack_{k + 1}': (sx, sq(sy)) for k, (sx, sy) in enumerate(STACKS)}
+    report['rework'] = {'fore copies': fore, 'mid copies': mid, 'gap': gap, 'stairs faces': stairs,
+                        'coaming faces': hatch, 'triangulated, slivers': split, 'ucx': len(UCX)}
+    for name, centre, size, _ in UCX:
         log(f'UCX {name}: centre {centre} size {size}')
 
 
-def _tower(bm, tag):
-    """Copies the cabin slice over TOWER_SRC from TOWER_FOOT up (the tanks on it) onto the roof over TOWER_DST."""
-    x0, x1 = TOWER_SRC
-    # The foot where the slice is, then its ends above the foot.
-    bisect(bm, spanning(bm, tag, 0, 2, TOWER_FOOT, lambda ps: over(0, x0, x1)(ps) and steep(ps)), 2, TOWER_FOOT)
+# --- Pieces that stay whole ---
+
+def _keep(bm, tag):
+    """The cradle with the drum and the front strut: cut off the hull at their tops, parted, tagged KEEP (no move)."""
+    x0, x1, z = CRADLE
+    sx0, sx1, sy, sz = STRUT
+    near = lambda ps: min(abs(p[1]) for p in ps) < sy
+    for top, region in ((z, over_x(x0, x1)), (sz, lambda ps: over_x(sx0, sx1)(ps) and near(ps)),
+                        (STRUT_ROOT, lambda ps: over_x(sx0, FORE_CUT)(ps) and near(ps))):
+        bisect(bm, spanning(bm, tag, TRIPO, 2, top, lambda ps, region=region: region(ps) and steep(ps)), 2, top)
+    keep = []
+    for f in bm.faces:
+        x, y, zc = ue_centre(f)
+        if x0 < x < x1 and zc < z:
+            f[tag] = KEEP
+            keep.append(f)
+        elif sx0 < x < sx1 and abs(y) < sy and (zc < sz or (x < FORE_CUT and zc < STRUT_ROOT)):
+            f[tag] = STRUT_PART
+            keep.append(f)
+    keep = rw.separate(bm, keep)
+    log(f'kept whole: {len(keep)} faces (the cradle and drum, the front strut)')
+
+
+def over_x(a, b):
+    return lambda ps: max(p[0] for p in ps) > a and min(p[0] for p in ps) < b
+
+
+# --- 1. The squeeze ---
+
+def _squeeze(bm):
+    """The house and the casing narrowed in y (see the docstring); the stacks' axes follow, the tanks scale whole."""
+    x0, x1 = SQ_X
+    tx0, tx1, ty, tz0, tz1 = TANKS
+    tc = ((tx0 + tx1) / 2.0, 0.0, tz0)
+    trench = trenches(bm)
+    rim = rims(bm, trench)
+    moved = 0
+    for v in bm.verts:
+        x, y, z = U(v.co)
+        if z < SQ_Z[0] or x < x0 - SQ_X_BLEND or x > x1 + SQ_X_BLEND:
+            continue
+        wx = min(smooth(x0 - SQ_X_BLEND, x0, x), 1.0 - smooth(x1, x1 + SQ_X_BLEND, x))
+        f = squeeze_at(x)
+        stack = next(((sx, sy) for sx, sy in STACKS if math.hypot(x - sx, y - sy) < STACK_R and z > STACK_FOOT), None)
+        if stack:
+            p = (x, y + (f - 1.0) * stack[1] * wx, z)
+        elif tx0 < x < tx1 and abs(y) < ty and z > tz0:
+            # The tanks: whole (round), blending from the squeeze below them to the scale over their feet.
+            k = smooth(tz0, tz1, z)
+            whole = tuple(c + SQUEEZE * (q - c) for q, c in zip((x, y, z), tc))
+            p = (x + (whole[0] - x) * k, y * SQUEEZE + (whole[1] - y * SQUEEZE) * k, z + (whole[2] - z) * k)
+        else:
+            # Over the walk's floor all inboard of the bulwark squeezes (walls, skirts, what stands out of them: one
+            # factor, or their parts tear into spikes); the floor itself stretches from the walls' feet to the bulwark.
+            t = trench_at(trench, x, y)
+            lo, hi, zf = t if t else (*WALK_FALLBACK, WALK_FLOOR[1])
+            keep = max(hi - BULWARK_KEEP, lo + 3.0)
+            floor_w = 1.0 - smooth(lo + 2.0, keep, abs(y))
+            wall_w = 1.0 - smooth(keep - WALL_FADE, keep, abs(y))
+            up = smooth(zf + 1.0, zf + FLOOR_BAND, z)
+            low = smooth(SQ_Z[0], SQ_Z[1], z) * (floor_w + (wall_w - floor_w) * up)
+            # Ledges and brackets over the bulwark's top (the casing's waist ledges reach its inner face): whole.
+            top = rim_at(rim, x, y)
+            over = smooth(top + RIM_CLEAR, top + 2.0 * RIM_CLEAR, z) if top is not None and abs(y) < hi + RIM_OUT else 0.0
+            w = wx * max(low, over, smooth(SQ_FULL_Z[0], SQ_FULL_Z[1], z))
+            p = (x, y * (1.0 - w * (1.0 - f)), z)
+        v.co = B(p)
+        moved += 1
+    log(f'squeeze: {moved} vertices in y, the casing to {SQUEEZE_CASING}, the house to {SQUEEZE}; stacks round, tanks '
+        f'whole')
+
+
+def squeeze_at(x):
+    """The squeeze's factor at Tripo's x: the casing's aft of the cross walk, the house's fore of it."""
+    return SQUEEZE_CASING + (SQUEEZE - SQUEEZE_CASING) * smooth(SQ_SPLIT[0], SQ_SPLIT[1], x)
+
+
+# --- 2, 3. The jumbo ---
+
+def _insert(bm, tag, slab, copies, part, nearest, still, trim=None):
+    """Cuts at slab[1], moves everything fore of it (but the parts still) copies * the slab's length forward and fills
+    the gap with prismatic, alternately mirrored copies of the slab (Tripo's faces with their UVs). Where the front strut
+    was cut off the keel, the copies' and the moved bow's slots are closed. Returns how far it moved."""
+    a, b = slab
+    length = b - a
+    dx = length * copies
+    movable = lambda f: f[tag] not in still
+    for x in (a, b):
+        bisect(bm, [f for f in spanning(bm, tag, None, 0, x) if movable(f)], 0, x)
+    fore = [f for f in bm.faces if movable(f) and ue_centre(f)[0] > b]
+    fore = rw.separate(bm, fore)
+    for v in {v for f in fore for v in f.verts}:
+        v.co.y -= dx / 100.0
+    src = [f for f in bm.faces if movable(f) and f[tag] == TRIPO and a < ue_centre(f)[0] < b]
+    warp = _prism(bm, src, a, b)
+    # Every other copy mirrored, starting with the first and ending unmirrored (an even count), so each joint meets the
+    # same end of the slab: the slab's fore end at the aft part, between copies 2k and 2k+1 and at the bow, its aft end
+    # between the others. The joints are exact and welded; the warp only keeps the section from zigzagging.
+    joints = [b + k * length for k in range(copies + 1)]
+    for k in range(copies):
+        mirror = k % 2 == 0
+
+        def move(p, k=k, mirror=mirror):
+            x, y, z = warp(p)
+            if mirror:
+                x = a + b - x
+            return (x + (k + 1) * length, y, z)
+        new = copy(bm, src, tag, part, move, flip=mirror)
+        if trim:
+            new = clear.trim(bm, tag, nearest, FILL, new, trim)
+        if STRUT_PART in still:
+            rw.close_slot(bm, new, STRUT_ROOT, tag, FILL, nearest, (b + k * length, b + (k + 1) * length))
+    if STRUT_PART in still:
+        rw.close_slot(bm, [f for f in fore if f.is_valid and ue_centre(f)[0] < b + dx + 400.0], STRUT[3], tag, FILL,
+                      nearest, (b + dx,))
+    welded = _weld(bm, tag, joints, still)
+    log(f'jumbo at x {b:.0f}: {len(src)} faces of x {a:.0f}..{b:.0f} copied {copies} times (every other mirrored), '
+        f'{dx:.0f} cm, {welded} vertices welded at the joints')
+    return dx
+
+
+def _weld(bm, tag, joints, still):
+    """Merges the coincident corners at the copies' joints (one surface, smooth across)."""
+    verts = [v for v in bm.verts if any(abs(U(v.co)[0] - x) < rw.EPS * 100.0 for x in joints)
+             and any(f[tag] not in still for f in v.link_faces)]
+    n = len(bm.verts)
+    bmesh.ops.remove_doubles(bm, verts=verts, dist=0.002)
+    return n - len(bm.verts)
+
+
+def _prism(bm, faces, a, b):
+    """A move making the slab's section that of its fore end b at every x (y scaled by the half-beam's ratio)."""
+    arrays = rw.edge_arrays(bm, faces)
+    zs = np.arange(900.0, 2476.0, 25.0)
+    xs = np.linspace(a + 1.0, b - 1.0, 9)          # just inside: edges ending on a cut plane are not crossings
+    hb = {s: np.array([rw.profile(arrays, x, zs, s) for x in xs]) for s in (-1, 1)}
+
+    def warp(p):
+        x, y, z = p
+        if abs(y) < 1.0:
+            return p
+        s = 1 if y > 0 else -1
+        i = min(max((x - a) / (b - a) * (len(xs) - 1), 0.0), len(xs) - 1.0)
+        j = min(max((z - zs[0]) / (zs[1] - zs[0]), 0.0), len(zs) - 1.0)
+        i0, j0 = int(i), int(j)
+        i1, j1 = min(i0 + 1, len(xs) - 1), min(j0 + 1, len(zs) - 1)
+        fi, fj = i - i0, j - j0
+        h = hb[s]
+        here = (h[i0, j0] * (1 - fi) + h[i1, j0] * fi) * (1 - fj) + (h[i0, j1] * (1 - fi) + h[i1, j1] * fi) * fj
+        there = h[-1, j0] * (1 - fj) + h[-1, j1] * fj
+        r = there / here if here > 50.0 else 1.0
+        return (x, y * min(max(r, 0.85), 1.2), z)
+    return warp
+
+
+# --- 4. The berth gap ---
+
+def _gap(bm, tag, nearest):
+    """Cuts the -Y bulwark rim of the well deck open over GAP_W at GAP_X (final x); fills the cut's ends and sill."""
+    x0, x1 = GAP_X - GAP_W / 2.0, GAP_X + GAP_W / 2.0
+    side = lambda ps: max(p[1] for p in ps) < -500.0
+    # The sill's height first, then the gap's ends above it (so the cut's chains end on the sill).
+    bisect(bm, spanning(bm, tag, None, 2, GAP_SILL, lambda ps: side(ps) and over_x(x0 - 30.0, x1 + 30.0)(ps) and steep(ps)),
+           2, GAP_SILL)
     for x in (x0, x1):
-        bisect(bm, spanning(bm, tag, 0, 0, x, above(TOWER_FOOT)), 0, x)
-    faces = [f for f in bm.faces if f[tag] == 0 and x0 < ue_centre(f)[0] < x1 and ue_centre(f)[2] > TOWER_FOOT]
-    edges = {e for f in faces for e in f.edges}
-    verts = {v for f in faces for v in f.verts}
-    made = bmesh.ops.duplicate(bm, geom=faces + list(edges) + list(verts))
-    squeeze = (TOWER_DST[1] - TOWER_DST[0]) / (x1 - x0)
-    for g in made['geom']:
-        if isinstance(g, bmesh.types.BMFace):
-            g[tag] = 1
-        elif isinstance(g, bmesh.types.BMVert):
-            x = -g.co.y * 100.0
-            g.co.y = -(TOWER_DST[0] + (x - x0) * squeeze) / 100.0
-            g.co.z += (ROOF - TOWER_FOOT) / 100.0
-    log(f'tower: {len(faces)} faces from x {x0:.0f}..{x1:.0f} over z {TOWER_FOOT:.0f} to x {TOWER_DST[0]:.0f}..'
-        f'{TOWER_DST[1]:.0f} (x {squeeze:.3f}), foot on the roof at {ROOF:.0f}')
-    return len(faces)
+        bisect(bm, spanning(bm, tag, None, 0, x, lambda ps: side(ps) and above(GAP_SILL)(ps)), 0, x)
+    doomed = [f for f in bm.faces if x0 < ue_centre(f)[0] < x1 and ue_centre(f)[1] < -500.0
+              and ue_centre(f)[2] > GAP_SILL]
+    parts = {f[tag] for f in doomed}
+    bmesh.ops.delete(bm, geom=doomed, context='FACES')
+    filled = 0
+    for x, out in ((x0, 1.0), (x1, -1.0)):            # each end one cap, whatever pieces meet there, one paint
+        end = rw.cap(bm, tag, None, 0, x, GAP_SILL, (out, 0.0, 0.0), nearest, FILL, region=lambda q: q[1] < -500.0)
+        rw.paint_like(nearest.uv, end) or rw.paint_group(nearest, end)
+        filled += len(end)
+    sill = rw.cap(bm, tag, None, 2, GAP_SILL, None, (0.0, 0.0, 1.0), nearest, FILL,
+                  region=lambda q: q[1] < -500.0 and x0 - 1.0 < q[0] < x1 + 1.0)
+    rw.paint_like(nearest.uv, sill) or rw.paint_group(nearest, sill)
+    filled += len(sill)
+    outer = max((-U(v.co)[1] for f in sill for v in f.verts), default=800.0)    # the sill's outboard edge
+    log(f'berth gap: {len(doomed)} faces cut at x {x0:.0f}..{x1:.0f} on -Y, {filled} filled; the sill\'s outboard '
+        f'edge at |y| {outer:.0f}')
+    return {'x': GAP_X, 'w': GAP_W, 'sill': GAP_SILL, 'outer': round(outer, 1)}
 
 
-def _in_stack(c):
-    return any(math.hypot(c[0] - sx, c[1] - sy) < STACK_KEEP_R for sx, sy in STACKS)
+def above(z):
+    return lambda ps: min(p[2] for p in ps) > z - 1.0
 
 
-def _clear(bm, tag):
-    """Cuts Tripo's skin on the planes that bound the cleared volume, then deletes what lies in it."""
-    pad = 30.0
-    # The planes where faces reach above CUT, then CUT between them (never across the stern's or the scoop's own
-    # surfaces, some nearly level with it); the roof in the house, then its planes above the roof.
-    for x in (HOUSE_AFT, DECK_FORE):
-        bisect(bm, spanning(bm, tag, 0, 0, x, reaching(CUT)), 0, x)
-    inside, house = over(0, HOUSE_AFT + 0.5, DECK_FORE - 0.5), over(0, HOUSE_AFT, HOUSE_FORE)
-    bisect(bm, spanning(bm, tag, 0, 2, CUT, lambda ps: inside(ps) and steep(ps)), 2, CUT)
-    bisect(bm, spanning(bm, tag, 0, 2, ROOF, lambda ps: house(ps) and above(CUT)(ps) and steep(ps)), 2, ROOF)
-    for x in (HOUSE_FORE, TOWER_DST[0] - pad, TOWER_DST[1] + pad):
-        # (Not through the stacks: their rings reach into the tower's margin and stay whole.)
-        bisect(bm, [f for f in spanning(bm, tag, 0, 0, x, above(ROOF)) if not _in_stack(ue_centre(f))], 0, x)
+# --- 5. The forecastle's stairs ---
 
-    def doomed(f):
+def _stairs(bm, tag):
+    """Two flights from the well deck up to the scoop's floor (the forecastle), every face a plate cut from Tripo's
+    well deck: treads laid flat, risers stood up facing aft, sides stood up facing out."""
+    aft = terrace_aft(bm)
+    rise = (FORECASTLE - WELL) / STAIR_STEPS
+    sx = final_x(FORE_CUT) + 300.0           # a clear stretch of the well deck's copied plates
+    window = (sx - 20.0, sx + 420.0, -320.0, 320.0, WELL - 6.0, WELL + 6.0)
+    deck = [f for f in bm.faces if f.normal.z > DECK_UP and rw.in_box(f, window)
+            and max(abs(U(v.co)[2] - WELL) for v in f.verts) < 6.0]
+    made = 0
+
+    def lay(box, move, facing):
+        new = patch(bm, deck, box, tag, STAIRS, move)
+        for f in new:
+            if f.normal.dot(rw.D(facing)) < 0.0:
+                f.normal_flip()
+            f.smooth = False
+        return len(new)
+    for y0, y1 in STAIR_Y:
+        w, yc = y1 - y0, (y0 + y1) / 2.0
+        for k in range(1, STAIR_STEPS):
+            z_k = WELL + rise * k
+            xk = aft - TREAD * (STAIR_STEPS - k)
+            made += lay((sx, sx + TREAD, -w / 2.0, w / 2.0, None, None),
+                        lambda q, xk=xk, z_k=z_k: (q[0] - sx + xk, q[1] + yc, z_k), (0.0, 0.0, 1.0))
+            made += lay((sx + 40.0, sx + 40.0 + rise, -w / 2.0, w / 2.0, None, None),
+                        lambda q, xk=xk, z_k=z_k: (xk, q[1] + yc, z_k - rise + (q[0] - sx - 40.0)), (-1.0, 0.0, 0.0))
+            h = z_k - WELL
+            for y, out in ((y0, -1.0), (y1, 1.0)):
+                made += lay((sx + 100.0, sx + 100.0 + TREAD, -200.0, -200.0 + h, None, None),
+                            lambda q, xk=xk, y=y: (xk + q[0] - sx - 100.0, y, WELL + q[1] + 200.0), (0.0, out, 0.0))
+    log(f'stairs: two flights of {STAIR_STEPS} steps ({rise:.1f} cm) up to the forecastle\'s aft face x {aft:.0f}, '
+        f'{made} faces of the well deck\'s plates')
+    return made
+
+
+def terrace_aft(bm):
+    """The forecastle's aft edge (final x): the aftmost up-facing face at its level near the centreline."""
+    xs = [ue_centre(f)[0] for f in bm.faces if abs(ue_centre(f)[2] - FORECASTLE) < 8.0 and abs(ue_centre(f)[1]) < 500.0
+          and f.normal.z > 0.9 and ue_centre(f)[0] > final_x(2200.0)]
+    return min(xs) if xs else final_x(2300.0)
+
+
+# --- 6. The hatch ---
+
+def _hatch(bm, tag):
+    """The hole in the cross walk over the hall's rim and its coaming: walls of the well deck's bulwark band (inner
+    face, rivets) COAMING_H high, COAMING_T thick, topped with the rim's top."""
+    x0, x1, y0, y1 = HATCH
+    deck = lambda ps: max(abs(p[2] - CROSS) for p in ps) < 12.0
+    hole = (x0, x1, y0, y1, CROSS - 12.0, CROSS + 12.0)
+    for axis, lo, hi in ((0, x0, x1), (1, y0, y1)):
+        for value in (lo, hi):
+            bisect(bm, spanning(bm, tag, None, axis, value, lambda ps: deck(ps) and over_x(x0 - 50, x1 + 50)(ps)),
+                   axis, value)
+    doomed = [f for f in bm.faces if rw.in_box(f, hole) and all(
+        hole[2 * a] - 0.5 <= ue_centre(f)[a] <= hole[2 * a + 1] + 0.5 for a in range(3))]
+    bmesh.ops.delete(bm, geom=doomed, context='FACES')
+    # The source: the +Y bulwark rim of the well deck (a stretch clear of the gap and the stairs).
+    sx = final_x(2190.0) + 200.0
+    band = [f for f in bm.faces if sx - 50.0 < ue_centre(f)[0] < sx + 600.0 and ue_centre(f)[1] > 650.0]
+    inner = min((U(v.co)[1] for f in band if abs(ue_centre(f)[2] - 2300.0) < 30.0 and abs(f.normal.x) > 0.8
+                 for v in f.verts), default=723.0)
+    z0 = WELL + 8.0
+    made = 0
+    t = COAMING_T
+    # (length, the hole's edge centre (x, y), outward): the +Y edge stays open, the kit's stair goes down there.
+    walls = [(x1 - x0 + 2 * t, ((x0 + x1) / 2.0, y0), (0.0, -1.0)),
+             (y1 - y0 + t, (x1, (y0 + y1 - t) / 2.0), (1.0, 0.0)), (y1 - y0 + t, (x0, (y0 + y1 - t) / 2.0), (-1.0, 0.0))]
+    for length, (ex, ey), o in walls:
+        # The source band faces -y (the +Y bulwark's inner face); turned by ang it faces into the hole (-o).
+        ang = math.degrees(math.atan2(-o[0], o[1]))
+        box = (sx, sx + length, inner - 5.0, inner + 40.0, z0, z0 + COAMING_H)
+        src_c = (sx + length / 2.0, inner, z0)
+        # Flattened onto the face's plane: the band's rounded top would cross the wall's two sides into an X.
+        for a, (dx, dy) in ((ang, (ex, ey)), (ang + 180.0, (ex + o[0] * t, ey + o[1] * t))):
+            mv = turn(a, src_c, (dx, dy, CROSS))
+            made += len(patch(bm, band, box, tag, COAMING, lambda p, mv=mv: mv((p[0], inner, p[2]))))
+        # The top: the rim's top strip, t wide, over the wall.
+        top = (sx, sx + length, inner + 5.0, inner + 5.0 + t, 2325.0, 2360.0)
+        tsrc = (sx + length / 2.0, inner + 5.0 + t / 2.0, 2343.0)
+        made += len(patch(bm, band, top, tag, COAMING,
+                          turn(ang, tsrc, (ex + o[0] * t / 2.0, ey + o[1] * t / 2.0, CROSS + COAMING_H + 1.0))))
+    log(f'hatch: {len(doomed)} deck faces cut out at x {x0:.0f}..{x1:.0f}, y {y0:.0f}..{y1:.0f}; coaming {made} faces '
+        f'(bulwark band at |y| {inner:.0f})')
+    return made
+
+
+# --- 7. Material slots ---
+
+def _slot_layer(bm, tag):
+    layer = bm.faces.layers.int.get('barge_slot') or bm.faces.layers.int.new('barge_slot')
+    counts = [0, 0, 0]
+    for f in bm.faces:
         x, y, z = ue_centre(f)
-        if not (HOUSE_AFT < x < DECK_FORE and z > CUT):
-            return False
-        if z < ROOF or x > HOUSE_FORE:
-            return True          # inside the house, or above the open deck
-        # Above the roof: the stacks, their pipes and stays stay, but not where the tower stands.
-        return TOWER_DST[0] - pad < x < TOWER_DST[1] + pad and not _in_stack((x, y))
-    faces = [f for f in bm.faces if f[tag] == 0 and doomed(f)]
-    bmesh.ops.delete(bm, geom=faces, context='FACES')
-    # Above the roof only what hangs together with a stack stays (its pipes and stays); rail ends and stair rails of
-    # the casing and the midship block, cut free at the roof, go.
-    roofed = {f for f in bm.faces if f[tag] == 0 and HOUSE_AFT < ue_centre(f)[0] < HOUSE_FORE and ue_centre(f)[2] > ROOF}
-    todo = [f for f in roofed if _in_stack(ue_centre(f)) and
-            min(math.hypot(ue_centre(f)[0] - sx, ue_centre(f)[1] - sy) for sx, sy in STACKS) < 260.0]
-    kept = set(todo)
-    while todo:
-        f = todo.pop()
-        for e in f.edges:
-            for g in e.link_faces:
-                if g in roofed and g not in kept:
-                    kept.add(g)
-                    todo.append(g)
-    strays = list(roofed - kept)
-    bmesh.ops.delete(bm, geom=strays, context='FACES')
-    log(f'cut away {len(faces)} faces above z {CUT:.0f} over x {HOUSE_AFT:.0f}..{DECK_FORE:.0f}, and {len(strays)} '
-        f'loose above the roof')
-    return len(faces) + len(strays)
+        if f.normal.z > DECK_UP and DECK_Z[0] < z < DECK_Z[1]:
+            k = 1
+        elif z < HULL_TOP and f[tag] != KEEP:
+            k = 0
+        else:
+            k = 2
+        f[layer] = k
+        counts[k] += 1
+    log('slots: ' + ', '.join(f'{n} {c}' for n, c in zip(SLOTS, counts)))
 
 
-def _scoop(bm, tag):
-    """Moves the bucket with its arms and the bow's rail ring (Tripo's, above SCOOP_FOOT in x > SCOOP_X0, |y| <
-    SCOOP_HALF) SCOOP_SHIFT forward, tagged 3; its cut sides are capped later."""
-    x0, foot, half = SCOOP_X0, SCOOP_FOOT, SCOOP_HALF
-    near = lambda ps: max(p[0] for p in ps) > x0 and min(abs(p[1]) for p in ps) < half
-    bisect(bm, spanning(bm, tag, 0, 2, foot, lambda ps: near(ps) and steep(ps)), 2, foot)
-    bisect(bm, spanning(bm, tag, 0, 0, x0, lambda ps: above(foot)(ps) and min(abs(p[1]) for p in ps) < half), 0, x0)
-    for s in (-1, 1):
-        bisect(bm, spanning(bm, tag, 0, 1, s * half, lambda ps: above(foot)(ps) and max(p[0] for p in ps) > x0), 1,
-               s * half)
-    faces = [f for f in bm.faces if f[tag] == 0 and ue_centre(f)[0] > x0 and abs(ue_centre(f)[1]) < half
-             and ue_centre(f)[2] > foot]
-    geom = faces + list({e for f in faces for e in f.edges}) + list({v for f in faces for v in f.verts})
-    for g in bmesh.ops.duplicate(bm, geom=geom)['geom']:
-        if isinstance(g, bmesh.types.BMFace):
-            g[tag] = 3
-        elif isinstance(g, bmesh.types.BMVert):
-            g.co.y -= SCOOP_SHIFT / 100.0
-    bmesh.ops.delete(bm, geom=faces, context='FACES')
-    log(f'scoop: {len(faces)} faces (bucket, arms, the bow rail) above z {foot:.0f} moved {SCOOP_SHIFT:.0f} forward')
-    return len(faces)
-
-
-def _seat(build, bm, tag):
-    """The moved scoop's seat: a plate from the bow's end walls to past its front, as wide as it is at each station
-    (SCOOP_HALF at most), top at SCOOP_FOOT. Returns its box (x0, y0, z0, x1, y1, z1)."""
-    pts = [U(v.co) for f in bm.faces if f[tag] == 3 for v in f.verts]
-    x0, front = DECK_FORE - RAIL_T, max(p[0] for p in pts) + SEAT_MARGIN
-    n = max(1, int(math.ceil((front - x0) / STATION)))
-    xs = [x0 + (front - x0) * k / n for k in range(n + 1)]
-    half = [SCOOP_HALF] + [min(SCOOP_HALF, max([abs(p[1]) for p in pts if abs(p[0] - x) < STATION], default=0.0)
-                               + SEAT_MARGIN) for x in xs[1:]]
-    half = [max(h, SEAT_MIN) for h in half]
-    zt, zb = SCOOP_FOOT, SCOOP_SEAT
-    for k in range(n):
-        xa, xb, ya, yb = xs[k], xs[k + 1], half[k], half[k + 1]
-        build.face([(xa, -ya, zt), (xb, -yb, zt), (xb, yb, zt), (xa, ya, zt)], (0, 0, 1), 'deck')
-        build.face([(xa, -ya, zb), (xb, -yb, zb), (xb, yb, zb), (xa, ya, zb)], (0, 0, -1), 'hull')
-        for s in (-1, 1):
-            build.face([(xa, s * ya, zb), (xb, s * yb, zb), (xb, s * yb, zt), (xa, s * ya, zt)], (0, s, 0), 'hull')
-    for x, h, out in ((xs[0], half[0], -1), (xs[-1], half[-1], 1)):
-        build.face([(x, -h, zb), (x, h, zb), (x, h, zt), (x, -h, zt)], (out, 0, 0), 'hull')
-    log(f'scoop seat: x {x0:.0f}..{front:.0f}, |y| <= {max(half):.0f} (front {half[-1]:.0f}), z {zb:.0f}..{zt:.0f}')
-    return [x0, -SCOOP_HALF, zb, front, SCOOP_HALF, zt]
-
-
-def _scoop_edges(bm, tag):
-    """The bow's half-width (cm, per side) at the deck's fore edge at CUT (where its cap meets the guard's end)."""
-    cut_edge = {}
-    pts = [U(v.co) for v in bm.verts if abs(U(v.co)[0] - DECK_FORE) < rw.EPS * 100.0
-           and any(f[tag] == 0 for f in v.link_faces)]
-    for s in (-1, 1):
-        low = [abs(p[1]) for p in pts if p[1] * s > 0 and abs(p[2] - CUT) < 1.0]
-        cut_edge[s] = round(max(low), 1) if low else SCOOP_HALF
-    log(f'bow at x {DECK_FORE:.0f}: half-width at z {CUT:.0f} {cut_edge}')
-    return cut_edge
-
-
-def _deck(build):
-    inner = BEAM - RAIL_T
-    top = DECK + RAIL_H
-    g0, g1 = GAP_X - GAP_W / 2.0, GAP_X + GAP_W / 2.0
-    build.rect((DECK_AFT, -inner, DECK), (1, 0, 0), (0, 1, 0), DECK_FORE - DECK_AFT, 2 * inner, (0, 0, 1), 'deck')
-    # The gangway's sill in the gap.
-    build.box_x(g0, g1, -BEAM, -inner, DECK, DECK + SILL_H, 'deck', '+z +y')
-    # The bulwark: inner face and top in runs (open at the gap on -Y), the gap's jambs.
-    for s, runs in ((1, [(DECK_AFT, DECK_FORE)]), (-1, [(DECK_AFT, g0), (g1, DECK_FORE)])):
-        for a, b in runs:
-            build.rect((a, s * inner, DECK), (1, 0, 0), (0, 0, 1), b - a, RAIL_H, (0, -s, 0), 'hull')
-            build.rect((a, min(s * inner, s * BEAM), top), (1, 0, 0), (0, 1, 0), b - a, RAIL_T, (0, 0, 1), 'hull')
-    build.box_x(g0 - RAIL_T, g0, -BEAM, -inner, DECK + SILL_H, top, 'hull', '+x')
-    build.box_x(g1, g1 + RAIL_T, -BEAM, -inner, DECK + SILL_H, top, 'hull', '-x')
-    # Across the bow beside the scoop's seat: short end walls, so the deck's front edge is closed.
-    for s in (-1, 1):
-        y0, y1 = sorted((s * SCOOP_HALF, s * inner))
-        build.box_x(DECK_FORE - RAIL_T, DECK_FORE, y0, y1, DECK, top, 'hull', '-x +z ' + ('+y' if s < 0 else '-y'))
-        y0, y1 = sorted((s * SCOOP_HALF, s * BEAM))
-        build.box_x(DECK_FORE - RAIL_T, DECK_FORE, y0, y1, DECK, top, 'hull', '+x')
-
-
-def _house(build, ledge, stations):
-    i_y, i_x0, i_x1, ceil = BEAM - WALL_T, HOUSE_AFT + WALL_T, HOUSE_FORE - WALL_T, ROOF - ROOF_T
-    dh, head = DOOR_W / 2.0, DECK + DOOR_H
-    # Fore face (outer at HOUSE_FORE from the deck, inner WALL_T aft of it from CUT) round the door.
-    _wall(build, (HOUSE_FORE, -BEAM), (0, 1, 0), BEAM - dh, DECK, ROOF, (1, 0, 0))
-    _wall(build, (HOUSE_FORE, dh), (0, 1, 0), BEAM - dh, DECK, ROOF, (1, 0, 0))
-    _wall(build, (HOUSE_FORE, -dh), (0, 1, 0), 2 * dh, head, ROOF, (1, 0, 0))
-    build.rect((i_x1, -i_y, CUT), (0, 1, 0), (0, 0, 1), i_y - dh, ceil - CUT, (-1, 0, 0), 'wall')
-    build.rect((i_x1, dh, CUT), (0, 1, 0), (0, 0, 1), i_y - dh, ceil - CUT, (-1, 0, 0), 'wall')
-    build.rect((i_x1, -dh, head), (0, 1, 0), (0, 0, 1), 2 * dh, ceil - head, (-1, 0, 0), 'wall')
-    build.rect((i_x1, -dh, CUT), (0, 1, 0), (0, 0, 1), 2 * dh, DECK - CUT, (-1, 0, 0), 'wall')
-    # The door's jambs (facing into the opening), the lintel's underside, the threshold at the deck.
-    for y, out in ((-dh, 1), (dh, -1)):
-        build.face([(i_x1, y, DECK), (HOUSE_FORE, y, DECK), (HOUSE_FORE, y, head), (i_x1, y, head)], (0, out, 0), 'wall')
-    build.face([(i_x1, -dh, head), (HOUSE_FORE, -dh, head), (HOUSE_FORE, dh, head), (i_x1, dh, head)], (0, 0, -1), 'wall')
-    build.face([(i_x1, -dh, DECK), (HOUSE_FORE, -dh, DECK), (HOUSE_FORE, dh, DECK), (i_x1, dh, DECK)], (0, 0, 1), 'deck')
-    # Inside: the side and aft walls' inner faces, the ceiling; a ledge at CUT from the hull's cut edge to the walls.
-    for s in (-1, 1):
-        build.rect((i_x0, s * i_y, CUT), (1, 0, 0), (0, 0, 1), i_x1 - i_x0, ceil - CUT, (0, -s, 0), 'wall')
-    build.rect((i_x0, -i_y, CUT), (0, 1, 0), (0, 0, 1), 2 * i_y, ceil - CUT, (1, 0, 0), 'wall')
-    build.rect((i_x0, -i_y, ceil), (1, 0, 0), (0, 1, 0), i_x1 - i_x0, 2 * i_y, (0, 0, -1), 'roof')
-    build.rect((HOUSE_AFT, -BEAM, ROOF), (1, 0, 0), (0, 1, 0), HOUSE_FORE - HOUSE_AFT, 2 * BEAM, (0, 0, 1), 'roof')
-    strip(build, stations, ledge, CUT, i_y, (0, 0, 1), 'deck', STATION, (i_x0, i_x1))
-    # The aft face above the deck (below it, the guard's ends and the stern's hull).
-    _wall(build, (HOUSE_AFT, -BEAM), (0, 1, 0), 2 * BEAM, DECK, ROOF, (-1, 0, 0))
-    # The roof's rim: outer faces up from the walls', its top, its inner faces down to the roof.
-    top, t = ROOF + COAMING_H, COAMING_T
-    for s in (-1, 1):
-        build.rect((HOUSE_AFT, s * BEAM, ROOF), (1, 0, 0), (0, 0, 1), HOUSE_FORE - HOUSE_AFT, COAMING_H, (0, s, 0), 'roof')
-        build.rect((HOUSE_AFT + t, s * (BEAM - t), ROOF), (1, 0, 0), (0, 0, 1), HOUSE_FORE - HOUSE_AFT - 2 * t, COAMING_H,
-                   (0, -s, 0), 'roof')
-        build.rect((HOUSE_AFT, min(s * BEAM, s * (BEAM - t)), top), (1, 0, 0), (0, 1, 0), HOUSE_FORE - HOUSE_AFT, t,
-                   (0, 0, 1), 'roof')
-    for x, s in ((HOUSE_AFT, -1), (HOUSE_FORE, 1)):
-        build.rect((x, -BEAM, ROOF), (0, 1, 0), (0, 0, 1), 2 * BEAM, COAMING_H, (s, 0, 0), 'roof')
-        build.rect((x - s * t, -(BEAM - t), ROOF), (0, 1, 0), (0, 0, 1), 2 * (BEAM - t), COAMING_H, (-s, 0, 0), 'roof')
-        build.rect((min(x, x - s * t), -(BEAM - t), top), (1, 0, 0), (0, 1, 0), t, 2 * (BEAM - t), (0, 0, 1), 'roof')
-
-
-def _wall(build, origin, eu, lu, z0, z1, out):
-    """A house wall's outer face from z0 to z1 along eu from origin (x, y), in bands: the dark foot, the paint, the
-    band under the roof's edge."""
-    cuts = [z for z in (DECK + BAND_LO, ROOF - BAND_HI) if z0 < z < z1]
-    zs = [z0] + cuts + [z1]
-    for a, b in zip(zs, zs[1:]):
-        key = 'hull' if b <= DECK + BAND_LO else ('roof' if a >= ROOF - BAND_HI else 'wall')
-        build.rect((origin[0], origin[1], a), eu, (0, 0, 1), lu, b - a, out, key)
-
-
-def _guard(build, guard, stations, cut_edge):
-    """The belt round the deck and the house where they overhang Tripo's hull: the outer faces at BEAM (the fascia from
-    the chamfer up, and above it the bulwark's or the house's), the chamfer, the underside into the hull, both ends."""
-    g0, g1 = GAP_X - GAP_W / 2.0, GAP_X + GAP_W / 2.0
-    lo, top = GUARD_LO + GUARD_CHAMFER, DECK + RAIL_H
-    for s in (-1, 1):
-        spans = [(HOUSE_AFT, HOUSE_FORE, ROOF, 'wall')]
-        spans += [(HOUSE_FORE, DECK_FORE, top, 'hull')] if s > 0 else \
-            [(HOUSE_FORE, g0, top, 'hull'), (g0, g1, DECK + SILL_H, 'hull'), (g1, DECK_FORE, top, 'hull')]
-        for a, b, z1, key in spans:
-            build.rect((a, s * BEAM, lo), (1, 0, 0), (0, 0, 1), b - a, DECK - lo, (0, s, 0), 'hull')
-            if key == 'wall':
-                _wall(build, (a, s * BEAM), (1, 0, 0), b - a, DECK, z1, (0, s, 0))
-            else:
-                build.rect((a, s * BEAM, DECK), (1, 0, 0), (0, 0, 1), b - a, z1 - DECK, (0, s, 0), key)
-        # The chamfer, inward and down from the fascia's foot.
-        c = Vector((0.0, -s, -1.0)).normalized()
-        build.rect((HOUSE_AFT, s * BEAM, lo), (1, 0, 0), c, DECK_FORE - HOUSE_AFT, GUARD_CHAMFER * math.sqrt(2.0),
-                   (0, s, -1), 'hull')
-        # Both ends: the guard's section (from inside the hull to the chamfer, up to the deck aft, to CUT at the bow).
-        for x, out, k, z_top in ((HOUSE_AFT, -1, 0, DECK), (DECK_FORE, 1, len(stations) - 1, CUT)):
-            y_in = guard[s][k]
-            for pts in ([(x, s * y_in, GUARD_LO), (x, s * (BEAM - GUARD_CHAMFER), GUARD_LO),
-                         (x, s * (BEAM - GUARD_CHAMFER), z_top), (x, s * y_in, z_top)],
-                        [(x, s * (BEAM - GUARD_CHAMFER), GUARD_LO), (x, s * BEAM, lo), (x, s * BEAM, z_top),
-                         (x, s * (BEAM - GUARD_CHAMFER), z_top)]):
-                build.face(pts, (out, 0, 0), 'hull')
-        # At the bow, from CUT up to the deck, outside the scoop's cap.
-        build.face([(DECK_FORE, s * cut_edge[s], CUT), (DECK_FORE, s * BEAM, CUT), (DECK_FORE, s * BEAM, DECK),
-                    (DECK_FORE, s * cut_edge[s], DECK)], (1, 0, 0), 'hull')
-    # The aft face between the guard's ends, under the house (mostly inside the stern's hull).
-    y_in = min(guard[-1][0], guard[1][0])
-    build.rect((HOUSE_AFT, -y_in, GUARD_LO), (0, 1, 0), (0, 0, 1), 2 * y_in, DECK - GUARD_LO, (-1, 0, 0), 'hull')
-    # The underside.
-    strip(build, stations, guard, GUARD_LO, BEAM - GUARD_CHAMFER, (0, 0, -1), 'hull', STATION)
-
-
-def ucx(obj, *box):
-    rw.ucx(obj, UCX, *box)
-
-
-def _hull_widths(bm):
-    """Each HULL_BOXES box's half-width: the hull skin's narrowest section (both sides, both of its heights) over its x."""
-    xs = [-3700.0 + STATION * k for k in range(int(7400.0 / STATION) + 1)]
-    lines = {(z, s): outline(bm, z, s, xs, STATION) for _, _, _, z0, z1 in HULL_BOXES for z in (z0, z1) for s in (-1, 1)}
-    widths = {}
-    for name, x0, x1, z0, z1 in HULL_BOXES:
-        ks = [k for k, x in enumerate(xs) if x0 <= x <= x1]
-        widths[name] = max(min(lines[(z, s)][k] for z in (z0, z1) for s in (-1, 1) for k in ks) - HULL_BOX_IN, 50.0)
-    return widths
-
-
-def _collision(obj, m, hull, dressing):
-    inner, top = BEAM - RAIL_T, DECK + RAIL_H
-    g0, g1 = GAP_X - GAP_W / 2.0, GAP_X + GAP_W / 2.0
-    ucx(obj, 'deck slab', DECK_AFT, DECK_FORE, -BEAM, BEAM, GUARD_LO, DECK)
-    for s, runs in ((1, [(DECK_AFT, RAIL_SPLIT_X), (RAIL_SPLIT_X, DECK_FORE)]),
-                    (-1, [(DECK_AFT, g0), (g1, RAIL_SPLIT_X), (RAIL_SPLIT_X, DECK_FORE)])):
-        side = '+Y' if s > 0 else '-Y'
-        for a, b in runs:
-            ucx(obj, f'bulwark {side}', a, b, s * inner, s * BEAM, DECK, top)
-        ucx(obj, f'bow end wall {side}', DECK_FORE - RAIL_T, DECK_FORE, s * SCOOP_HALF, s * inner, DECK, top)
-    # Tripo's hull below the deck, inside its skin.
-    for name, x0, x1, z0, z1 in HULL_BOXES:
-        ucx(obj, name, x0, x1, -hull[name], hull[name], z0, z1)
-    if m['cradle']:
-        c = m['cradle']
-        ucx(obj, 'cradle and drum', c[0], c[3], c[1], c[4], c[2], 950.0)
-    # The house: below the deck its belt outside the hull; above, walls round the door and the roof; nothing inside.
-    for s in (-1, 1):
-        ucx(obj, 'house guard', HOUSE_AFT, HOUSE_FORE, s * (BEAM - 350.0), s * BEAM, GUARD_LO, CUT)
-        ucx(obj, 'house side wall', HOUSE_AFT, HOUSE_FORE, s * (BEAM - WALL_T), s * BEAM, CUT, ROOF)
-        ucx(obj, 'house fore wall', HOUSE_FORE - WALL_T, HOUSE_FORE, s * DOOR_W / 2.0, s * (BEAM - WALL_T), DECK, ROOF)
-    ucx(obj, 'house lintel', HOUSE_FORE - WALL_T, HOUSE_FORE, -DOOR_W / 2.0, DOOR_W / 2.0, DECK + DOOR_H, ROOF)
-    ucx(obj, 'house aft wall', HOUSE_AFT, HOUSE_AFT + WALL_T, -(BEAM - WALL_T), BEAM - WALL_T, CUT, ROOF)
-    ucx(obj, 'house roof', HOUSE_AFT, HOUSE_FORE, -BEAM, BEAM, ROOF - ROOF_T, ROOF)
-    # From the roof up: the stacks (shaft, then the rings and cap), the tower (cabin, tanks).
-    for (sx, sy), z_top in zip(STACKS, m['stack tops']):
-        ucx(obj, 'stack shaft', sx - 205.0, sx + 205.0, sy - 205.0, sy + 205.0, ROOF, 4450.0)
-        ucx(obj, 'stack head', sx - 245.0, sx + 245.0, sy - 245.0, sy + 245.0, 4450.0, z_top)
-    if m['cabin']:
-        c = m['cabin']
-        ucx(obj, 'tower cabin', TOWER_DST[0], TOWER_DST[1], c[1], c[4], ROOF, TOWER_CABIN_TOP)
-    if m['tanks']:
-        c = m['tanks']
-        ucx(obj, 'tower tanks', c[0], c[3], c[1], c[4], TOWER_CABIN_TOP, c[5])
-    for name in ('scoop', 'seat', 'stern'):
-        c = m[name]
-        if c:
-            ucx(obj, {'seat': 'scoop seat'}.get(name, name), c[0], c[3], c[1], c[4], c[2], c[5])
-    # The house's dressing: the catwalk ring and its railing, the door's jambs and steps (walkable).
-    for box in dressing:
-        ucx(obj, *box)
-
-
-def preview(obj):
-    """Saved/ArtPreviews/DredgeBargeRework/: three-quarter views from the bow and the stern, the top, the deck at eye
-    height looking aft at the house and its door, the berth side at the gap, the bow's end at the scoop."""
-    import os
-
-    import bpy
-
-    import looter_textures as lt
-    import looter_train as tk
-    folder = os.path.join(lt.PREVIEW_DIR, 'DredgeBargeRework')
-    bpy.context.view_layer.update()      # the object's bounds (the views fit them) after the rework
-    tk.render([obj], 'bow', view=(0.9, -1.3, 0.42), lens=40.0, fit=0.75, folder=folder)
-    tk.render([obj], 'stern', view=(-0.9, 1.35, 0.38), lens=40.0, fit=0.75, folder=folder)
-    tk.closeup([obj], 'top', B((0.0, 0.0, 2500.0)), (0.0, 0.08, 1.0), 110.0, lens=35.0, resolution=(900, 1600),
-               folder=folder)
-    eye = B((1500.0, 0.0, DECK + 160.0))
-    tk.closeup([obj], 'deck', eye + Vector((0.0, 10.0, -0.6)), (0.0, -1.0, 0.06), 10.0, lens=20.0, folder=folder)
-    # From the Lamplighter's deck at the berth, 11.6 m out, at the gangway's gap.
-    tk.closeup([obj], 'berth', B((GAP_X, -BEAM, DECK + 50.0)), (1.0, 0.0, -0.034), 11.6, lens=26.0, folder=folder)
-    tk.closeup([obj], 'bow_end', B((DECK_FORE, 0.0, DECK + 300.0)), (0.35, 0.9, 0.35), 14.0, lens=30.0, folder=folder)
-    # From the deck at (600, 0) at eye height, looking at the door.
-    tk.closeup([obj], 'door', B((HOUSE_FORE, 0.0, DECK + 150.0)), (0.0, -1.0, 0.01), 10.0, lens=28.0, folder=folder)
-    tk.render([obj], 'bow_far', view=(0.3, -1.4, 0.3), lens=40.0, fit=0.8, folder=folder)
+def slots(obj, set_name, master):
+    """After the build's maps: the faces' slots (barge_slot) as three materials on the one Tripo set."""
+    mesh = obj.data
+    attr = mesh.attributes.get('barge_slot')
+    if attr is None:
+        return
+    values = [d.value for d in attr.data]
+    for k, name in enumerate(SLOTS):
+        mat = lt.material(set_name, name=f'{set_name}_{name}', master=master)   # Unreal: slot X, MI_X
+        lt.assign(obj, mat, [i for i, v in enumerate(values) if v == k])
+    mesh.attributes.remove(attr)
+    # Drop the unused first slot (the whole-mesh material the build gave every face before). materials.pop() moves the
+    # faces' indices down itself (round 3 moved them again by hand: every face one slot off; check: _slots()).
+    used = {p.material_index for p in mesh.polygons}
+    for i in reversed(range(len(mesh.materials))):
+        if i not in used:
+            mesh.materials.pop(index=i)

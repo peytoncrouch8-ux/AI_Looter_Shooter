@@ -120,3 +120,58 @@ Measured before and after on the barge views (`Tools\perf.ps1`, the tour's DeckF
 Editor lane: one editor, Main's. It is closed for Main's measurement for about 40 minutes from 05:30; before any editor call
 check `Get-Process UnrealEditor` and `Tools\mcp.ps1` answer, and wait in 2-minute steps if not. Edit `Source` directly (Main
 builds; say "ready to build" when the code is in), then run the tests and the PIE check after Main's build.
+
+### Round 3 (the user, 2026-11-04 ~11:00): the box OUT; adjust Tripo's own pieces; the hall below deck
+The user, seeing round 2's house: "why the fuck did you put a big box on the Tripo model. This does not look good in slightest.
+Use the Tripo model and adjust it, don't just throw a structure on the ship and call it a day." Main's fault: the contract sized
+the house to the old 22 m deck-level hall, so the rework cut Tripo's superstructure and filled it with plain walls on 4 px atlas
+patches (flat colour), and Main passed it on previews. Asked again: pieces may be "Move, resize, rescale, increase or decrease
+size, change textures, improve the look, etc. act like a senior game designer and developer"; the hall: **"Below deck,
+smaller"** (inside Tripo's hull, ~14 m round, a hatch and stair).
+**The look bar (Main judges every preview against `Art/Tripo/DredgeBarge/preview.png` and the SpyglassBarge tour shot):** the
+ship reads as the same Tripo tug at a glance and up close: the low rounded boiler casing with its two stacks aft, the tall house
+with its portholes and the white tank on top midship, the raked scoop at the bow, Tripo's rails, rivets and rust. No new
+structure. New faces only where a piece was moved or a gap closed, and they COPY real Tripo faces with their UVs (a hull
+section, a deck section, a rail run): never flat atlas patches, never stretched strips.
+**The design (Main, as the senior designer):**
+- **Jumbo the hull:** cut the ship just fore of the house and move everything fore of the cut (the forecastle, the scoop, the
+  bow) forward 12-16 m; close the gap with copies of a real Tripo hull-side, deck and rail section taken from beside the cut.
+  The result: a long working well deck between the house's fore face and the forecastle, ~25 x 20 m, the arena.
+- **The forecastle stays raised** (Tripo's ~1.2 m step) as high ground over the arena, its terraces brought to one level, two
+  stairs up (Tripo-style: copied rail and deck faces, or the kit's).
+- **Side walks:** the house and the casing scaled in y (0.85-0.9 about the centreline, their look kept) so the walks beside
+  them are at least 150 cm clear: flank routes from the well deck past the house to the stern deck.
+- **The hall below deck:** R >= 650 (~14 m), floor ~1300, 9 m walls under the deck; under the well deck reached by a hatch on
+  it if the hull holds it there, else under the casing reached from the stern deck by a hatch. The hatch coaming is modelled in
+  the Tripo style (riveted rim, its faces copied from the bulwark band). The kit builds the hall's inside; the hull below the
+  deck has no collision inside the hall's volume.
+- **The berth:** a gap in Tripo's rail on the -Y side of the well deck for the plank (`Gangway` socket).
+- **Texture:** the Tripo atlas stays the base; the mesh is split into material slots (hull below the rubbing strake, decks,
+  superstructure and fittings), each an instance of M_World with the detail layer tuned to it (decks MetalWorn plates, hull
+  MetalRust, superstructure MetalWorn lighter); the kit's own visible pieces stop being stretched engine cubes.
+**Who owns what:** the model owns the numbers. REWORK writes `Docs/Work/2026-11-04-Art/BARGE_LAYOUT.md` after measuring its own
+result (deck zones as boxes with z, the forecastle and its stairs, the side walks' clear width, the rail line and the berth gap,
+the hatch's hole, the hall's cavity: centre, R, floor, ceiling; every footprint the kit must avoid; the sockets); KIT fits to it
+(the arena as a list of deck zones, not one rectangle). Lanes: REWORK (model), MATERIAL (slots and detail tuning, a world-space
+detail option for the kit's cube pieces), REUSE (an inventory of existing props for cover, vents, hatch and hall dressing),
+KIT (code), Main (judge, import, build, rebuild, tests, PIE). Round 2's box rework (`looter_tripo_barge.py`,
+`looter_tripo_barge_house.py`) is replaced, its toolkit `looter_tripo_rework.py` kept where it helps.
+
+### Round 3, more lanes (the user, ~11:40: "Run multiple agents to complete faster. Keep working ahead")
+Working ahead on the art audit's plan (`Docs/Work/2026-11-03-ArtAudit/AUDIT.md` (d)) where it doesn't wait on the hull, in the
+user's own complaint ("Tripo models are blurry, don't read as intended, and the collisions are messed up. The barge ships"):
+- **PROPS** (plan row 3, the kit made real): Blender-scripted models in our sets for the barge's kit pieces the code now draws
+  as engine shapes: the soul furnace and its burst, the furnace grate wedge, the draft valve, the furnace vent, the deck vent
+  grille, the falling stack, the hose drum and its gantry, the hatch coaming if the hull's own is not enough. Files:
+  `Art/Models/Props/BargeKit.py` (new) -> `/Game/Art/Landfall/SM_Barge*`; a manifest `BARGE_PROPS.md` (path, size, pivot,
+  sockets, how the code should scale it). The KIT adopts them in a later round.
+- **COLLISION** (plan rows 6-7): collision that fits the Tripo looks without touching their visible meshes: the Tripo
+  buildings' hulls (`looter_tripo_buildings.refit_hulls`: margin 25 -> 5 cm, planes fitted to the walls, a capsule swept through
+  every door), the single-box props (BarricadeTable, HoseIntake, AnchorWinch, LanternPost) per-part k-DOPs, the Lamplighter's
+  deck collision fitted to its walk faces (`World/LamplighterShipParts.cpp` deck boxes) and the tender's (`World/CompanyTender.cpp`
+  DeckTop). Files: `Tools/Blender/looter_tripo_buildings.py`, a new `Tools/Blender/looter_tripo_collision.py`, the two .cpp
+  files; `looter_tripo_wardens.py` SPECS edits wait until REWORK reports (Main says when). Measured before/after like the audit.
+- **MATERIAL round 4** (plan row 4, the rest): the detail layer on the other blurry Tripo models (the Lamplighter, the tender,
+  the Tripo buildings, the big props), each with a fitting set; and the `FLAT_NORMAL` fix (the masters' default NormalMap is
+  the engine's brick pattern: six instances show faint blocks). File: `build_world_materials.py`; the editor until it reports.
+Export folders: each Blender lane exports to its own `Intermediate\ArtExport_<Lane>` (REWORK keeps `ArtExport_Tripo`).

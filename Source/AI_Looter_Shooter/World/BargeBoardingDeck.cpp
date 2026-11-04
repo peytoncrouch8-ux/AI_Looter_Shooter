@@ -110,18 +110,21 @@ void ABargeBoarding::AdvanceVents(float DeltaSeconds)
 	const APawn* Player = FindPlayer();
 	if (Glow != VentGlowMask || Fire != VentFireMask)
 	{
-		TArray<FTransform> Cold, Hot, Flames;
+		TArray<FTransform> Cold, Hot, Flames, HoodsCold, HoodsHot;
 		for (int32 Index = 0; Index < BargeRules::NumVents; ++Index)
 		{
 			const FVector Spot = BargeRules::VentSpots[Index];
-			const FTransform Grille(FQuat::Identity, Spot + FVector(0.0, 0.0, BargeRules::VentGrilleUp),
-				FVector(BargeRules::VentHalf / 50.0, BargeRules::VentHalf / 50.0, BargeRules::VentGrilleThick / 100.0));
-			((Glow & (1u << Index)) ? Hot : Cold).Add(Grille);
+			const bool bGlowing = (Glow & (1u << Index)) != 0u;
+			(bGlowing ? Hot : Cold).Add(VentPlate(Spot));
+			if (HasHood(Index))
+			{
+				// Its hood in the hall glows with it (the furnace breathing up through it).
+				(bGlowing ? HoodsHot : HoodsCold).Add(VentHood(Spot));
+			}
 			if (Fire & (1u << Index))
 			{
 				// The column: a tongue of furnace fire as tall as a man and a half, wide as the grille.
-				Flames.Add(FTransform(FQuat::Identity, Spot + FVector(0.0, 0.0, BargeRules::VentColumnHeight * 0.5),
-					FVector(BargeRules::VentColumnRadius / 50.0, BargeRules::VentColumnRadius / 50.0, BargeRules::VentColumnHeight / 100.0)));
+				Flames.Add(VentColumn(Spot));
 			}
 			const uint32 Bit = 1u << Index;
 			const FVector World = ToWorld(Spot);
@@ -148,6 +151,13 @@ void ABargeBoarding::AdvanceVents(float DeltaSeconds)
 		VentCold->AddInstances(Cold, false);
 		VentGlow->AddInstances(Hot, false);
 		VentFire->AddInstances(Flames, false);
+		if (HoodCold && HoodGlow && HoodCold->GetStaticMesh())
+		{
+			HoodCold->ClearInstances();
+			HoodGlow->ClearInstances();
+			HoodCold->AddInstances(HoodsCold, false);
+			HoodGlow->AddInstances(HoodsHot, false);
+		}
 		VentGlowMask = Glow;
 		VentFireMask = Fire;
 	}

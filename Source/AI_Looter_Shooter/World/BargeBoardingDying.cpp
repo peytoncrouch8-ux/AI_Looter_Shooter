@@ -1,5 +1,5 @@
 // ABargeBoarding: her end. The cage's burst takes her pilot light: every light out, a list to her berth side, a drift
-// west on the dusk wind, her back half burning and the third stack down across the after deck (step 7). Then BargeFall
+// west on the dusk wind, her back half burning and the third stack down across the well deck (step 7). Then BargeFall
 // carries her over the Rest raining soul coal and down into Gravewind Canyon, and she's gone (Pilot.BargeFell).
 
 #include "World/BargeBoarding.h"
@@ -10,6 +10,7 @@
 #include "Player/ViewKick.h"
 #include "World/BargeFurnace.h"
 #include "World/BargeHoseDrum.h"
+#include "World/BargeLooks.h"
 #include "World/BargeRules.h"
 #include "World/LamplighterEffects.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -34,6 +35,10 @@ namespace
 	const FVector CoalSpread(3000.0, 900.0, 0.0);
 	/** The coal's fall (cm/s/s): heavy lumps, no drift of their own but hers. */
 	constexpr double CoalGravity = 980.0;
+	/** Each of her back half's fires this big in fire-tongue units (2.2 m across, 3.2 m tall), standing on its surface. */
+	const FVector SternFireSize(2.2, 2.2, 3.2);
+	/** The stack falls a hair short of a quarter turn (it lands on its foot's flange and its lip, not through the deck). */
+	constexpr float StackFallDegrees = 88.f;
 }
 
 void ABargeBoarding::BeginDying()
@@ -53,11 +58,14 @@ void ABargeBoarding::BeginDying()
 		Furnace->SetCageBurst(true);
 		Furnace->PutOut();
 	}
-	for (UPointLightComponent* Lamp : DeckLamps)
+	for (const TArray<TObjectPtr<UPointLightComponent>>* Lights : { &DeckLamps, &Lanterns })
 	{
-		if (Lamp)
+		for (UPointLightComponent* Lamp : *Lights)
 		{
-			Lamp->SetVisibility(false);
+			if (Lamp)
+			{
+				Lamp->SetVisibility(false);
+			}
 		}
 	}
 	if (HoseDrum)
@@ -66,12 +74,12 @@ void ABargeBoarding::BeginDying()
 	}
 	LooterSound::Stop(FurnaceDrone.Get(), 3.f);
 	FurnaceDrone.Reset();
-	// Her back half alight where the breach spilled the furnace's coal: the after deck by the house, the house's roof (each
+	// Her back half alight where the breach spilled the furnace's coal: the stern deck, the walks, the casing's roof (each
 	// spot on the surface it burns from).
 	TArray<FTransform> Fires;
 	for (const FVector& Spot : BargeRules::SternFireSpots)
 	{
-		Fires.Add(FTransform(FQuat::Identity, Spot + FVector(0.0, 0.0, 160.0), FVector(2.2, 2.2, 3.2)));
+		Fires.Add(BargeLooks::FireAt(Spot, SternFireSize, bFireModel));
 	}
 	SternFire->ClearInstances();
 	SternFire->AddInstances(Fires, false);
@@ -132,20 +140,19 @@ void ABargeBoarding::DropStack(float Alpha)
 	{
 		return;
 	}
-	// Down across the after deck toward the port lane, a little forward (BargeRules::StackFallAft): a turn about the line
-	// square to that, through its foot.
-	const float Aft = FMath::DegreesToRadians(BargeRules::StackFallAft);
-	const FVector Down(-FMath::Sin(Aft), BargeRules::BerthSide * FMath::Cos(Aft), 0.0);
+	// Down across the well deck's aft end toward the port side, leaning aft by BargeRules::StackFallAft: a turn about the
+	// line square to that, through its foot flange's edge on that side (the pivot), so it lands on its side.
+	const FVector Down = BargeRules::StackFallDir();
 	const FVector Axis(-Down.Y, Down.X, 0.0);
 	// Falling under its weight (a square ease in), a small bounce once it's down.
 	const float Fall = Alpha < 1.f ? Alpha * Alpha : 1.f;
-	FallingStackPivot->SetRelativeRotation(FQuat(Axis, FMath::DegreesToRadians(88.f * Fall)));
+	FallingStackPivot->SetRelativeRotation(FQuat(Axis, FMath::DegreesToRadians(StackFallDegrees * Fall)));
 	if (Alpha < 1.f || bStackDown)
 	{
 		return;
 	}
 	bStackDown = true;
-	const FVector Foot = ToWorld(BargeRules::FallingStackFoot);
+	const FVector Foot = ToWorld(BargeRules::StackFallPivot());
 	const FVector Lying = GetActorTransform().TransformVectorNoScale(Down);
 	const FVector Middle = Foot + Lying * (BargeRules::StackHeight * 0.5);
 	LooterSound::PlayAt(this, LooterSoundCue::Gunfeel::ImpactHeavy, Middle, 1.5f, 0.6f);

@@ -5,7 +5,8 @@ them in like any model: MI_Tripo<Name> on the textured masters, the maps in /Gam
 
 Each model (SPECS): Tripo's mesh as it came (its triangles kept, nothing remeshed), cleaned (looter_tripo.load), turned to
 face Blender's -Y (Unreal's +X), scaled uniformly to its real size, its origin put where the game wants it, a slot for its
-glowing glass where the game lights it, sockets the game reads, box collision hulls (none on held props), no Nanite
+glowing glass where the game lights it, sockets the game reads, collision hulls (boxes, or fitted to its parts by
+looter_tripo_collision; none on held props), no Nanite
 (the rule for these; Medium draws the mesh itself) and LODs at 50/25/12%.
 
 Style (the user's call 2026-10-31: everything from Tripo matches the game's look): no raw Tripo materials. The maps go
@@ -29,6 +30,7 @@ from mathutils import Matrix, Vector
 
 import looter_model as lm
 import looter_tripo_barge as barge
+import looter_tripo_collision as tc
 import looter_textures as lt
 import looter_tripo as tripo
 
@@ -63,7 +65,8 @@ def _bulb(rgb):
 # size: (what, meters): 'length' along its front, 'width', 'height' or 'max' of the three, measured after turning.
 # pivot: 'bottom' (middle of its footprint, lowest point), 'center', or 'post' (the post's axis found between two heights).
 # boxes: collision hulls as fractions of its finished box ((front lo, right lo, up lo), (front hi, right hi, up hi)),
-# 'box' one round all, None no collision.
+# 'box' one round all, None no collision. collision: a looter_tripo_collision function (obj, report) fitting hulls to the
+# model's own parts instead (with boxes=[]; never boxes=[] without it: no hulls is mesh collision).
 SPECS = {
     # --- Ships (TRIPO_MODELS 11, 12, 14) ---
     'Lamplighter': dict(
@@ -77,14 +80,15 @@ SPECS = {
         category='Tripo', kind='ship', master='World', maps=2048, turn=90.0, size=('length', 75.0), pivot='bottom',
         # Reshaped for the walkable kit (looter_tripo_barge: one flat deck, the house, the tower on it, bulwark, guard),
         # which adds its own UCX_ boxes and the Door and Gangway sockets.
-        rework=barge.rework, boxes=[],
+        rework=barge.rework, slots=barge.slots, boxes=[],
         # The two smokestacks' tops (the smog plumes) and the hose drum's underside (the hose hangs from it).
         sockets={'Stack_1': ('stack', (0.265, 0.0)), 'Stack_2': ('stack', (0.572, 0.0)),
                  'HoseDrum': ('glb', (0.22, 0.08, -0.6))}),
     'CompanyTender': dict(
         category='Tripo', kind='ship', master='World', maps=2048, turn=0.0, size=('length', 12.0), pivot='bottom',
-        # The hull up to its top walk (its riflemen stand on it), and the bag.
-        boxes=[((0.05, 0.08, 0.0), (0.95, 0.92, 0.64)), ((0.19, 0.19, 0.66), (0.62, 0.81, 1.0))]),
+        # The hull in slices along its rounded crown (its riflemen stand on it: CompanyTender.cpp RiflemanDeck), the bag,
+        # its bow lamp and tail; its wheels none.
+        boxes=[], collision=tc.company_tender),
     # --- Ship pieces and the hose (10, 13, 15) ---
     'GreatLantern': dict(
         category='Tripo', kind='prop', master='World', maps=1024, size=('height', 1.5), pivot='bottom', boxes=None,
@@ -101,15 +105,15 @@ SPECS = {
     'HoseIntake': dict(
         # Mouth down on the Sink's floor, the narrow end up where the hose comes in.
         category='Tripo', kind='prop', master='World', maps=1024, tilt=('X', 180.0), size=('max', 3.0),
-        pivot='bottom', boxes='box', sockets={'Hose': ('topcenter', None)}),
+        pivot='bottom', boxes=[], collision=tc.hose_intake, sockets={'Hose': ('topcenter', None)}),
     # --- World pieces (16-18, 20) ---
     'AnchorWinch': dict(
-        category='Tripo', kind='prop', master='World', maps=1024, size=('height', 1.2), pivot='bottom', boxes='box',
-        sockets={'Top': ('top', None)}),
+        category='Tripo', kind='prop', master='World', maps=1024, size=('height', 1.2), pivot='bottom', boxes=[],
+        collision=tc.anchor_winch, sockets={'Top': ('top', None)}),
     'LanternPost': dict(
         # Arm toward +X (Tripo hung the lantern off its -Y: already the front), pivot at the post's foot.
         category='Tripo', kind='prop', master='World', maps=1024, size=('height', 3.2), pivot=('post', (0.26, 0.5)),
-        boxes=[((0.0, 0.0, 0.0), (1.0, 1.0, 0.06))], post_box=0.075,
+        boxes=[], collision=tc.lantern_post,
         glow=dict(test=_glass, region=((-0.20, -0.62, 0.0), (0.20, -0.36, 0.55))),
         sockets={'Light': ('glow', None), 'Beacon': ('glow', None), 'Wake': ('ue', (170.0, 0.0, 0.0)),
                  'Speaker': ('ue', (0.0, 0.0, 330.0)), 'Bell': ('glb', (0.0, 0.31, 0.45)),
@@ -123,12 +127,13 @@ SPECS = {
         sockets={'Horns': ('glb', (0.12, 0.0, 0.62))}),
     'BarricadeTable': dict(
         category='Tripo', kind='prop', master='World', maps=1024, turn=0.0, size=('max', 1.6), pivot='bottom',
-        boxes='box'),
+        boxes=[], collision=tc.barricade_table),
     'BarricadeBoards': dict(
         category='Tripo', kind='prop', master='World', maps=1024, turn=0.0, size=('max', 2.0), pivot='bottom',
-        boxes='box'),
+        boxes=[], collision=tc.barricade_boards),
     'BarricadeSacks': dict(
-        category='Tripo', kind='prop', master='World', maps=1024, size=('max', 1.2), pivot='bottom', boxes='box'),
+        category='Tripo', kind='prop', master='World', maps=1024, size=('max', 1.2), pivot='bottom', boxes=[],
+        collision=tc.barricade_sacks),
     # --- Held and story props (7-9, 19): /Game/Art/Props, where the game's paths already point ---
     'DeliaShotgun': dict(
         category='Props', kind='gun', master='Gun', maps=1024, align=('gun', (0.0, -1.0, 0.0)), size=('length', 1.1),
@@ -375,6 +380,9 @@ def build(name):
     # Materials: the graded texture set on its master; lantern glass on the shared LanternGlow.
     mat = write_maps(maps, name, spec['master'], spec['maps'], spec['kind'], tint=spec.get('tint'))
     lt.assign(obj, mat)
+    if spec.get('slots'):
+        # The reworked model's faces split into material slots on the same texture set.
+        spec['slots'](obj, 'Tripo' + name, spec['master'])
     if glow_faces:
         glow = lm.material(GLOW_NAME, 0xffc56e, Glow=5.0, Variation=0.04)
         lt.assign(obj, glow, glow_faces)
@@ -390,9 +398,14 @@ def build(name):
         # An Unreal yaw is a turn the other way about Blender's Z (the axes' handedness).
         lm.socket(obj, sock, tuple(p_blender), (0.0, 0.0, -yaw))
         report.setdefault('sockets', {})[sock] = tuple(round(v, 1) for v in blender_to_ue(p_blender))
+    moved = report.get('socket_at', {})
     for sock, (how, arg) in spec.get('sockets', {}).items():
         if sock in found:
-            put(sock, M @ found[sock])
+            p = M @ found[sock]
+            if sock in moved:
+                # Its piece moved in the rework: the new (x, y) in Unreal cm, the height as found.
+                p = ue_to_blender((moved[sock][0], moved[sock][1], p.z * 100.0))
+            put(sock, p)
         elif how == 'ue':
             put(sock, ue_to_blender(arg))
         elif how == 'onto':
@@ -439,6 +452,9 @@ def build(name):
             # The post itself, from its foot to its top.
             w = spec['post_box']
             lm.hull_box(obj, (w, w, hi[2]), (0.0, 0.0, hi[2] / 2.0))
+    if spec.get('collision'):
+        # Hulls fitted to the model's own parts (looter_tripo_collision; Docs/Work/2026-11-04-Art/COLLISION.md).
+        spec['collision'](obj, report)
     report['tris'] = len(obj.data.polygons)
     report['triangles'] = _triangles(obj)
     return obj, report
