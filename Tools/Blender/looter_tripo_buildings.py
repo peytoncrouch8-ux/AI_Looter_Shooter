@@ -560,7 +560,7 @@ def apply(obj, name, **parts):
 
 def swap(obj, name, front='+X', cut=(), keep=(), keep_whole=(), anchors=None, fallback=None, extra=None,
          set_name=None, faces_limit=None, grade_light=0.92, hulls_keep=(), hulls_drop=(), post_region=None,
-         post_band=(1.3, 2.2), refit=True, fit=None, variant='', more_pieces=None, retexture=None):
+         post_band=(1.3, 2.2), refit=True, fit=None, variant='', more_pieces=None, retexture=None, repack=False):
     """Replaces the scripted model obj's mesh with the Tripo model `name`, fitted to obj's bounds.
 
     front      the axis the .glb's front faces (Tripo: +X).
@@ -578,6 +578,8 @@ def swap(obj, name, front='+X', cut=(), keep=(), keep_whole=(), anchors=None, fa
     grade_light the brightness grade() gives the colour map (None: Tripo's colours as they came).
     refit      the scripted UCX hulls refitted to the shell (refit_hulls), except those centred in hulls_keep (kept
                scripted parts); those centred in hulls_drop go; post_region adds a box hull round each post found there.
+    repack     the shell's Tripo faces re-packed to fill the atlas and the set re-cut from the .glb's 4096 maps
+               (looter_tripo_repack), after the retexture.
     Returns obj (its mesh replaced), or obj unchanged when the swap is off or the .glb is missing."""
     path = glb_path(name, variant)
     if not enabled(name):
@@ -644,6 +646,11 @@ def swap(obj, name, front='+X', cut=(), keep=(), keep_whole=(), anchors=None, fa
         p.material_index = 0
     if retexture:
         retexture(shell, obj)
+    if repack:
+        # Once the retexture has moved what leaves the atlas: the rest fills the square (Docs/Work/2026-11-04-Art/REPACK.md).
+        import looter_tripo_repack as trp
+        trp.building(shell, maps, name, set_name, path,
+                     (lambda: grade(set_name, light=grade_light)) if grade_light is not None else None)
     sharp_by_angle(shell)
     shell.name = '_TripoShell'
     if shell.name not in bpy.context.scene.collection.objects:

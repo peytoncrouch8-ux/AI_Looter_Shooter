@@ -1,5 +1,6 @@
 #include "World/PlayableArea.h"
 #include "AI_Looter_Shooter.h"
+#include "World/PlayableAloft.h"
 #include "UI/Style/LooterUIStyle.h"
 #include "Components/BoxComponent.h"
 #include "Components/LineBatchComponent.h"
@@ -71,7 +72,33 @@ APlayableArea* APlayableArea::Find(const UWorld* World)
 
 bool APlayableArea::Contains(const FVector& Point) const
 {
-	return Shape.IsValid() && Shape.Contains(FVector2D(Point.X, Point.Y));
+	if (Shape.IsValid() && Shape.Contains(FVector2D(Point.X, Point.Y)))
+	{
+		return true;
+	}
+	for (const TWeakObjectPtr<AActor>& Each : Aloft)
+	{
+		const IPlayableAloft* Vessel = Cast<IPlayableAloft>(Each.Get());
+		if (Vessel && Vessel->IsAboardAt(Point))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void APlayableArea::AddAloft(AActor* Vessel)
+{
+	if (Cast<IPlayableAloft>(Vessel))
+	{
+		Aloft.AddUnique(TWeakObjectPtr<AActor>(Vessel));
+	}
+}
+
+void APlayableArea::RemoveAloft(const AActor* Vessel)
+{
+	// Gone ones go too.
+	Aloft.RemoveAll([Vessel](const TWeakObjectPtr<AActor>& Each) { return !Each.IsValid() || Each.Get() == Vessel; });
 }
 
 void APlayableArea::PostLoad()

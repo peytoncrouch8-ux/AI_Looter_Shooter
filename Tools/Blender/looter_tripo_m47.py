@@ -30,6 +30,7 @@ from mathutils import Vector
 import looter_model as lm
 import looter_tripo as tripo
 import looter_tripo_buildings as tb
+import looter_tripo_repack as repack
 import looter_tripo_wardens as tw
 
 BASE = {
@@ -238,6 +239,10 @@ def build(name):
     finally:
         tripo.load = load
     FITS[name](obj, report, kept)
+    if BASE[name].get('repack_after'):
+        # After the fit (it cuts, re-slots and reads Tripo's colours on its UVs): the faces left on the Tripo set
+        # re-packed and its maps re-cut from the GLB's 4096 delivery (looter_tripo_repack; REPACK.md).
+        repack.after_fit(obj, name, BASE[name], report)
     V = verts(obj)
     report['size m'] = (V.max(0) - V.min(0)).round(3).tolist()
     report['tris'] = len(obj.data.polygons)

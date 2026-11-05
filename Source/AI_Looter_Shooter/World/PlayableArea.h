@@ -75,9 +75,20 @@ public:
 	/** The level's playable area: the first one with a usable boundary, or null when there is none (the tutorial island). */
 	static APlayableArea* Find(const UWorld* World);
 
-	/** Whether a point lies inside the boundary, seen from above (height doesn't count). */
+	/**
+	 * Whether a point lies inside the boundary, seen from above (height doesn't count), or aboard a vessel aloft that has
+	 * been added (her own bounds, height and all).
+	 */
 	UFUNCTION(BlueprintPure, Category = "Playable Area")
 	bool Contains(const FVector& Point) const;
+
+	/**
+	 * A vessel whose deck is playable wherever she hangs (IPlayableAloft: the barge over the chapel knoll, her bow past
+	 * the closed edge east of it). Contains counts a point aboard her as inside until she's removed. An actor that isn't
+	 * an IPlayableAloft is ignored. Fall recovery and the minimap keep to the boundary's own shape.
+	 */
+	void AddAloft(AActor* Vessel);
+	void RemoveAloft(const AActor* Vessel);
 
 	/** The boundary as plain geometry (world XY), as of the last time the properties were read. */
 	const FPlayableBoundary& GetBoundary() const { return Shape; }
@@ -116,6 +127,9 @@ private:
 	TArray<FWallBox> MakeWallBoxes(const FPlayableBoundary& Outline) const;
 
 	FPlayableBoundary Shape;
+
+	/** The vessels aloft added (AddAloft). */
+	TArray<TWeakObjectPtr<AActor>> Aloft;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBoxComponent>> Walls;

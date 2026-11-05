@@ -361,12 +361,12 @@ def rect(w, h):
 
 
 def tube(m, points, profile, strip='A', up=None, scales=None, caps=(True, True), lane=None, u0=None, key='trim',
-         set_name=None, smooth=True, wobble=0.0, ao_floor=0.0, profiles=None, shifts=None):
+         set_name=None, smooth=True, wobble=0.0, ao_floor=0.0, profiles=None, shifts=None, density=None):
     """A part swept along points (a rod, a rail, a bent bar, a rope, a stalk): its cross-section is profile [(across,
     up), ...] (counterclockwise), scaled by scales (one per point), or profiles (one per point, each as many corners). On a
     trim strip its grain runs along it at world scale and its girth lies across one lane (a board of A or C; the whole
     strip for the H strips and G), squeezed into it if it's wider; on a tileable set (key 'tin', 'brass', 'dirt'), world
-    scale both ways."""
+    scale both ways (density: texels per metre, else the set's own)."""
     rng = m.rng
     fr = frames(points, up)
     profile = profiles[0] if profiles else profile
@@ -381,7 +381,7 @@ def tube(m, points, profile, strip='A', up=None, scales=None, caps=(True, True),
         along.append(along[-1] + (fr[i][0] - fr[i - 1][0]).length)
     set_name = set_name or SET_OF.get(key)
     if set_name:
-        scale = lt.SETS[set_name]['density'] / float(lt.SETS[set_name]['size'])
+        scale = (density or lt.SETS[set_name]['density']) / float(lt.SETS[set_name]['size'])
         off = (rng.uniform(0.0, 3.0), rng.uniform(0.0, 3.0))
 
         def uv(i, k):
@@ -432,11 +432,11 @@ def tube(m, points, profile, strip='A', up=None, scales=None, caps=(True, True),
 
 
 def rod(m, points, radius, strip='A', sides=6, radii=None, caps=(True, True), lane=None, key='trim', u0=None,
-        wobble=0.0):
+        wobble=0.0, set_name=None, density=None):
     """A round rod along points (radii: one per point tapers it)."""
     scales = [r / radius for r in radii] if radii else None
     return tube(m, points, ngon(radius, sides, start=math.pi / sides), strip=strip, scales=scales, caps=caps,
-                lane=lane, key=key, u0=u0, wobble=wobble)
+                lane=lane, key=key, u0=u0, wobble=wobble, set_name=set_name, density=density)
 
 
 def arc(center, radius, a0, a1, steps, axis='y', squash=1.0):
@@ -953,3 +953,284 @@ class Surface:
             return None
         hit, normal, _, _ = self.tree.ray_cast(Vector(origin), Vector(direction).normalized(), reach)
         return (hit, normal) if hit is not None else None
+
+
+# --- The town props' parts (TownClutter.py, TownGround.py, FarmYard.py; 2026-11-04) ---
+# Added for the towns round; nothing above changes, so FrontierClutter's models export as before.
+
+def set_scale(set_name, density=None):
+    """UV units per metre on a tileable set at density texels per metre (default: the set's own)."""
+    info = lt._set_info(set_name)
+    return (density or info['density'] or 320) / float(info['size'])
+
+
+class Dense:
+    """A kit part (Model.box, board, cylinder) on a tileable set at density texels per metre: world-scale box mapping,
+    the grain along each face's longer side (kit Tile at another density; 1024 px/m is what the guns, the melee tools and
+    the barge kit use)."""
+
+    def __init__(self, set_name, density=1024.0, along='long'):
+        self.set_name, self.density, self.along = set_name, density, along
+
+    def apply(self, obj, rng):
+        lt.box_uv(obj, self.set_name, texel_density=self.density, along=self.along, seed=rng.randrange(1 << 30))
+
+
+# Tileable materials by key for bar(): the set each is made from (their makers: MAKERS here, looter_ruins' _MAKERS).
+BAR_SETS = {'tin': 'MetalWorn', 'brass': 'MetalWorn', 'ironblack': 'MetalWorn', 'dirt': 'GroundDirt', 'hay': 'Hay',
+            'planks': 'WoodPlanks', 'charcoal': 'BarkOak', 'Canvas': 'Polymer', 'cream': 'PaintWorn'}
+
+
+def bar(m, p0, p1, width, thick, face=(0.0, -1.0, 0.0), strip='A', chamfer=0.006, back=0.0, lane=None, u0=None,
+        caps=(True, True), sag=0.0, bow=0.0, twist=0.0, taper=1.0, segments=None, key='trim', density=None,
+        cap_key=None, ao_floor=0.0, smooth=True, nicks=0.0):
+    """A sawn board, slat, batten or beam from p0 to p1 (the middle of its section at each end): width across, thick
+    deep, its broad front toward face, the front's long edges chamfered by chamfer and the back's by back (a worn or
+    eased edge catches the light; the ends are left square). Its UVs are its own: on a trim strip the grain runs along
+    it at world scale and the section's girth (the back face aside) wraps one lane, centred on the front, so the lane's
+    painted board edges fall on the chamfers; it is squeezed only when it is wider than the lane. On a tileable set
+    (BAR_SETS keys, or a material name with density) world scale both ways. sag drops its middle toward -face, bow
+    pushes it sideways, twist turns its ends (degrees end to end), taper scales its width toward p1, nicks (metres)
+    roughens the front's edge line. caps close the ends (cap_key 'endgrain' maps them on WoodEndGrain: a second slot).
+    Returns (x, across, front): the frame at p0."""
+    rng = m.rng
+    a0, a1 = Vector(p0), Vector(p1)
+    length = (a1 - a0).length
+    x = (a1 - a0) / max(length, 1e-9)
+    n = Vector(face)
+    n = n - x * n.dot(x)
+    if n.length < 1e-6:
+        n = UP - x * x.z if abs(x.z) < 0.95 else Vector((0.0, -1.0, 0.0))
+    n.normalize()
+    a = n.cross(x).normalized()
+    w, t = width * 0.5, thick * 0.5
+    c = min(chamfer, w * 0.45, t * 0.9)
+    cb = min(back, w * 0.45, t * 0.9)
+    prof = [(-w + cb, -t), (-w, -t + cb)] if cb > 0.0 else [(-w, -t)]
+    prof += [(-w, t - c), (-w + c, t), (w - c, t), (w, t - c)] if c > 0.0 else [(-w, t), (w, t)]
+    prof += [(w, -t + cb), (w - cb, -t)] if cb > 0.0 else [(w, -t)]
+    count = len(prof)
+    front = next(i for i in range(count - 1) if prof[i][1] == t and prof[i + 1][1] == t)
+    d = [0.0]
+    for k in range(1, count):
+        d.append(d[-1] + math.hypot(prof[k][0] - prof[k - 1][0], prof[k][1] - prof[k - 1][1]))
+    girth = d[-1]
+    back_len = math.hypot(prof[0][0] - prof[-1][0], prof[0][1] - prof[-1][1])
+    mid = (d[front] + d[front + 1]) * 0.5
+    set_name = BAR_SETS.get(key) if key not in ('trim', 'planks') else None
+    if key not in ('trim', 'planks') and set_name is None and key in bpy.data.materials:
+        set_name = bpy.data.materials[key].get('TextureSet')
+    if key == 'planks':
+        # WoodPlanks (the walks' deck): the front spans exactly one of its sixteen 20 cm planks (looter_town
+        # PlankRow's rule), so its painted gaps fall on the board's edges; the chamfers and sides keep to the gap.
+        scale = set_scale('WoodPlanks')
+        row = rng.randrange(16) if lane is None else lane
+        u_start = rng.uniform(0.0, 3.2) if u0 is None else u0
+        front_w = max(d[front + 1] - d[front], 1e-6)
+        squeeze = 0.194 / front_w
+        centre = (row + 0.5) * 0.2
+
+        def uv(along_m, k, closing=False):
+            off_v = max(-0.099, min(0.099, (d[k] - mid) * squeeze))
+            return ((u_start + along_m) * scale, (centre + off_v) * scale)
+        set_name = None
+    elif set_name:
+        scale = set_scale(set_name, density)
+        off = (rng.uniform(0.0, 3.0), rng.uniform(0.0, 3.0))
+
+        def uv(along_m, k, closing=False):
+            dk = (girth + back_len) if closing else d[k]
+            return ((along_m + off[0]) * scale, (dk + off[1]) * scale)
+        u_start = 0.0
+    else:
+        lane_w = lane_width(strip)
+        lane_i, u_start = pick_u(strip, length, rng, lane)
+        if u0 is not None:
+            u_start = u0
+        squeeze = min(1.0, (lane_w - 0.006) / max(girth, 1e-6))
+        centre = lane_i * lane_w + lane_w * 0.5
+
+        def uv(along_m, k, closing=False):
+            return strip_uv(strip, u_start + along_m, centre + (d[k] - mid) * squeeze)
+    segs = segments or max(1, int(round(length / 0.9)))
+    rings, cos, centres = [], [], []
+    edge_noise = [rng.uniform(-1.0, 1.0) for _ in range(segs + 1)]
+    for i in range(segs + 1):
+        tt = i / segs
+        tc = 2.0 * tt - 1.0
+        bend = 1.0 - tc * tc
+        p = a0 + x * (length * tt) - n * (sag * bend) + a * (bow * bend)
+        ang = math.radians(twist) * (tt - 0.5)
+        ai = a * math.cos(ang) + n * math.sin(ang)
+        ni = n * math.cos(ang) - a * math.sin(ang)
+        ws = 1.0 + (taper - 1.0) * tt
+        ring = []
+        for k, (pa, pn) in enumerate(prof):
+            q = p + ai * (pa * ws) + ni * pn
+            if nicks and 0 < i < segs and abs(pn - t) < 1e-9:
+                q = q - ni * (nicks * max(0.0, edge_noise[i]))
+            ring.append(len(cos))
+            cos.append(q)
+        rings.append(ring)
+        centres.append(p)
+    faces = []
+    for i in range(segs):
+        u_a, u_b = length * i / segs, length * (i + 1) / segs
+        middle = (centres[i] + centres[i + 1]) * 0.5
+        for k in range(count):
+            k1 = (k + 1) % count
+            closing = k1 == 0
+            idx = [rings[i][k], rings[i][k1], rings[i + 1][k1], rings[i + 1][k]]
+            uvs = {rings[i][k]: uv(u_a, k), rings[i][k1]: uv(u_a, k1, closing),
+                   rings[i + 1][k1]: uv(u_b, k1, closing), rings[i + 1][k]: uv(u_b, k)}
+            centre_f = sum((cos[j] for j in idx), Vector()) * 0.25
+            idx = _orient(cos, idx, centre_f - middle)
+            faces.append((idx, [uvs[j] for j in idx]))
+    m.put(cos, faces, key=key, smooth=smooth, ao_floor=ao_floor)
+    if any(caps):
+        cap_cos, cap_faces = [], []
+        span = max(w, t)
+        for end, i in ((0, 0), (1, segs)):
+            if not caps[end]:
+                continue
+            out = x * (1.0 if end else -1.0)
+            base = len(cap_cos)
+            ring_uv = []
+            for k, (pa, pn) in enumerate(prof):
+                cap_cos.append(cos[rings[i][k]])
+                if cap_key == 'endgrain':
+                    ring_uv.append((0.64 + pa / span * 0.26, 0.5 + pn / span * 0.26))
+                elif key == 'planks':
+                    ring_uv.append(((u_start + length * end + pn) * scale,
+                                    (centre + max(-0.099, min(0.099, pa * squeeze))) * scale))
+                elif set_name:
+                    ring_uv.append(((pa + off[0]) * scale, (pn + off[1]) * scale))
+                else:
+                    ring_uv.append(strip_uv(strip, u_start + length * end + pn, centre + pa * squeeze))
+            idx = _orient(cap_cos, list(range(base, base + count)), out)
+            mapping = dict(zip(range(base, base + count), ring_uv))
+            cap_faces.append((idx, [mapping[j] for j in idx]))
+        m.put(cap_cos, cap_faces, key=cap_key or key, smooth=False, ao_floor=ao_floor)
+    return x, a, n
+
+
+def batten(m, p0, p1, size, face=(0.0, -1.0, 0.0), strip='C', chamfer=0.008, **options):
+    """A square batten, post or cleat (size: (width, thick), or one number) with all four long edges eased."""
+    width, thick = (size, size) if isinstance(size, (int, float)) else size
+    return bar(m, p0, p1, width, thick, face=face, strip=strip, chamfer=chamfer, back=chamfer, **options)
+
+
+def nail_heads(m, points, normal, size=0.011, strip='H3'):
+    """Small square nail heads a hair proud at points, facing normal (a crate's cleats, a patch board)."""
+    nrm = Vector(normal).normalized()
+    side = nrm.cross(UP if abs(nrm.z) < 0.9 else X_AXIS).normalized()
+    up = side.cross(nrm).normalized()
+    for k, p in enumerate(points):
+        c = Vector(p) + nrm * 0.0015
+        corners = [c + side * sx * size * 0.5 + up * sy * size * 0.5 for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+        u = IRON_CLEAN[0] + 0.05 + 0.03 * (k % 7)
+        uvs = [strip_uv(strip, u + sx * size * 0.5, 0.1 + sy * size * 0.5)
+               for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+        idx = _orient(corners, [0, 1, 2, 3], nrm)
+        mapping = dict(zip(range(4), uvs))
+        m.put(corners, [(idx, [mapping[j] for j in idx])], smooth=False)
+
+
+def matrix_of(at=(0.0, 0.0, 0.0), yaw=0.0, pitch=0.0, roll=0.0):
+    """A placement: turned yaw degrees about Z, after pitch about X and roll about Y (degrees)."""
+    return (Matrix.Translation(Vector(at)) @ Matrix.Rotation(math.radians(yaw), 4, 'Z') @
+            Matrix.Rotation(math.radians(pitch), 4, 'X') @ Matrix.Rotation(math.radians(roll), 4, 'Y'))
+
+
+# --- Merged clusters (the vignettes: several finished props baked into one mesh, one draw a material) ---
+
+def merge(name, parts, pivot, caption='', ao=0.45, hulls=None, collision=None, lods='50,25', keep_parts=False,
+          smooth=62.0):
+    """One model from finished props: parts are (object, matrix) pairs (each object as Model.done() left it: its
+    materials, UVs, 'Col' with its own occlusion, its UCX_ children). The meshes are copied in, in order, through their
+    matrices; the occlusion is baked again over the whole cluster and each corner keeps the darker of its own and the
+    cluster's (contact shade between the props, and the iron's dimming kept). hulls: point lists in the cluster's frame
+    (None: every part's own hulls, moved with it). The parts are deleted unless keep_parts. Returns the object."""
+    import numpy as np
+    bm = bmesh.new()
+    mats = []
+    hull_sets = []
+    uv_layer = bm.loops.layers.uv.new('UVMap')
+    owns = []
+    for obj, matrix in parts:
+        mesh = obj.data
+        raw = lt._read_col(mesh) if 'Col' in mesh.color_attributes else None
+        src = bmesh.new()
+        src.from_mesh(mesh)
+        src.transform(Matrix(matrix))
+        s_uv = src.loops.layers.uv.active
+        index = []
+        for mat in mesh.materials:
+            if mat not in mats:
+                mats.append(mat)
+            index.append(mats.index(mat))
+        verts = [bm.verts.new(v.co) for v in src.verts]
+        loop_base = 0
+        for face, poly in zip(src.faces, mesh.polygons):
+            try:
+                new = bm.faces.new([verts[loop.vert.index] for loop in face.loops])
+            except ValueError:
+                continue
+            new.material_index = index[face.material_index] if index else 0
+            new.smooth = face.smooth
+            for lnew, lsrc in zip(new.loops, face.loops):
+                lnew[uv_layer].uv = lsrc[s_uv].uv
+            for li in poly.loop_indices:
+                owns.append(raw[li] if raw is not None else (1.0, 1.0, 1.0, 1.0))
+        src.free()
+        if hulls is None:
+            for child in sorted(obj.children, key=lambda o: o.name):
+                if child.name.startswith('UCX_'):
+                    hull_sets.append([Matrix(matrix) @ (child.matrix_parent_inverse @ v.co) for v in child.data.vertices])
+    out = bpy.data.meshes.new(name)
+    bm.to_mesh(out)
+    bm.free()
+    for mat in mats:
+        out.materials.append(mat)
+    obj = bpy.data.objects.new(name, out)
+    bpy.context.scene.collection.objects.link(obj)
+    if not keep_parts:
+        for part, _ in parts:
+            for child in list(part.children):
+                bpy.data.objects.remove(child)
+            data = part.data
+            bpy.data.objects.remove(part)
+            if data.users == 0:
+                bpy.data.meshes.remove(data)
+    own = np.array(owns, dtype=np.float32).reshape(-1, 4)
+    obj['Nanite'] = 0
+    if lods:
+        obj['LODs'] = lods
+    if collision:
+        obj['Collision'] = collision
+    lm.smooth(obj, smooth)
+    if '--no-ao' not in ARGS:
+        lt.bake_vertex_ao(obj, ground=True, distance=ao)
+        raw = lt._read_col(out)
+        raw[:, 3] = np.minimum(raw[:, 3], own[:, 3])
+        raw[:, :3] = own[:, :3]
+        lt._write_col(out, raw)
+    else:
+        if 'Col' not in out.color_attributes:
+            out.color_attributes.new('Col', 'BYTE_COLOR', 'CORNER')
+        lt._write_col(out, own)
+    for points in (hulls if hulls is not None else hull_sets):
+        hb = bmesh.new()
+        verts = [hb.verts.new(Vector(p)) for p in points]
+        result = bmesh.ops.convex_hull(hb, input=verts)
+        inside = [v for v in result['geom_interior'] + result['geom_unused'] if isinstance(v, bmesh.types.BMVert)]
+        bmesh.ops.delete(hb, geom=list(dict.fromkeys(inside)), context='VERTS')
+        hull_mesh = bpy.data.meshes.new('UCX_' + name)
+        hb.to_mesh(hull_mesh)
+        hb.free()
+        hull = bpy.data.objects.new('UCX_' + name, hull_mesh)
+        bpy.context.scene.collection.objects.link(hull)
+        hull.parent = obj
+        hull.display_type = 'WIRE'
+    report(obj, pivot, caption)
+    return obj

@@ -30,7 +30,10 @@ from mathutils import Matrix, Vector
 
 import looter_model as lm
 import looter_tripo_barge as barge
+import looter_tripo_barge_paint as barge_paint
+import looter_tripo_zones as zones_paint
 import looter_tripo_collision as tc
+import looter_tripo_repack as repack
 import looter_textures as lt
 import looter_tripo as tripo
 
@@ -75,12 +78,16 @@ SPECS = {
         cut=[((1.49, -0.11, -0.475), (1.72, 0.11, -0.12))],
         # Her hull under the deck and the bag (FLIGHT turns the hull's collision off; these are for anything else).
         boxes=[((0.04, 0.03, 0.0), (0.96, 0.97, 0.205)), ((0.03, 0.0, 0.46), (0.97, 1.0, 1.0))],
+        # Her paint repainted in our sets zone by zone (looter_tripo_zones_tables.LAMPLIGHTER: planks, canvas, rope, brass, iron).
+        paint=zones_paint.hook('Lamplighter'),
         sockets={'Lantern': ('glb', (1.60, 0.0, -0.475))}),
     'DredgeBarge': dict(
         category='Tripo', kind='ship', master='World', maps=2048, turn=90.0, size=('length', 75.0), pivot='bottom',
         # Reshaped for the walkable kit (looter_tripo_barge: one flat deck, the house, the tower on it, bulwark, guard),
         # which adds its own UCX_ boxes and the Door and Gangway sockets.
-        rework=barge.rework, slots=barge.slots, boxes=[],
+        rework=barge.rework, slots=barge.slots, paint=barge_paint.paint, boxes=[],
+        # Its LODs switch sooner (PERF, Landfall: the barge cost 0.3-0.9 ms at range with the shared 0.5/0.25/0.12).
+        lod_screens='0.6,0.35,0.18',
         # The two smokestacks' tops (the smog plumes) and the hose drum's underside (the hose hangs from it).
         sockets={'Stack_1': ('stack', (0.265, 0.0)), 'Stack_2': ('stack', (0.572, 0.0)),
                  'HoseDrum': ('glb', (0.22, 0.08, -0.6))}),
@@ -183,7 +190,14 @@ def write_maps(maps, name, master, size, kind, tint=None, **props):
     luma = (sharp @ np.array([0.299, 0.587, 0.114], np.float32))[..., None]
     sharp = luma + (sharp - luma) * sat
     sharp = 0.5 + (sharp - 0.5) * contrast
-    lt.write_png(bc_path, lt.to8(np.clip(sharp, 0.0, 1.0)))
+    out = np.clip(sharp, 0.0, 1.0)
+    mask = bpy.data.images.get(maps['BC'].get('AlphaMask', ''))
+    if mask is not None:
+        # A mask the material reads from the colour map's alpha (the barge walls' paint-chip weight,
+        # looter_tripo_barge_paint: MI_TripoDredgeBarge_Walls' DetailMaskAlpha), kept as it is (no grade); carried
+        # beside the colour image, since Blender premultiplies an image's own alpha into its colour.
+        out = np.concatenate([out, tripo.pixels(mask, px)[..., :1]], axis=-1)
+    lt.write_png(bc_path, lt.to8(out))
     rm = maps.get('RM')
     if rm is not None:
         data = tripo.pixels(rm, min(size, rm.size[0]))[..., :3].astype(np.float32)
@@ -373,6 +387,27 @@ def build(name):
             raise ValueError(f'{name}: a reworked model cannot carry glow faces (their indices move)')
         spec['rework'](obj, report, maps)
         report['reworked tris'] = _triangles(obj)
+    own = {}
+    for key, extra in spec.get('sets', {}).items():
+        # Faces on a texture set of their own, Tripo<name><key> (the barge's walls), cut from the GLB's maps before any
+        # repack moves the rest: looter_tripo_repack.own_set; maps[key] carries them to the paint and write_maps.
+        faces = extra['faces'](obj)
+        if faces is not None and np.asarray(faces).any():
+            own[key] = (np.asarray(faces), repack.own_set(obj, maps, name + key, extra['maps'], faces, report=report))
+    if spec.get('repack'):
+        # The atlas re-packed to fill its square, the maps re-cut from the GLB's 4096 delivery onto it (looter_tripo_repack;
+        # Docs/Work/2026-11-04-Art/REPACK.md), on the final mesh, before any paint and write_maps.
+        rest = np.ones(len(obj.data.polygons), bool)
+        for faces, _ in own.values():
+            rest[faces] = False
+        maps = repack.repack(obj, maps, name, spec['maps'], polys=np.flatnonzero(rest) if own else None, report=report)
+    for key, (_, sub) in own.items():
+        if sub:
+            maps[key] = sub
+    if spec.get('paint'):
+        # Texels of maps repainted by script on the final UVs (the barge's house and casing walls in our sets:
+        # looter_tripo_barge_paint), after the rework and any repack, so write_maps saves them.
+        spec['paint'](obj, report, maps)
     V, _ = _arrays(obj)
     lo, hi = V.min(0), V.max(0)
     report['size m'] = (hi - lo).round(3).tolist()
@@ -383,6 +418,20 @@ def build(name):
     if spec.get('slots'):
         # The reworked model's faces split into material slots on the same texture set.
         spec['slots'](obj, 'Tripo' + name, spec['master'])
+    for key, extra in spec.get('sets', {}).items():
+        if maps.get(key):
+            # The own set's maps, and its slot's material moved onto it (slots made it on the main set). The slot must
+            # hold exactly the faces the set was cut for (slots and extra['faces'] apply one rule: a mismatch stops here).
+            names = [m.name if m else '' for m in obj.data.materials]
+            idx = np.empty(len(obj.data.polygons), np.int64)
+            obj.data.polygons.foreach_get('material_index', idx)
+            on_slot = set(np.flatnonzero(idx == names.index(extra['slot'])).tolist()) if extra['slot'] in names else set()
+            faces = own[key][0]
+            cut = set((np.flatnonzero(faces) if faces.dtype == bool else faces).tolist())
+            if on_slot != cut:
+                raise ValueError(f"{name}: slot {extra['slot']} holds {len(on_slot)} faces, its set was cut for {len(cut)}")
+            write_maps(maps[key], name + key, spec['master'], extra['maps'], spec['kind'], tint=spec.get('tint'))
+            lt.material('Tripo' + name + key, name=extra['slot'], master=spec['master'], tint=spec.get('tint'))
     if glow_faces:
         glow = lm.material(GLOW_NAME, 0xffc56e, Glow=5.0, Variation=0.04)
         lt.assign(obj, glow, glow_faces)
@@ -391,7 +440,7 @@ def build(name):
     obj.data.name = name
     obj['Nanite'] = 0
     obj['LODs'] = LODS
-    obj['LODScreens'] = LOD_SCREENS
+    obj['LODScreens'] = spec.get('lod_screens', LOD_SCREENS)
 
     # Sockets (an empty's -Y is the socket's front: none are turned, so every socket faces the model's front).
     def put(sock, p_blender, yaw=0.0):

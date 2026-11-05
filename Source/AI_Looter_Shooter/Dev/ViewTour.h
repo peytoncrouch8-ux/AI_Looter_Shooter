@@ -34,7 +34,7 @@ public:
 	virtual bool DoesSupportWorldType(const EWorldType::Type WorldType) const override;
 
 	/** Starts a tour of the viewpoints in the file (relative to the project folder). False if it can't be read. */
-	bool Start(const FString& ViewsFile, bool bShots, bool bQuit);
+	bool Start(const FString& ViewsFile, bool bShots, bool bQuit, bool bWarm = false);
 
 	/** A tour is going on (scenes stay off meanwhile: USceneSubsystem::AreScenesOn). */
 	bool IsRunning() const { return Stops.IsValidIndex(Current); }
@@ -60,6 +60,8 @@ private:
 	float Clock = 0.f;
 	bool bShots = true;
 	bool bQuit = false;
+	/** The unmeasured first pass over every view (Looter.Tour ... warm). */
+	bool bWarming = false;
 	bool bShotRequested = false;
 
 	// Sums over the measured frames at the current stop.

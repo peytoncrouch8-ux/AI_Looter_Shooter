@@ -22,10 +22,28 @@ Tripo hull (`BARGE_MEASURE.md`). This lane: the barge's C++ and tests. Route: **
 - **Round 15** (19:15): the review's fixes and the perf lane's lights (below). Built by Main: Barge 8/11 (Round 16).
 - **Round 16** (20:30): `.Deck`'s horns, `.Fight`'s rope tops, `.Hall`'s ring, foot walk and rail checks (below). The
   stern route's stop is the round-4 hull. Not built.
-- **Round 17** (21:00): hidden-until-started objectives for step 4's later pushes (below). Not built.
+- **Round 17** (21:00): hidden-until-started objectives for step 4's later pushes (below). Built: HiddenUntilStarted 1/1,
+  Barge 10/11 (the stern route: the hull).
+- **Round 18** (22:40): her deck counts as playable wherever she hangs; the boundary and camps tests know it (below). Not built.
 - **Next**: Main's build, then `Looter.World.Barge.Kit`, `.Deck`, `.Hall`; `.Hull` after REWORK's round 4 (its lid, rail, coaming); PIE.
 - Round 6 supersedes everything below it on the house, the arena rectangle, the deck-level hall and office, and the spots;
   the berth math, the catwalk openings (round 5), the vents' clock and the dying/fall still hold. Rounds 2-5 are history.
+
+## Round 18 (22:40): the boundary under her bow, the churchyard under her; not built
+- **`Looter.World.RansomsRest.InsideBoundary` was real.** She hangs at (7492, -2518), keel z 3251, yaw -63. On her middle line everything fore of x ~3050 lies past the closed edge between corners 57 (9300, -3300) and 58 (8600, -6500): most of the well deck and all of the forecastle.
+  - `APlayableArea::Contains` is flat. On her fore half, encounter spots were turned down (OffPlayable): BargeDeck's spots 1, 2, 5, 6 and 7, the roof's third, and both of the tower's, 10-14 m out of reach of the spots' rings. **The tower push could never spawn, so step 4 could never finish.**
+  - Creatures' free spots, knockback landings, the player's climbs (`FTraversalBodyQuery::Inside`) and the ember dust devil's path stopped there too.
+  - The walls don't reach her: edge 57-58's walls top out at z 5152, 3.5 m under her well deck (5501).
+  - Fall recovery isn't affected. On her fore half it takes no safe spot, so a fall off her bow comes back to the last spot inside. The minimap dims her fore half.
+  - When it started: today's round 3 (0c0750bf, the 16 m longer hull), when the spots moved fore. Round 1's spots were all inside (the foremost 1.7 m in).
+- **Fix:** `IPlayableAloft` (`World/PlayableAloft.h`, `IsAboardAt`). `APlayableArea::AddAloft` / `RemoveAloft`: `Contains` also counts a point aboard a vessel added that way.
+  - `ABargeBoarding` implements it: `BargeRules::IsAboard` while she is Hanging, Burst or Dying. She adds herself in BeginPlay and comes off in EndPlay.
+  - The level test judges a spawner attached to a vessel aloft by her: inside the boundary or `IsAboardAt`.
+  - New test `Looter.World.Barge.Aloft`: her deck and forecastle count once she has begun play, the ground under her doesn't, and she is out again once removed.
+- **`Looter.Encounters.Camps.Placement` was the test's rule.** The Churchyard ambush (after Main 4) is on during Main 6, but it springs only within its `maxRise` of 1000 cm of its own height (`AAmbushSpawner::AmbushMaxRise`, 3D). She is 38 m (hall) to 47.5 m (deck) over it.
+  - It has failed since 1a91b66e (2026-11-01), when BargeDeck and FurnaceHall entered `storyFights` with the churchyard's fence as their ground. That is not today's hull.
+  - `layout.json`: `"aloft"` (cm over the ground) on BargeDeck (4750) and FurnaceHall (3800), described in the encounters' `about`.
+  - The reader reads `aloft` and an ambush's `trigger.maxRise`. Under a fight aloft, an encounter may stand only if it is an ambush whose `maxRise` is under her height; anything else keeps off as before.
 
 ## Round 17 (21:00): the later pushes hidden until they start (the user: "Hide until it starts"); not built
 - `UMissionObjective::bHiddenUntilStarted` (Python `hidden_until_started`). Until `HasStarted`, the objective is off the tracker, the Missions page, the arrow, the highlight and the board's progress. `UMissionClearObjective`'s start: its spawner has spawned, is engaged or is cleared.

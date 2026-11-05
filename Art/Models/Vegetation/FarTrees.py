@@ -33,7 +33,7 @@ enough UV area for MikkTSpace tangents, and so little that the sampled mip stays
 into the neighboring swatches. Shading within a part comes from the baked vertex AO (vertex color alpha, as every model
 has; RGB carries looter_plants' foliage convention, which M_World ignores), mottled a little per bough.
 
-Per model: Nanite 0, no LODs (three draws in all: one per mesh; the manifest's empty list says so), Collision None. The
+Per model: Nanite 0, LODs 50/25 at screen 0.04/0.025 (~320/510 m on Medium; finish()), Collision None. The
 pivot is the trunk's foot, +Z up; trunks reach 0.6 m below it to sit on slopes. Seeded: every run builds the same
 meshes.
 
@@ -439,11 +439,15 @@ def far_broadleaf():
 
 def finish(plant, ao_distance, ao_blend=0.5):
     """looter_plants' finish (shading normals, vertex colors, baked AO blended with the guess by ao_blend), then this
-    family's export settings: no collision, no Nanite, no LODs."""
+    family's export settings: no collision, no Nanite, two LODs far out."""
     obj = lp.finish(plant, ao_distance=ao_distance, ao_samples=32, ao_blend=ao_blend)
     obj['Collision'] = 'None'
     obj['Nanite'] = 0
-    obj['LODs'] = ''       # an empty list in the manifest: no LODs at all (the importer leaves them out)
+    # Two LODs only where a tree is a few dozen pixels tall (screen 0.04 is ~320 m on Medium, 0.025 ~510 m): most of the
+    # 2,603 far trees stand 500-900 m out, so the open views drew ~0.3 M sub-pixel triangles of them (Docs/Work/2026-11-04-Art/
+    # LODS.md section 2, PERF2.md: hiding them all saved 0.31-0.53 ms). The 8x sight's narrow view picks LOD0 again.
+    obj['LODs'] = '50,25'
+    obj['LODScreens'] = '0.04,0.025'
     return obj
 
 

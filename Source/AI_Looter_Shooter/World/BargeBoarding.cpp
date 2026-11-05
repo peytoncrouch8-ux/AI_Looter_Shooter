@@ -17,6 +17,7 @@
 #include "World/FurnaceDraftValve.h"
 #include "World/LamplighterRules.h"
 #include "World/LandfallMarker.h"
+#include "World/PlayableArea.h"
 #include "Components/AudioComponent.h"
 #include "Components/BoxComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -132,6 +133,12 @@ void ABargeBoarding::BeginPlay()
 		HoseNativeLength = FMath::Max(static_cast<float>(Section->GetBoundingBox().GetSize().Z), 1.f);
 	}
 	SpawnPieces();
+	// Her deck is playable wherever she hangs: over the chapel her bow lies past the boundary's closed edge east of the
+	// knoll, where her fights' spots, her Dredgers' steps and the player's climbs would be turned down (IsAboardAt).
+	if (APlayableArea* Area = APlayableArea::Find(GetWorld()))
+	{
+		Area->AddAloft(this);
+	}
 	if (UMissionRunner* Runner = UMissionRunner::Get(this))
 	{
 		BoundRunner = Runner;
@@ -142,6 +149,10 @@ void ABargeBoarding::BeginPlay()
 
 void ABargeBoarding::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (APlayableArea* Area = APlayableArea::Find(GetWorld()))
+	{
+		Area->RemoveAloft(this);
+	}
 	if (UMissionRunner* Runner = BoundRunner.Get())
 	{
 		Runner->OnChanged.Remove(MissionsChangedHandle);

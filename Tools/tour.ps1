@@ -3,15 +3,16 @@
 # Timings are only trustworthy with the editor closed (it shares the GPU); screenshots work either way.
 # Usage: tour.ps1 [-Map /Game/Maps/Lvl_TutorialIsland] [-Quality Medium] [-Views Art/Levels/TutorialIsland/views.json]
 #                 [-NoShots] [-ResX 1920] [-ResY 1080] [-Exec "cvar value,..."] (console commands before the tour)
+#                 [-Warm] (every view once unmeasured first: first-visit streaming and shader stalls out of the numbers)
 param([string]$Map = '/Game/Maps/Lvl_TutorialIsland', [string]$Quality = 'Medium',
-    [string]$Views = 'Art/Levels/TutorialIsland/views.json', [switch]$NoShots, [int]$ResX = 1920, [int]$ResY = 1080, [string]$Exec = '')
+    [string]$Views = 'Art/Levels/TutorialIsland/views.json', [switch]$NoShots, [int]$ResX = 1920, [int]$ResY = 1080, [string]$Exec = '', [switch]$Warm)
 
 $root = Split-Path $PSScriptRoot -Parent
 $engine = "C:\Program Files\Epic Games\UE_5.8\Engine\Binaries\Win64\UnrealEditor.exe"
 if (Get-Process UnrealEditor -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -like '*Unreal Editor*' }) {
     "Note: the editor is open, so the timings share the GPU with it. Close it (Tools\close.ps1) for real numbers."
 }
-$tour = "Looter.Tour $Views quit" + $(if ($NoShots) { ' noshots' } else { '' })
+$tour = "Looter.Tour $Views quit" + $(if ($NoShots) { ' noshots' } else { '' }) + $(if ($Warm) { ' warm' } else { '' })
 $gameArgs = "`"$root\AI_Looter_Shooter.uproject`" $Map -game -windowed -ResX=$ResX -ResY=$ResY -nosplash -log=Tour.log -ExecCmds=`"Looter.Quality $Quality,$(if ($Exec) { "$Exec," })$tour`""
 $started = Get-Date
 $proc = Start-Process $engine -ArgumentList $gameArgs -PassThru
@@ -21,7 +22,7 @@ $waited = 0
 while (-not $proc.WaitForExit(5000)) {
     & "$PSScriptRoot\zenwait.ps1" | Out-Null
     $waited += 5
-    if ($waited -ge 900) { $proc.Kill(); "The game did not finish the tour in time."; exit 2 }
+    if ($waited -ge $(if ($Warm) { 1500 } else { 900 })) { $proc.Kill(); "The game did not finish the tour in time."; exit 2 }
 }
 
 $log = Join-Path $root 'Saved\Logs\Tour.log'

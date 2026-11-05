@@ -1,43 +1,225 @@
 {
-  "about": "Ransom's Rest's town buildings re-finished with no new draw (Docs/Work/2026-11-04-Towns/PLAN.md 4.2 item 1): each building's roof tint (on the house trim's shake strip E), siding tint (on its weathered siding strip A; whitewash is a lerp to cream) and porch (the H1 teal and H2 oxide-red trim boards swapped or not), read by M_World's TrimRecolor (on MI_HouseTrim) from the building's custom primitive data, set by Tools/Unreal/build_area_town_looks.py after the build. tints: the plan's (linear multipliers; wash: how far the siding goes to cream 0xe6dac2 after the tint). buildings: by placement id (the actor's label); roof is a tint name, or roofKit names a roof that isn't the shake strip (Home_J's planks, Home_E's sod: no tint, and it differs from every tinted roof); lived/shut is the story's (the lived ones cared for: whitewash, honey shakes; the shut ones tarred and dark). sides: buildings in order along a street side: consecutive ones differ in roof AND siding AND porch; facing: across Main Street (its two sides) any pair whose placements stand within facingReach cm along the street faces, and differs in 2 of the 3. The script refuses a table that breaks either rule and prints the pairs.",
+  "about": "Ransom's Rest's town buildings re-finished with no new draw (Docs/Work/2026-11-04-Towns/PLAN.md 4.2 item 1; round 2 2026-11-04, Main: the plan's tints read as almost nothing, the user wants variety a player sees): each building's roof (the house trim's shake strip E: grey, how far it goes grey first, then tint, a linear multiplier: silver-grey weathered shakes, honey cedar, dark tar paper, mossy), siding (its weathered boards, strip A: tint, the bare boards' stain; paint, an sRGB colour, none is whitewash cream 0xe6dac2; wash, how much paint covers them, the gaps between boards stay bare) and porch (the H1 teal and H2 oxide-red trim boards swapped or not), read by M_World's TrimRecolor (on MI_HouseTrim) from the building's custom primitive data 0-11, set by Tools/Unreal/build_area_town_looks.py after the build. Sun-faded frontier paint, never saturated: chalk white, sage, grey-blue (Slate), mustard (Ochre), barn red gone brick; Silvered is bare boards gone grey, Tar tarred boards, Bare the boards as they are. Lived vs shut (D5, the plan's types): lived homes and open shops wear fresh paint (wash 0.85-0.9) and every honey roof; shut ones faded paint (0.55-0.6) or bare boards under silver, moss or tar-paper roofs. buildings: by placement id (the actor's label); roofKit names a roof that isn't the shake strip (Home_J's planks, Home_E's sod: no tint, and it differs from every tinted roof). sides: buildings in order along a street side: consecutive ones differ in roof AND siding AND porch; facing: across Main Street (its two sides) any pair whose placements stand within facingReach cm along the street differs in 2 of the 3. The script refuses a table that breaks either rule and prints the pairs.",
   "tints": {
     "roof": {
-      "Silver": [0.90, 0.94, 1.0],
-      "Honey": [1.15, 1.0, 0.78],
-      "Dark": [0.68, 0.66, 0.64],
-      "Moss": [0.85, 0.92, 0.74]
+      "Silver": {
+        "tint": [
+          1.8,
+          1.85,
+          1.95
+        ],
+        "grey": 0.9
+      },
+      "Honey": {
+        "tint": [
+          1.45,
+          1.12,
+          0.72
+        ],
+        "grey": 0.1
+      },
+      "TarPaper": {
+        "tint": [
+          0.32,
+          0.32,
+          0.33
+        ],
+        "grey": 0.85
+      },
+      "Moss": {
+        "tint": [
+          0.78,
+          0.9,
+          0.62
+        ],
+        "grey": 0.55
+      }
     },
     "siding": {
-      "Bleached": { "tint": [1.15, 1.12, 1.05], "wash": 0.0 },
-      "Brown": { "tint": [1.0, 1.0, 1.0], "wash": 0.0 },
-      "Tar": { "tint": [0.45, 0.43, 0.42], "wash": 0.0 },
-      "Whitewash": { "tint": [1.0, 1.0, 1.0], "wash": 0.6 }
+      "Chalk": {
+        "paint": "#d6d0c0",
+        "wash": 0.9
+      },
+      "Sage": {
+        "paint": "#8e9a7a",
+        "wash": 0.85
+      },
+      "Slate": {
+        "paint": "#7c8c98",
+        "wash": 0.85
+      },
+      "SlateFaded": {
+        "paint": "#8d979c",
+        "wash": 0.55
+      },
+      "Ochre": {
+        "paint": "#c29a50",
+        "wash": 0.85
+      },
+      "OchreFaded": {
+        "paint": "#b89a68",
+        "wash": 0.55
+      },
+      "BrickFaded": {
+        "paint": "#95533f",
+        "wash": 0.6
+      },
+      "Silvered": {
+        "paint": "#8f8b84",
+        "wash": 0.5
+      },
+      "Tar": {
+        "tint": [
+          0.32,
+          0.3,
+          0.29
+        ],
+        "wash": 0.0
+      },
+      "Bare": {
+        "tint": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "wash": 0.0
+      }
     }
   },
   "buildings": {
-    "cabinNorthWest": { "roof": "Dark", "siding": "Tar", "porchSwap": false, "note": "the assay office, shut since the fall" },
-    "sheriff": { "roof": "Silver", "siding": "Bleached", "porchSwap": true, "note": "the empty sheriff's office" },
-    "cottageNorth": { "roof": "Honey", "siding": "Whitewash", "porchSwap": false, "note": "the Haskett house (lived)" },
-    "saloon": { "roof": "Moss", "siding": "Brown", "porchSwap": true },
-    "cabinNorth": { "roof": "Silver", "siding": "Whitewash", "porchSwap": false, "note": "the hotel front" },
-    "cottageNorthEast": { "roof": "Honey", "siding": "Bleached", "porchSwap": true, "note": "the Mercer house (lived)" },
-    "cottageSouthWest": { "roofKit": "planks", "siding": "Tar", "porchSwap": true, "note": "Home_J, the empty shack: plank roof" },
-    "cabinSouth": { "roof": "Honey", "siding": "Whitewash", "porchSwap": false, "note": "the barber's front" },
-    "store": { "roof": "Dark", "siding": "Bleached", "porchSwap": true, "note": "Pruitt's store (lived)" },
-    "cottageSouth": { "roof": "Moss", "siding": "Brown", "porchSwap": false, "note": "the manager's house, shut" },
-    "undertaker": { "roof": "Dark", "siding": "Tar", "porchSwap": true },
-    "penLaneWest": { "roof": "Silver", "siding": "Brown", "porchSwap": false, "note": "Home_C, empty" },
-    "penLaneEast": { "roof": "Dark", "siding": "Tar", "porchSwap": true, "note": "Home_F, empty" },
-    "workshop": { "roof": "Honey", "siding": "Bleached", "porchSwap": false, "note": "Tilly's workshop (lived)" },
-    "coffinShed": { "roof": "Dark", "siding": "Tar", "porchSwap": true },
-    "dugout": { "roofKit": "sod", "siding": "Brown", "porchSwap": false, "note": "Home_E, the dugout (lived): sod roof" },
-    "depot": { "roof": "Silver", "siding": "Whitewash", "porchSwap": false, "note": "the station" }
+    "cabinNorthWest": {
+      "roof": "TarPaper",
+      "siding": "Tar",
+      "porchSwap": false,
+      "note": "the assay office, shut since the fall"
+    },
+    "sheriff": {
+      "roof": "Silver",
+      "siding": "SlateFaded",
+      "porchSwap": true,
+      "note": "the empty sheriff's office"
+    },
+    "cottageNorth": {
+      "roof": "Honey",
+      "siding": "Chalk",
+      "porchSwap": false,
+      "note": "the Haskett house (lived)"
+    },
+    "saloon": {
+      "roof": "TarPaper",
+      "siding": "BrickFaded",
+      "porchSwap": true,
+      "note": "shut"
+    },
+    "cabinNorth": {
+      "roof": "Silver",
+      "siding": "OchreFaded",
+      "porchSwap": false,
+      "note": "the hotel front, shut"
+    },
+    "cottageNorthEast": {
+      "roof": "Honey",
+      "siding": "Sage",
+      "porchSwap": true,
+      "note": "the Mercer house (lived)"
+    },
+    "cottageSouthWest": {
+      "roofKit": "planks",
+      "siding": "Silvered",
+      "porchSwap": true,
+      "note": "Home_J, the empty shack: plank roof"
+    },
+    "cabinSouth": {
+      "roof": "Moss",
+      "siding": "Bare",
+      "porchSwap": false,
+      "note": "the barber's front, shut"
+    },
+    "store": {
+      "roof": "Honey",
+      "siding": "Slate",
+      "porchSwap": true,
+      "note": "Pruitt's store (open)"
+    },
+    "cottageSouth": {
+      "roof": "Moss",
+      "siding": "BrickFaded",
+      "porchSwap": false,
+      "note": "the manager's house, shut"
+    },
+    "undertaker": {
+      "roof": "TarPaper",
+      "siding": "Tar",
+      "porchSwap": true,
+      "note": "open: the undertaker keeps it black"
+    },
+    "penLaneWest": {
+      "roof": "Silver",
+      "siding": "Silvered",
+      "porchSwap": false,
+      "note": "Home_C, empty"
+    },
+    "penLaneEast": {
+      "roof": "TarPaper",
+      "siding": "Bare",
+      "porchSwap": true,
+      "note": "Home_F, empty"
+    },
+    "workshop": {
+      "roof": "Honey",
+      "siding": "Ochre",
+      "porchSwap": false,
+      "note": "Tilly's workshop (open)"
+    },
+    "coffinShed": {
+      "roof": "TarPaper",
+      "siding": "Tar",
+      "porchSwap": true
+    },
+    "dugout": {
+      "roofKit": "sod",
+      "siding": "Chalk",
+      "porchSwap": false,
+      "note": "Home_E, the dugout (lived): sod roof"
+    },
+    "depot": {
+      "roof": "Silver",
+      "siding": "Ochre",
+      "porchSwap": false,
+      "note": "the station (open): railroad mustard"
+    }
   },
   "sides": {
-    "mainNorth": ["cabinNorthWest", "sheriff", "cottageNorth", "saloon", "cabinNorth", "cottageNorthEast"],
-    "mainSouth": ["cottageSouthWest", "cabinSouth", "store", "cottageSouth", "undertaker"],
-    "penLane": ["penLaneWest", "penLaneEast"],
-    "undertakersYard": ["workshop", "coffinShed"]
+    "mainNorth": [
+      "cabinNorthWest",
+      "sheriff",
+      "cottageNorth",
+      "saloon",
+      "cabinNorth",
+      "cottageNorthEast"
+    ],
+    "mainSouth": [
+      "cottageSouthWest",
+      "cabinSouth",
+      "store",
+      "cottageSouth",
+      "undertaker"
+    ],
+    "penLane": [
+      "penLaneWest",
+      "penLaneEast"
+    ],
+    "undertakersYard": [
+      "workshop",
+      "coffinShed"
+    ]
   },
-  "facing": { "sides": ["mainNorth", "mainSouth"], "along": "y", "facingReach": 800 }
+  "facing": {
+    "sides": [
+      "mainNorth",
+      "mainSouth"
+    ],
+    "along": "y",
+    "facingReach": 800
+  }
 }

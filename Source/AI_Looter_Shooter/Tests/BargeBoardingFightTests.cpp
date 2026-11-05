@@ -6,6 +6,7 @@
 #include "World/BargeBoarding.h"
 #include "World/BargeFurnace.h"
 #include "World/BargeRules.h"
+#include "World/PlayableArea.h"
 #include "Components/PointLightComponent.h"
 #include "Engine/World.h"
 #include "Tests/AutomationCommon.h"
@@ -142,6 +143,50 @@ bool FBargeFightTest::RunTest(const FString& Parameters)
 		}
 	}
 	TestTrue(FString::Printf(TEXT("The stern push's way up both walks to the well deck is open (%s)"), *Route), Route.IsEmpty());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FBargeAloftTest, "Looter.World.Barge.Aloft",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FBargeAloftTest::RunTest(const FString& Parameters)
+{
+	// Her deck is playable wherever she hangs (Lvl_RansomsRest, 2026-11-04: over the chapel knoll her fore half lies past the
+	// boundary's closed edge east of it, so her fights' spots there were turned down and her Dredgers and the player kept off
+	// it): the level's playable area counts a point aboard her as inside once she's begun play; the ground under her stays out.
+	using namespace BargeRules;
+	FTestWorldWrapper TestLevel;
+	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = TestLevel.GetTestWorld();
+	// A 40 m square of ground round the origin; she hangs 100 m off it and 100 m up.
+	APlayableArea* Area = World->SpawnActor<APlayableArea>();
+	if (!TestNotNull(TEXT("A playable area"), Area))
+	{
+		return false;
+	}
+	Area->Corners = { FVector(-2000.0, -2000.0, 0.0), FVector(2000.0, -2000.0, 0.0), FVector(2000.0, 2000.0, 0.0), FVector(-2000.0, 2000.0, 0.0) };
+	Area->OpenEdges = { false, false, false, false };
+	Area->Rebuild();
+	ABargeBoarding* Barge = World->SpawnActor<ABargeBoarding>(FVector(0.0, 10000.0, 10000.0), FRotator::ZeroRotator);
+	if (!TestNotNull(TEXT("The barge"), Barge))
+	{
+		return false;
+	}
+	const FTransform Her = Barge->GetActorTransform();
+	const FVector OnDeck = Her.TransformPosition(DeckMiddle() + FVector(0.0, 0.0, SpotUp));
+	const FVector OnForecastle = Her.TransformPosition(TowerDrops[0].Feet + FVector(0.0, 0.0, SpotUp));
+	const FVector Under = Her.TransformPosition(FVector(0.0, 0.0, -5000.0));
+	TestFalse(TEXT("Before she begins play her deck is out of the boundary"), Area->Contains(OnDeck));
+	Barge->DispatchBeginPlay();
+	Barge->ForceStep(DeckStep);
+	TestTrue(TEXT("Begun: her well deck and her forecastle count as inside"), Area->Contains(OnDeck) && Area->Contains(OnForecastle));
+	TestFalse(TEXT("...the ground under her doesn't"), Area->Contains(Under));
+	TestTrue(TEXT("...the square's own ground still does"), Area->Contains(FVector::ZeroVector));
+	Area->RemoveAloft(Barge);
+	TestFalse(TEXT("Taken off, her deck is out again"), Area->Contains(OnDeck));
 	return true;
 }
 

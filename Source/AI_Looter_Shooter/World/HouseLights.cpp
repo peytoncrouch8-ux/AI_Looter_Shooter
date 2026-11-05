@@ -135,8 +135,16 @@ void AHouseLights::ApplyState(FName State)
 {
 	// Day, Gloom (the smog's dim lamps) or Dusk (which DuskSmog is too): LightingStates::Kind has the names.
 	KindNow = LightingStates::Kind(State);
+	if (BaseReach < 0.f)
+	{
+		BaseReach = Lamp->AttenuationRadius;
+	}
 	const float Candelas = GetLampFor(KindNow);
 	Lamp->SetIntensity(Candelas);
+	// In the smog the street lamps and porch lanterns are small pools, drawn near only (they cost a light pass each).
+	Lamp->SetAttenuationRadius(GetReachFor(KindNow));
+	Lamp->SetMaxDrawDistance(GetDrawDistanceFor(KindNow));
+	Lamp->SetMaxDistanceFadeRange(GetFadeRangeFor(KindNow));
 	// A lamp that is off is hidden, so it costs no light at all (a street lamp by day).
 	Lamp->SetVisibility(Candelas > 0.f);
 	if (Windows)
@@ -163,6 +171,22 @@ float AHouseLights::GetGlowFor(ELightKind Kind) const
 	case ELightKind::Gloom: return GloomGlow >= 0.f ? GloomGlow : DayGlow;
 	default: return DayGlow;
 	}
+}
+
+float AHouseLights::GetReachFor(ELightKind Kind) const
+{
+	const float Base = BaseReach >= 0.f ? BaseReach : Lamp->AttenuationRadius;
+	return Kind == ELightKind::Gloom && HasGloomLamp() ? FMath::Min(Base, GloomReach) : Base;
+}
+
+float AHouseLights::GetDrawDistanceFor(ELightKind Kind) const
+{
+	return Kind == ELightKind::Gloom && HasGloomLamp() ? GloomDrawDistance : LampDrawDistance;
+}
+
+float AHouseLights::GetFadeRangeFor(ELightKind Kind) const
+{
+	return Kind == ELightKind::Gloom && HasGloomLamp() ? GloomFadeRange : LampFadeRange;
 }
 
 bool AHouseLights::IsLampLit() const

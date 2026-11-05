@@ -56,7 +56,7 @@ namespace
 	}
 }
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHouseLightsTest, "Looter.World.HouseLights",
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FHouseLightsTest, "Looter.World.HouseLights.Lamp",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 
 bool FHouseLightsTest::RunTest(const FString& Parameters)
@@ -180,6 +180,17 @@ bool FHouseLightsTableTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("The street lamp reaches 6.5 m at most"), Street->Lamp->AttenuationRadius <= 650.f);
 	TestTrue(TEXT("The porch lantern 3.5 m"), Porch->Lamp->AttenuationRadius <= 450.f);
 
+	// In the smog (the 120 fps line: MainStreet 8.37 ms with the lamps at full reach) a dim lamp is a small pool, drawn near only.
+	Street->ApplyState(FName(TEXT("Smog")));
+	TestEqual(TEXT("A street lamp in the smog reaches 4 m"), Street->Lamp->AttenuationRadius, 400.f);
+	TestEqual(TEXT("...is drawn out to 25 m"), Street->Lamp->MaxDrawDistance, AHouseLights::GloomDrawDistance);
+	TestEqual(TEXT("...fading over 8 m"), Street->Lamp->MaxDistanceFadeRange, AHouseLights::GloomFadeRange);
+	Porch->ApplyState(FName(TEXT("SmogThin")));
+	TestTrue(TEXT("A porch lantern keeps its own, shorter reach"), Porch->Lamp->AttenuationRadius == 350.f && Porch->Lamp->MaxDrawDistance == AHouseLights::GloomDrawDistance);
+	Street->ApplyState(FName(TEXT("DuskSmog")));
+	TestTrue(TEXT("Back at dusk: the full reach and 45 m"), Street->Lamp->AttenuationRadius == 650.f
+		&& Street->Lamp->MaxDrawDistance == AHouseLights::LampDrawDistance && Street->Lamp->MaxDistanceFadeRange == AHouseLights::LampFadeRange);
+
 	// Lived-in homes (the farmhouse's windows): the hall lamp keeps its day value in the smog, the windows warm up (4); a
 	// shop (the store, the sheriff, the undertaker) glows 6; at dusk both are the dusk values.
 	AStaticMeshActor* HomeMesh = World->SpawnActor<AStaticMeshActor>();
@@ -214,6 +225,11 @@ bool FHouseLightsTableTest::RunTest(const FString& Parameters)
 		CheckState(*this, Home, TEXT("Lived-in home"), States[Index], HomeBy[Index], true);
 		CheckState(*this, Shop, TEXT("Shop"), States[Index], ShopBy[Index], true);
 	}
+
+	// A lamp with no Gloom value of its own (a hall lamp) is lit in the smog as it always was: its reach, 45 m.
+	Home->ApplyState(FName(TEXT("Smog")));
+	TestTrue(TEXT("A hall lamp in the smog: its own reach, drawn to 45 m"), Home->Lamp->AttenuationRadius == 400.f
+		&& Home->Lamp->MaxDrawDistance == AHouseLights::LampDrawDistance);
 
 	// DuskSmog is lit exactly as Dusk, and the smog is not dusk.
 	Home->ApplyState(FName(TEXT("DuskSmog")));
@@ -294,8 +310,10 @@ bool FHouseLightsBudgetTest::RunTest(const FString& Parameters)
 		int32 Lit;
 	};
 	// Day: the five house lamps (a glimmer) and the forge; the streets, the porches and the barrel fire are out.
-	// The smog and dusk: all 24 (the 16, the 6 added lamps, the 2 fires) and not the far one.
-	const FBudget Budgets[] = { { TEXT("Day"), 6 }, { TEXT("Smog"), 24 }, { TEXT("SmogThin"), 24 }, { TEXT("Dusk"), 24 }, { TEXT("DuskSmog"), 24 } };
+	// Dusk: all 24 (the 16, the 6 added lamps, the 2 fires) and not the far one.
+	// The smog: the dim street and porch lamps are drawn to 25 m only. Within 25 m of the middle are 6 of the 9 street lamps, both
+	// lanterns, 2 of the 4 added porch lamps and both Pen Lane lamps (12); the 5 house lamps and the 2 fires keep 45 m: 19 in all.
+	const FBudget Budgets[] = { { TEXT("Day"), 6 }, { TEXT("Smog"), 19 }, { TEXT("SmogThin"), 19 }, { TEXT("Dusk"), 24 }, { TEXT("DuskSmog"), 24 } };
 	for (const FBudget& Each : Budgets)
 	{
 		for (AHouseLights* Lamp : Made)

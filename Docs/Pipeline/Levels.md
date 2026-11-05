@@ -42,6 +42,9 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   - `cliffs`: cliff faces and outcrops;
   - `dressing`: fences, walls, graves, props (`build_area_dressing.py`); the town's street lamps and porch lanterns
     (`town.json` `lights`, with their `gloom` candelas for the smog) are placed here.
+  - `props`: `level.props` alone (the town gate, and the towns plan's `RR_Home_B` / `RR_Home_I` as `homeB` / `homeI`; a prop
+    may carry `"lift"` cm over the ground at its pivot) with their lights, chimney smoke and households, as the full build
+    places them; the grass scatter, `build_area_loot.py` and `build_area_fauna.py` read the buildings: run them after.
   - `lights`: the lived-in houses' lights alone (`level.lights`: lamp, reach, the windows' `gloomGlow` for the smog;
     `house_lights()`, otherwise part of the full build). Takes out the `Lights_<key>` actors, places them again and sets their
     households again (`build_area_townlife.py`'s `set_households`); `-Until "lights placed and saved"`.

@@ -391,7 +391,9 @@ int32 ATownFire::CountLitInView(UWorld* World, const FVector& Eyes)
 	int32 Count = 0;
 	for (TActorIterator<AHouseLights> It(World); It; ++It)
 	{
-		Count += It->IsLampLit() && FVector::DistSquared(It->Lamp->GetComponentLocation(), Eyes) <= ReachSquared ? 1 : 0;
+		// Each lamp is drawn as far as it is now set to be (45 m, or 25 m for the smog's dim lamps).
+		const double Reach = FMath::Min(ReachSquared, FMath::Square(static_cast<double>(It->Lamp->MaxDrawDistance)));
+		Count += It->IsLampLit() && FVector::DistSquared(It->Lamp->GetComponentLocation(), Eyes) <= Reach ? 1 : 0;
 	}
 	for (TActorIterator<ATownFire> It(World); It; ++It)
 	{
@@ -433,13 +435,13 @@ namespace
 		{
 			Fires += It->IsBurning() ? 1 : 0;
 		}
-		UE_LOG(LogLooter, Display, TEXT("Looter.Lights.Count: %d town lights lit within %.0f m of the camera (limit 26; %d fires burning in the level), state %s (%s)."),
-			ATownFire::CountLitInView(World, Eyes), AHouseLights::LampDrawDistance / 100.f, Fires,
+		UE_LOG(LogLooter, Display, TEXT("Looter.Lights.Count: %d town lights lit within their draw distance of the camera (%.0f m; the smog's dim lamps %.0f m; limit 26; %d fires burning in the level), state %s (%s)."),
+			ATownFire::CountLitInView(World, Eyes), AHouseLights::LampDrawDistance / 100.f, AHouseLights::GloomDrawDistance / 100.f, Fires,
 			State.IsNone() ? TEXT("none") : *State.ToString(), LightingStates::KindName(LightingStates::Kind(State)));
 	}
 
 	FAutoConsoleCommandWithWorldAndArgs GCountCommand(TEXT("Looter.Lights.Count"),
-		TEXT("Logs how many town lights (house, street and porch lamps, fires) are lit within 45 m of the camera."),
+		TEXT("Logs how many town lights (house, street and porch lamps, fires) are lit within their draw distance of the camera."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&CountCommand));
 }
 #endif

@@ -150,5 +150,36 @@ own: 0.2%): nothing to gain.
   a PNG rewritten a second after it was written is still mapped by another process, likely the virus scanner). It hit 5 of
   13 builds before the retry; with it, the export retried twice and passed.
 
-## The barge's walls
-Not built yet: waiting on REWORK's round-5 mesh (Main's call). The code is ready, see the next section.
+## The barge's walls (CONTRACT "Round 4, the barge's walls crisp", step 2)
+The house's and casing's walls (the faces `looter_tripo_barge_paint.walls` picks; REWORK's `slots()` puts the same faces on
+`TripoDredgeBarge_Walls`) get a texture set of their own, `TripoDredgeBargeWalls`, 2K.
+- How (`looter_tripo_repack.own_set`, the build's `sets` spec key): before the main repack and the paint, those faces'
+  islands are packed alone into a square of their own (no floor: they all gain; `OWN_PAD` 2 px a side at 2K, the fill
+  searched from 60% of the square down), their maps cut from the GLB's 4096 maps at 4096 (REBAKE's paint works at 4096;
+  `write_maps` shrinks the set to 2K), handed to the paint as `maps['Walls']`, written by `write_maps(maps['Walls'],
+  'DredgeBargeWalls', ...)` (REBAKE's AlphaMask -> RGBA kept), and after `slots()` the slot's material is rebuilt on the
+  set. The build stops if the slot's faces and the set's differ (one rule, checked).
+- Switched on by one spec line in `SPECS['DredgeBarge']`, once REWORK's round-5 mesh lands (Main's call):
+  `sets={'Walls': dict(faces=<the Walls rule>, maps=2048, slot='TripoDredgeBarge_Walls')}`.
+- Measured on the round-4 mesh (a dry run in memory; no barge map written): 19,936 faces, 2,508 m2, 881 Tripo islands;
+  Tripo's atlas gives them 15.4 px/m (big surfaces 13.6).
+
+| Grid | Pad (2K) | Fill of their square | px/m | Mip-3 / mip-4 bleed | Pack |
+|---|---|---|---|---|---|
+| 512 | 4 px | 0.600 | 31.7 | - (measured another way) | ~1 min |
+| 512 | 2 px (Main's pick) | 0.668 | 33.4 | 3.9 / 22.5% | 73 s |
+| 1024 | 2 px | 0.695 | 34.1 | 4.3 / 22.4% | 290 s |
+| 1024 | 3 px | 0.650 | 33.0 | 3.7 / 22.5% | 336 s |
+| 1024 | 4 px | 0.615 | 32.1 | 3.9 / 22.7% | 304 s |
+The target of 35 px/m needs a 73% fill. Tripo's irregular wall islands, each REWORK copy of a slab on its own space
+(REBAKE's paint is tri-planar in model space, so copies can't share texels), top out near 70% with mip-safe gaps. Main:
+2 px on the 512 grid (2.2x Tripo's), no 1024 grid, no 4K set (the user's 2K cap for ships).
+- **Note for REWORK** (a cheap check, `tripo_repack_check`-style script in this lane's scratchpad: 32 rays over each wall
+  face's outer hemisphere, an escape = no hit within 300 m): on the round-4 mesh 617 wall faces (51 m2, 2.0% of 2,512 m2)
+  see no sky at all, 1,346 (112 m2, 4.5%) at most 2 of 32 rays, 2,150 (193 m2, 7.7%) at most 4. The enclosed ones lie
+  23.2-30.1 m up, x -31.9..+11.8 m (house and casing), 184 facing down, 391 sideways, 42 up: inner faces between the house's
+  and casing's shells. Dropping them from the rule would raise the walls' px/m by only 1%, so it isn't worth doing for the
+  texels. The faces and their escape counts (that mesh only): `Saved/ArtPreviews/Repack/barge_walls_escapes.npy`.
+- Export, previews (house and casing at 1 and 3 m, before = the walls painted in the main atlas, after = their own set):
+  `Toolsrtrun.ps1 -Script Tools\Blender	ripo_repack_check.py -ScriptArgs barge` -> `Saved/ArtPreviews/Repack/BargeWalls/`,
+  `Intermediate\ArtExport_BargeWalls`: pending REWORK's round 5.

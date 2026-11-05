@@ -365,7 +365,7 @@ def farmhouse(obj):
         tb.delete_faces(shell, shards)
         tb.log(f'farmhouse: {len(shards)} Tripo shards left on the porch roof removed')
 
-    tb.swap(obj, 'FarmhouseRansom', anchors=anchors, extra=extra, faces_limit=17000, fallback=100.0,
+    tb.swap(obj, 'FarmhouseRansom', anchors=anchors, extra=extra, faces_limit=17000, fallback=100.0, repack=True,
             variant=os.environ.get('LOOTER_FARMHOUSE_PAINT', ''), more_pieces=more_pieces, retexture=retexture,
             hulls_keep=[((-3.2, -4.75, 0.56), (-1.8, -3.45, 1.9)),     # the rocking chair's and the stool's hulls
                         ((0.72, -3.65, 0.5), (1.28, -3.05, 1.12)),
@@ -396,7 +396,7 @@ def farmhouse(obj):
 
 def barn(obj):
     """The Ransom barn (SM_Barn_Ransom): no sockets; its hulls are the scripted ones."""
-    tb.swap(obj, 'BarnRansom', faces_limit=11000, fallback=100.0)
+    tb.swap(obj, 'BarnRansom', faces_limit=11000, fallback=100.0, repack=True)
     return obj
 
 
@@ -430,7 +430,7 @@ def cottage(obj):
     def more_pieces(shell, scripted):
         return _lit_windows(shell, scripted, COTTAGE_LIT_FROM, COTTAGE_LIT, 'cottage')
 
-    tb.swap(obj, 'CottageRansom', anchors=anchors, extra=extra, faces_limit=10000, fallback=100.0,
+    tb.swap(obj, 'CottageRansom', anchors=anchors, extra=extra, faces_limit=10000, fallback=100.0, repack=True,
             more_pieces=more_pieces,
             hulls_drop=[((-2.0, -3.8, 1.0), (0.0, -3.55, 2.6))],      # the scripted stoop posts (x -1.89, -0.13)
             post_region=((-2.9, -4.3, 0.4), (2.9, -3.25, 2.6)), post_band=(1.0, 2.0))

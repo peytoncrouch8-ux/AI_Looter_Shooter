@@ -20,6 +20,16 @@ edge, the Rim Rangers' notice board and the town memorial.
                               Rim Rangers' on Main Street. Its own seed; same sockets and hull.
   TownMemorial                two hats on a post, a black felt and a straw, and a mourning wreath, on a little cairn
                               with larkspur laid at its foot.
+  Boardwalk_4m_Worn           (2026-11-04, the towns round) Boardwalk_4m worn down: its planks cupped 4 mm along the
+                              trodden lane (the middle 1.2 m of the walk's depth), the lane lighter than
+                              the grimy front and back edges (their baked occlusion lowered), two planks replaced with new
+                              ones a hair proud on WoodHoney (WoodPlanks tinted 0xf2d6a4: a third slot).
+  Boardwalk_4m_Patched        Boardwalk_4m patched: a plank gone (the joists and the ground show through), two short
+                              weathered boards nailed over rot, a plank split along its middle.
+  Boardwalk_Steps_Worn        Boardwalk_Steps with its treads dished a centimetre where feet land (deepest at the outer
+                              tread's nosing) and every edge rounded.
+                              The worn pieces chain exactly as their originals (the same frame, planks and hull): swap
+                              one in for the other, never the same twice in a row.
 
 Chaining: the walk, steps and awning pieces have their pivot on the ground at their start (x = 0) on the walk's middle
 line (y = 0): the walk runs along +X from y = -1.5 (the street side, the front) to y = +1.5, where the building fronts
@@ -384,6 +394,148 @@ def memorial(name, seed):
     return obj
 
 
+# --- Worn variants (2026-11-04, the towns round; Docs/Work/2026-11-04-Towns/PLAN.md 4.3): each replaces a piece
+# above and chains exactly like it (the same planks every 0.2 m from x = 0.1, the same joists, rims, posts and sill, the
+# same hull), so the dressing can swap them in without moving anything; never the same one twice in a row.
+
+HONEY = lt.material('WoodPlanks', name='WoodHoney', tint=0xf2d6a4)   # new boards: WoodPlanks warmed toward honey
+LANE = 0.6                       # the trodden lane: the middle 1.2 m of the walk's depth, where people walk along it
+
+
+class WornModel(town.Model):
+    """A town Model that also knows 'honey' (the replaced boards' WoodHoney)."""
+
+    def slot(self, key):
+        if key == 'honey' and key not in self.slots:
+            self.slots[key] = (len(self.slots), HONEY)
+        return town.Model.slot(self, key)
+
+
+def lane_weight(y, half=LANE):
+    """1 in the middle of the trodden lane, easing to 0 a hand past its edges."""
+    t = abs(y) / (half + 0.15)
+    return math.cos(min(t, 1.0) * math.pi * 0.5) ** 2
+
+
+def walk_frame(m, x0, x1, y0, y1, top=TOP, posts=()):
+    """town.deck's frame without its planks: joists, rims front and back, posts and the ground sill, drawn with the same
+    random values in the same order, so a worn piece's frame matches the walk it chains with."""
+    rng = m.rng
+    width = y1 - y0
+    joists = 3
+    for j in range(joists):
+        y = y0 + 0.12 + (width - 0.24) * j / max(joists - 1, 1)
+        town.box(m, (x1 - x0, 0.08, 0.16), at=((x0 + x1) * 0.5, y, top - 0.05 - 0.08), look='C', drop=('-z',))
+    rim_h = 0.2
+    for side in (y0, y1):
+        face = (0.0, -1.0, 0.0) if side == y0 else (0.0, 1.0, 0.0)
+        town.board(m, (x0, side, top - 0.05 - rim_h * 0.5), (x1, side, top - 0.05 - rim_h * 0.5), rim_h, 0.045, look='A',
+                   face=face, lift=-0.0225, drop=('+y',))
+    for x in posts:
+        for y in (y0 + 0.1, y1 - 0.1):
+            town.box(m, (0.14, 0.14, top - 0.21 + 0.12), at=(x + rng.uniform(-0.03, 0.03), y, (top - 0.21 - 0.12) * 0.5),
+                     rot=(0.0, 0.0, rng.uniform(-6.0, 6.0)), look='C', drop=('-z',))
+    town.box(m, (x1 - x0, 0.16, 0.14), at=((x0 + x1) * 0.5, y0 + 0.1, -0.05), look='C', drop=('-z',))
+
+
+def worn_plank(m, x, y0, y1, top, rng, dish=0.006, mat='planks', proud=0.0, bevel=0.0, row=None):
+    """One deck plank across the walk from y0 to y1 at x, its middle cupped up to dish deep along the trodden lane (its
+    four cuts at a fifth and two fifths in from each end); mat 'honey' for a replaced board (proud: not worn down yet)."""
+    dz = rng.uniform(-0.004, 0.003) + proud
+    yaw = rng.uniform(-0.25, 0.25)
+    y_front = y0 - 0.02 + rng.uniform(-0.01, 0.01)
+    p0, p1 = Vector((x, y_front, top - 0.025 + dz)), Vector((x, y1, top - 0.025 + dz))
+    length = (p1 - p0).length
+    mid_y = (y_front + y1) * 0.5
+    matrix = (Matrix.Translation(Vector((x, mid_y, 0.0))) @ Matrix.Rotation(math.radians(yaw), 4, 'Z')
+              @ Matrix.Translation(Vector((-x, -mid_y, 0.0))) @ kit.toward(p0, p1, (0.0, 0.0, 1.0))
+              @ Matrix.Translation((length * 0.5, 0.0, 0.0)))
+
+    def shape(co):
+        # Local x runs along the plank (world y = mid_y + x); local -y is the plank's top.
+        if dish and co.y < 0.0:
+            co = Vector((co.x, co.y + dish * lane_weight(mid_y + co.x), co.z))
+        return co
+    m.emit(kit._box((length, 0.05, town.PLANK - 0.012 - rng.uniform(0.0, 0.006)), bevel, 4 if dish else 0, ('+y',)),
+           town.PlankRow(row), mat, matrix, shape=shape)
+
+
+def lane_shade(obj, dark=0.84):
+    """The trodden lane reads a little lighter than the walk's edges, where the grime stays: the planks' upward faces
+    keep their baked occlusion in the lane and are darkened toward the walk's front and back."""
+    import numpy as np
+    mesh = obj.data
+    raw = lt._read_col(mesh)
+    names = [m.name for m in mesh.materials]
+    for poly in mesh.polygons:
+        if names[poly.material_index] not in ('WoodPlanks', 'WoodHoney') or poly.normal.z < 0.7:
+            continue
+        for li in poly.loop_indices:
+            y = mesh.vertices[mesh.loops[li].vertex_index].co.y
+            raw[li, 3] *= dark + (1.0 - dark) * lane_weight(y)
+    lt._write_col(mesh, raw)
+
+
+def boardwalk_worn(name, length, seed, patched=False):
+    m = WornModel(name, seed=seed)
+    rng = m.rng
+    count = int(round(length / town.PLANK))
+    honey = set() if patched else {4, 13}
+    gone = 9 if patched else None
+    for k in range(count):
+        x = town.PLANK * (k + 0.5)
+        if k == gone:
+            continue
+        if k in honey:
+            worn_plank(m, x, -HALF, HALF, TOP, rng, dish=0.0, mat='honey', proud=0.002)
+        else:
+            worn_plank(m, x, -HALF, HALF, TOP, rng, dish=0.006 if not patched else 0.004)
+    walk_frame(m, 0.0, length, -HALF, HALF, posts=[x for x in (1.0, 3.0) if x < length])
+    if patched:
+        # Two short boards nailed over rotten planks, the plank by the gap split along its middle.
+        for (xa, ya), (xb, yb), w in (((1.12, -0.55), (1.78, -0.48), 0.18), ((2.7, 0.62), (3.32, 0.75), 0.16)):
+            c = Vector(((xa + xb) * 0.5, (ya + yb) * 0.5, TOP + 0.011))
+            town.board(m, (xa, ya, TOP + 0.011), (xb, yb, TOP + 0.011), w, 0.022, look='A', face=(0.0, 0.0, 1.0),
+                       bevel=0.003)
+            for dx in (-0.26, 0.26):
+                for dy in (-0.05, 0.05):
+                    town.box(m, (0.012, 0.012, 0.004), at=(c.x + dx, c.y + dy, TOP + 0.023), look='H3')
+        town.box(m, (0.004, 1.9, 0.004), at=(town.PLANK * 10.5 + 0.02, 0.15, TOP + 0.0005), look='H4')
+    m.hull((length, town.WALK_DEPTH + 0.04, TOP + 0.1), at=(length * 0.5, 0.0, (TOP - 0.1) * 0.5))
+    obj = done(m)
+    lane_shade(obj)
+    return obj
+
+
+def steps_worn(name, seed):
+    """Boardwalk_Steps with its treads dished a centimetre where feet land and every edge rounded."""
+    m = WornModel(name, seed=seed)
+    tread = TOP * 0.5
+    town.board(m, (0.0, -HALF, TOP - 0.15), (0.0, HALF, TOP - 0.15), 0.2, 0.045, look='A', face=(1.0, 0.0, 0.0),
+               lift=-0.0225, bevel=0.01)
+    for k, x in enumerate((0.095, 0.27)):
+        z = tread - 0.025 + m.rng.uniform(-0.003, 0.0)
+        p0, p1 = Vector((x, -HALF - 0.01, z)), Vector((x, HALF + 0.01, z))
+        length = (p1 - p0).length
+        matrix = kit.toward(p0, p1, (0.0, 0.0, 1.0)) @ Matrix.Translation((length * 0.5, 0.0, 0.0))
+        front = 0.6 if k == 1 else 0.35          # the outer tread wears most
+
+        def shape(co, front=front):
+            if co.y < 0.0:
+                edge = 1.0 if co.z < 0.0 else 0.5       # the side toward the street (-X... the tread's nosing)
+                co = Vector((co.x, co.y + 0.01 * lane_weight(co.x) * (front + (1.0 - front) * edge), co.z))
+            return co
+        m.emit(kit._box((length, 0.05, 0.168), 0.01, 4, ('+y',)), town.PlankRow(), 'planks', matrix, shape=shape)
+    town.board(m, (0.33, -HALF, (tread - 0.05) * 0.5 - 0.02), (0.33, HALF, (tread - 0.05) * 0.5 - 0.02), tread - 0.01,
+               0.035, look='A', face=(1.0, 0.0, 0.0), lift=0.0, drop=('+y',), bevel=0.008)
+    for y in (-HALF + 0.12, 0.0, HALF - 0.12):
+        town.box(m, (0.3, 0.07, tread - 0.05), at=(0.16, y, (tread - 0.05) * 0.5 - 0.01), look='C', drop=('-z',))
+    m.hull((0.36, town.WALK_DEPTH + 0.02, tread + 0.05), at=(0.18, 0.0, (tread - 0.05) * 0.5))
+    obj = done(m)
+    lane_shade(obj, dark=0.88)
+    return obj
+
+
 models = [
     boardwalk('Boardwalk_4m', 4.0, 501),
     boardwalk('Boardwalk_2m', 2.0, 502),
@@ -397,6 +549,11 @@ models = [
     memorial('TownMemorial', 510),
     notice_board('NoticeBoard_Town', 511, header='NOTICES'),
     notice_board('NoticeBoard_Bounty', 512, header='BOUNTIES'),
+]
+models += [
+    boardwalk_worn('Boardwalk_4m_Worn', 4.0, 521),
+    boardwalk_worn('Boardwalk_4m_Patched', 4.0, 522, patched=True),
+    steps_worn('Boardwalk_Steps_Worn', 523),
 ]
 
 if lt.want_preview():

@@ -3,6 +3,7 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Creatures/EncounterSpawner.h"
+#include "World/PlayableAloft.h"
 #include "World/PlayableArea.h"
 #include "World/RespawnMarker.h"
 #include "Dom/JsonObject.h"
@@ -14,6 +15,22 @@
 #include "Misc/Paths.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
+
+namespace
+{
+	/** The vessel aloft an actor rides on (attached to her, or to something on her), or null. */
+	const IPlayableAloft* AloftOf(const AActor& Actor)
+	{
+		for (const AActor* Parent = Actor.GetAttachParentActor(); Parent; Parent = Parent->GetAttachParentActor())
+		{
+			if (const IPlayableAloft* Vessel = Cast<IPlayableAloft>(Parent))
+			{
+				return Vessel;
+			}
+		}
+		return nullptr;
+	}
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRansomsRestInsideBoundaryTest, "Looter.World.RansomsRest.InsideBoundary",
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
@@ -67,11 +84,24 @@ bool FRansomsRestInsideBoundaryTest::RunTest(const FString& Parameters)
 		{
 			++Spawners;
 			const FString Name = Spawner->GetActorNameOrLabel();
-			CheckInside(FString::Printf(TEXT("The encounter %s"), *Name), Spawner->GetActorLocation());
+			// One riding a vessel aloft (the barge's fights over the chapel knoll) is judged by her: inside the boundary or
+			// aboard her, as the playable area counts it while she hangs there (APlayableArea::AddAloft).
+			const IPlayableAloft* Vessel = AloftOf(*Spawner);
+			const auto Check = [&](const FString& What, const FVector& Where)
+			{
+				if (!Vessel)
+				{
+					CheckInside(What, Where);
+					return;
+				}
+				++Checked;
+				TestTrue(FString::Printf(TEXT("%s at (%.0f, %.0f) is inside the boundary or aboard her"), *What, Where.X, Where.Y),
+					Area->Contains(Where) || Vessel->IsAboardAt(Where));
+			};
+			Check(FString::Printf(TEXT("The encounter %s"), *Name), Spawner->GetActorLocation());
 			for (int32 Spot = 0; Spot < Spawner->SpawnPoints.Num(); ++Spot)
 			{
-				CheckInside(FString::Printf(TEXT("%s's spot %d"), *Name, Spot + 1),
-					Spawner->GetActorTransform().TransformPosition(Spawner->SpawnPoints[Spot]));
+				Check(FString::Printf(TEXT("%s's spot %d"), *Name, Spot + 1), Spawner->GetActorTransform().TransformPosition(Spawner->SpawnPoints[Spot]));
 			}
 		}
 	}

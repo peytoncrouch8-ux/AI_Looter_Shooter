@@ -3,7 +3,30 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
-## START HERE (2026-11-04 evening, IN PROGRESS: art round 4 on CONTRACT.md "Round 4"; barge round 3 committed in 0c0750bf)
+## START HERE (2026-11-04 23:00, IN PROGRESS: art round 6 chain; round 5 committed in d54521d4)
+**The user's calls at bedtime (23:15):** a view a bit over 8.3 ms does NOT hold the playtest build: package anyway, the page lists
+which views are over and by how much, perf fixes continue after; after the package, KEEP GOING overnight on the towns (DRESSING,
+BUILDINGS; a second build only if it measures under 8.3 ms and passes tests; the first build stays untouched); Home B goes BY THE
+GATE (2.8 m from the Unpaid's rise spot in the TownGate fight: `towns_homeB.patch.json` re-applied 23:14; check that fight in PIE);
+the Lamplighter keeps our textures (the Unpaid's rebake stays off). Chains: `build_round6a.ps1` (running 23:10) then
+`build_round6b.ps1` (the round-5 hull `ArtExport_TripoR5`? and walls `ArtExport_BargeWalls`: set `$Imports` from the lanes'
+notes; the perf window and PERF2's traces), then package.
+**Round 6 (Main's chain `build_round6.ps1` in the scratchpad: imports, DetailInstances, close, build, modes environment/gameplay/
+loot/fauna/dressing/lights, `build_area_town_looks.py`, missions, tests, then the warm 42-view tour WITH shots (`tour.ps1 -Warm`,
+new: every view once unmeasured first; shots to `Saved/ArtPreviews/Round6/after/` vs this morning's `Step1/before/`), the deck and
+horde rows).** In it: KIT round 18 (the barge's front half was outside the boundary: `IPlayableAloft`, `APlayableArea::AddAloft`;
+the tower push could never spawn; camps test reads `aloft`/`maxRise`), LIGHTS round 2 (gloom lamps reach 400, drawn to 25 m;
+HouseLights test renamed `.Lamp`), Smog/SmogThin sun `shadowDistance` 6000 (layout.json; `environment` mode), MATERIAL's TrimRecolor
++ `town_looks.json` (built in the editor; round 2 pushing stronger tints; zero custom data = no tint; looks saved as default custom
+primitive data), imports `ArtExport_Repack` (5 re-cut Tripo models), `ArtExport_Rebake2_Lamp` (the Lamplighter in our sets; the
+Unpaid's rebake is OFF: worse up close), `ArtExport_TownProps` (48 town models, `Docs/Work/2026-11-04-Towns/PROPS.md`). Waiting on:
+REWORK round 5 hull (stairs, walks, berth, `_Walls` slot), REPACK's walls set, LEVEL (RR_Home_B/I sites, WestRoadCrew moved to the
+chapel end), PERF2 (the game thread rose ~1.3 ms on every view in round 5, DeckFight_Dusk 7.2 -> 11.4 ms; notes `Docs/Work/2026-11-04-Art/PERF2.md`).
+New lanes: DRESSING (PLAN step 4: town_rules.py, clutter by rules) and BUILDINGS (step 5: home kits, RR_Home_K..P, outbuildings).
+After round 6: package (`Tools\package.ps1 -CloseEditor -SmokeTest`) + the one-page what-changed artifact (before JPGs in the
+scratchpad `changes_page/img/`; Phase 3's 12 changes from `Docs/Work/2026-11-03-Phase3/MORNING.md` + today's art).
+
+## Earlier this evening (art round 4 on CONTRACT.md "Round 4"; barge round 3 committed in 0c0750bf)
 **The user, 21:30:** their subscription ends on the 7th, and they will not renew unless these changes make the game better.
 Main's answer: judge by the game, not by reports: after the round 5 chain, a smoke-tested playtest build plus a one-page list of
 what changed and where to look (before/after shots), so a few minutes of play shows it; anything that plays worse is fixed or

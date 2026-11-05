@@ -83,6 +83,15 @@ public:
 	float GloomGlow = -1.f;
 
 	/**
+	 * A lamp with a Gloom value of its own (a street lamp, a porch lantern) is a small pool of light in the smog, not the
+	 * dusk's lamp: it reaches GloomReach at most (cm) and is drawn only out to GloomDrawDistance, fading over GloomFadeRange.
+	 * A dim lamp lights nothing past a few metres, and the lights in a view are what the frame pays for (the 120 fps line:
+	 * MainStreet in the smog 8.37 ms with all of them at full reach). Lamps without a Gloom value are lit as they always were.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "House Lights", meta = (ClampMin = "0"))
+	float GloomReach = 400.f;
+
+	/**
 	 * Who lives here, for the town's life (TownLifeRules: Ransom, Bright, Pruitt, CottageNorth, CottageSouth...): the house
 	 * is heard through its walls now and then as the player passes. None: from the house's model (Delia's farmhouse,
 	 * Tilly's shop, Pruitt's store, a settler's cottage), or nobody for any other.
@@ -115,6 +124,14 @@ public:
 	float GetLampFor(ELightKind Kind) const;
 	float GetGlowFor(ELightKind Kind) const;
 
+	/** How far the lamp reaches (cm) and how far from the view it is drawn, with the fade over its last part, in a kind of light. */
+	float GetReachFor(ELightKind Kind) const;
+	float GetDrawDistanceFor(ELightKind Kind) const;
+	float GetFadeRangeFor(ELightKind Kind) const;
+
+	/** The lamp has a Gloom value of its own: lit as a small dim pool in the smog. */
+	bool HasGloomLamp() const { return GloomLamp >= 0.f; }
+
 	/** The kind of light the last state applied gave it (Day before any). */
 	ELightKind GetKind() const { return KindNow; }
 
@@ -130,6 +147,10 @@ public:
 	/** A town lamp is drawn out to this far from the view (cm), fading over the last LampFadeRange of it: the towns plan's 45 m. */
 	static constexpr float LampDrawDistance = 4500.f;
 	static constexpr float LampFadeRange = 1000.f;
+
+	/** ...and in the smog, a lamp that has a Gloom value of its own only 25 m, fading from 17 m. */
+	static constexpr float GloomDrawDistance = 2500.f;
+	static constexpr float GloomFadeRange = 800.f;
 
 	/** The windows' instance on the house (null without a house or a GlowSlot): set up as play begins. */
 	UMaterialInstanceDynamic* GetWindows() const { return Windows; }
@@ -163,6 +184,9 @@ private:
 
 	TArray<FTransform> LitWindows;
 	ELightKind KindNow = ELightKind::Day;
+
+	/** The lamp's reach as the level set it (cm), taken as the first state is applied; the smog may shorten it. */
+	float BaseReach = -1.f;
 
 	FDelegateHandle Listening;
 };

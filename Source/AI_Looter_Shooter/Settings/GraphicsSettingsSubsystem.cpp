@@ -64,6 +64,12 @@ namespace
 		// about 0.1 ms at the farm on the reference card, the user's pick 2026-11-04 (grass already casts none); High and
 		// Epic keep them. ULumenScatterSubsystem applies it as play begins and whenever it changes.
 		{ TEXT("Looter.Scatter.HighShadows"), { 0, 0, 1, 1 } },
+		// Capsule shadows off below High: nothing in the game casts them (no skinned mesh sets bCastCapsuleIndirectShadow
+		// and no capsule pass shows in the reference card's GPU trace), yet while they're allowed the renderer keeps every
+		// mesh's distance field up to date for them each frame, the only reason Medium has a distance-field scene at all (no
+		// Lumen, distance-field occlusion or shadows): 0.1-0.3 ms of frame in the open views on the reference card,
+		// nothing seen (A/B 2026-11-04 night, Docs/Work/2026-11-04-Art/PERF2.md). High and Epic keep the engine's own.
+		{ TEXT("r.CapsuleIndirectShadows"), { 0, 0, 1, 1 } },
 	};
 
 	/** Looter.Quality Low|Medium|High|Epic: sets and saves the preset, as the settings menu does (handy for perf runs). */

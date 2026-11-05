@@ -9,6 +9,12 @@ Art/README.md); the props are built from parts, UV-mapped on the house trim shee
   Bench         1.7 m plank bench on two trestles (no Nanite: a small prop)
   CampfireRing  a ring of stones round an ash bed and charred logs (RockGranite, Charcoal). SOCKET_Fire at the fire.
   Signpost      2.4 m post with two arrow boards in faded teal and oxide-red paint (no Nanite: a small prop)
+  LampPost_B    (2026-11-04, the towns round) LampPost's lantern on a wall bracket for a building's outside corner: an
+                iron angle plate up the corner, a scrolled arm and brace leaving it at 45 degrees (0.78 m out). The
+                building fills the +X +Y quarter (its faces x = 0 and y = 0); pivot: the corner's edge at the arm's root
+                (hang it ~3.0 m up). SOCKET_Light at the glass; a hull round the lantern only.
+  LampPost_C    a crossing lamp: a taller hewn post (3.1 m), a crosstree both ways (1.5 m), two braces, a lantern at
+                each end: SOCKET_Light_1 (-X) and SOCKET_Light_2 (+X). Pivot: the post's foot. LODs 50% and 25%.
 
 The pivot is on the ground at the middle of the footprint (the post's foot for the lamp post and the signpost).
 """
@@ -312,12 +318,143 @@ def signpost(name, seed):
     return lp.finish(obj, ao=0.35, nanite=False)
 
 
+# --- Lamp variants (2026-11-04, the towns round; Docs/Work/2026-11-04-Towns/PLAN.md 4.3): LampPost's iron lantern
+# (the same parts, sizes and LanternGlow glass) on other mounts, so Main Street's lamps aren't nine of one. ---
+
+def lantern_parts(hang, seed):
+    """LampPost's lantern hanging from a hook at hang: the parts and the glass's middle (for SOCKET_Light)."""
+    rnd = random.Random(seed)
+    parts = [strut(hang, hang - Vector((0.0, 0.0, 0.1)), 0.016, seed + 4, strip='Iron')]
+    lantern_top = hang.z - 0.1
+    cap, _ = lp.lathe([(0.0, lantern_top + 0.0), (0.17, lantern_top - 0.09), (0.17, lantern_top - 0.11),
+                    (0.0, lantern_top - 0.11)], segments=4)
+    lt.assign(cap, lp.trim_material())
+    lp.lathe_uv(cap, 'Iron', seed=seed)
+    lp.place(cap, (0.0, 0.0, 0.0), (0.0, 0.0, 45.0))
+    lp.place(cap, (hang.x, hang.y, 0.0))
+    parts.append(cap)
+    body_top, body_bottom = lantern_top - 0.11, lantern_top - 0.41
+    glass = lp.block((0.19, 0.19, body_top - body_bottom - 0.02), (hang.x, hang.y, (body_top + body_bottom) * 0.5))
+    lt.assign(glass, GLOW)
+    lt.box_uv(glass, 'HouseTrim')
+    parts.append(glass)
+    for dx in (-0.1, 0.1):
+        for dy in (-0.1, 0.1):
+            parts.append(strut((hang.x + dx, hang.y + dy, body_bottom), (hang.x + dx, hang.y + dy, body_top), 0.022,
+                               rnd.randint(0, 999), strip='Iron'))
+    for z in (body_top - 0.012, body_bottom + 0.012):
+        ring = lp.block((0.23, 0.23, 0.024), (hang.x, hang.y, z))
+        parts.append(lp.grain(ring, 'Iron', axis=(1.0, 0.0, 0.0), seed=rnd.randint(0, 999)))
+    base = lp.block((0.25, 0.25, 0.04), (hang.x, hang.y, body_bottom - 0.02))
+    parts.append(lp.grain(base, 'Iron', axis=(1.0, 0.0, 0.0), seed=seed + 5))
+    return parts, Vector((hang.x, hang.y, (body_top + body_bottom) * 0.5)), body_bottom
+
+
+def scroll(center, radius, turns, a0, seed, width=0.018, plane='xz', tighten=0.7, steps=14):
+    """A flat wrought-iron scroll (a spiral of strap) round center, in the plane given."""
+    pts = []
+    for k in range(steps + 1):
+        t = k / steps
+        a = a0 + turns * 2.0 * math.pi * t
+        r = radius * (1.0 - tighten * t)
+        c, s = math.cos(a) * r, math.sin(a) * r
+        if plane == 'xz':
+            pts.append(Vector(center) + Vector((c, 0.0, s)))
+        else:
+            pts.append(Vector(center) + Vector((0.0, c, s)))
+    part = lp.sweep(pts, [(-0.004, -width * 0.5), (0.004, -width * 0.5), (0.004, width * 0.5), (-0.004, width * 0.5)])
+    return lp.grain(part, 'Iron', seed=seed)
+
+
+def lamp_post_b(name, seed):
+    """A wall-bracket lamp for a building's outside corner: an iron angle plate up the corner (one leaf on each
+    face), a scrolled arm and brace leaving the corner at 45 degrees, LampPost's lantern hanging from its end. The
+    building fills the +X +Y quarter: its faces are x = 0 (facing -X) and y = 0 (facing -Y). Pivot: the corner's edge at
+    the arm's root, 0.0 m (the plate runs 0.25 m above it and 0.6 m below); hang it about 3.0 m up."""
+    rnd = random.Random(seed)
+    parts = []
+    for leaf in ('x', 'y'):
+        size = (0.012, 0.11, 0.85) if leaf == 'x' else (0.11, 0.012, 0.85)
+        at = (-0.006, 0.055, -0.175) if leaf == 'x' else (0.055, -0.006, -0.175)
+        plate = lp.block(size, at)
+        parts.append(lp.grain(plate, 'Iron', axis=(0.0, 0.0, 1.0), seed=rnd.randint(0, 999)))
+        for z in (0.18, -0.2, -0.55):
+            nail_at = (-0.013, 0.07, z) if leaf == 'x' else (0.07, -0.013, z)
+            parts.append(lp.nail(nail_at, (-1.0, 0.0, 0.0) if leaf == 'x' else (0.0, -1.0, 0.0), size=0.02))
+    out = Vector((-1.0, -1.0, 0.0)).normalized()
+    reach = 0.78
+    tip = out * reach
+    arm = lp.sweep([Vector((0.0, 0.0, 0.0)), out * 0.4 + Vector((0.0, 0.0, 0.015)), tip + Vector((0.0, 0.0, 0.0)),
+                    tip + out * 0.05 + Vector((0.0, 0.0, 0.05))],
+                   [(-0.014, -0.017), (0.014, -0.017), (0.014, 0.017), (-0.014, 0.017)])
+    parts.append(lp.grain(arm, 'Iron', seed=seed + 1))
+    brace = lp.sweep([Vector((0.0, 0.0, -0.5)), out * 0.28 + Vector((0.0, 0.0, -0.18)), out * 0.52 + Vector((0.0, 0.0, -0.02))],
+                     [(-0.01, -0.012), (0.01, -0.012), (0.01, 0.012), (-0.01, 0.012)])
+    parts.append(lp.grain(brace, 'Iron', seed=seed + 2))
+    # A scroll in the angle between the arm and the brace, turned to lie in the arm's plane.
+    sc = scroll((0.0, 0.0, 0.0), 0.11, 1.1, math.radians(200.0), seed + 3)
+    lp.place(sc, (0.0, 0.0, 0.0), (0.0, 0.0, 45.0 + 90.0))
+    lp.place(sc, tuple(out * 0.2 + Vector((0.0, 0.0, -0.14))))
+    parts.append(sc)
+    hang = tip + Vector((0.0, 0.0, -0.01))
+    lantern, light, bottom = lantern_parts(hang, seed + 10)
+    parts += lantern
+    obj = lp.join(name, parts)
+    lp.hull_box(obj, (0.28, 0.28, hang.z - bottom + 0.08), (hang.x, hang.y, (hang.z + bottom) * 0.5 - 0.03))
+    lm.socket(obj, 'Light', location=tuple(light))
+    lp.finish(obj, ao=0.3, nanite=False)
+    return obj
+
+
+def lamp_post_c(name, seed):
+    """A crossing lamp: a taller hewn post with a crosstree reaching both ways over the crossing, two braces, and
+    LampPost's lantern hanging from each end (SOCKET_Light_1 toward -X, SOCKET_Light_2 toward +X). Pivot: the post's
+    foot. 3.1 m tall, 1.5 m across the arms."""
+    rnd = random.Random(seed)
+    top = 3.1
+    post = lp.block((0.18, 0.18, top + 0.15), (0.0, 0.0, (top - 0.15) * 0.5), bevel=0.015)
+    lp.grain(post, 'Beams', axis=(0.0, 0.0, 1.0), seed=seed)
+    lp.slice_at(post, (0.0, 0.0, 1.0), (0.03, 0.35, 0.7))
+    lp.rough(post, 0.005, 5.0, seed)
+    parts = [post]
+    cap, _ = lp.lathe([(0.0, top), (0.127, top), (0.0, top + 0.12)], segments=4)
+    lt.assign(cap, lp.trim_material())
+    lp.lathe_uv(cap, 'Beams', seed=seed)
+    lp.place(cap, (0.0, 0.0, 0.0), (0.0, 0.0, 45.0))
+    parts.append(cap)
+    arm_z = top - 0.16
+    parts.append(beam((1.56, 0.1, 0.11), (0.0, 0.0, arm_z), 'x', seed + 1, bevel=0.01))
+    lights = []
+    for k, s in enumerate((-1.0, 1.0)):
+        parts.append(strut((s * 0.07, 0.0, arm_z - 0.55), (s * 0.48, 0.0, arm_z - 0.06), 0.07, seed + 2 + k))
+        for xx, zz in ((s * 0.1, arm_z), (s * 0.4, arm_z - 0.1)):
+            parts.append(lp.nail((xx, -0.055, zz), (0.0, -1.0, 0.0)))
+        hang = Vector((s * 0.7, 0.0, arm_z - 0.06))
+        strap = lp.block((0.13, 0.12, 0.05), (hang.x, 0.0, arm_z))
+        parts.append(lp.grain(strap, 'Iron', axis=(0.0, 1.0, 0.0), seed=seed + 4 + k))
+        lantern, light, bottom = lantern_parts(hang, seed + 10 + k * 7)
+        parts += lantern
+        lights.append((light, bottom, hang))
+    obj = lp.join(name, parts)
+    lp.hull_box(obj, (0.22, 0.22, top), (0.0, 0.0, top * 0.5))
+    for k, (light, bottom, hang) in enumerate(lights):
+        lp.hull_box(obj, (0.28, 0.28, hang.z - bottom + 0.06), (hang.x, hang.y, (hang.z + bottom) * 0.5 - 0.03))
+        lm.socket(obj, f'Light_{k + 1}', location=tuple(light))
+    lp.finish(obj, ao=0.4, nanite=False)
+    obj['LODs'] = '50,25'
+    return obj
+
+
 models = [
     lamp_post('LampPost', 10),
     laundry_line('LaundryLine', 20),
     bench('Bench', 30),
     campfire_ring('CampfireRing', 40),
     signpost('Signpost', 50),
+]
+models += [
+    lamp_post_b('LampPost_B', 60),
+    lamp_post_c('LampPost_C', 70),
 ]
 
 if lt.want_preview():

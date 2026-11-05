@@ -6,6 +6,9 @@ Art/README.md); the props are built from parts, UV-mapped on the house trim shee
   Crate_A      0.9 m slatted crate: slats with gaps on corner posts, a diagonal brace, big nail heads
   Crate_B      1.0 m plank crate, its lid pushed back askew; packing straw (Hay) inside
   WaterTrough  1.8 m plank trough on two sleepers, iron straps, dark water inside
+  Barrel_C     (2026-11-04, the towns round) a rain barrel: Barrel_A's staves and hoops, open, dark water a hand under the
+               rim, a loose lid of three boards on battens with a gap at the back where a galvanized downspout stub
+               (MailboxTin: 2 slots) drops in from a wall behind (+Y). 0.68 x 0.89 x 1.51 m. Nanite off, LODs 50/25.
 
 The pivot is on the ground at the middle of the footprint; the front faces -Y.
 """
@@ -278,12 +281,93 @@ def water_trough(name, seed):
     return lp.finish(obj, ao=0.4, fallback=100)
 
 
+# --- Barrel_C (2026-11-04, the towns round; Docs/Work/2026-11-04-Towns/PLAN.md 4.3): a rain barrel under an eave ---
+
+TIN = lt.material('MetalWorn', name='MailboxTin', tint=0xc9c6bd)    # galvanized: the mailbox's and the milk cans' tin
+
+
+def barrel_c(name, seed):
+    """Barrel_A's barrel set out under an eave for rain: its head knocked out and a loose lid of three boards on two
+    battens laid over it, one board short so the downspout's elbow drops into the gap; dark water just under the rim. The
+    downspout is a stub of galvanized pipe (MailboxTin) standing 0.55 m above the lid, as if it came down a wall behind
+    (the barrel's back, +Y). Pivot: the middle of its foot."""
+    rnd = random.Random(seed)
+    height, r_end, r_mid, proud = 0.92, 0.27, 0.33, 0.009
+
+    def radius(z):
+        return r_end + (r_mid - r_end) * math.sin(math.pi * min(max(z / height, 0.0), 1.0)) ** 0.8
+
+    rows = [(0.0, 0.0, None), (radius(0.0), 0.0, 'end')]
+    z = 0.0
+    for center in (0.07, 0.27, 0.65, 0.85):
+        z0, z1 = center - 0.028, center + 0.028
+        while z0 - z > 0.13:
+            z += min(0.12, (z0 - z) * 0.5)
+            rows.append((radius(z), z, 'stave'))
+        rows += [(radius(z0), z0, 'stave'), (radius(z0) + proud, z0, 'iron'), (radius(z1) + proud, z1, 'iron'),
+                 (radius(z1), z1, 'iron')]
+        z = z1
+    # Open at the top: the rim, then the inside of the staves down to the water.
+    water = height - 0.09
+    rows += [(radius(height), height, 'stave'), (radius(height) - 0.025, height, 'stave'),
+             (radius(water) - 0.025, water, 'stave'), (0.0, water, 'water')]
+    body, bands = lp.lathe([(r, z) for r, z, _ in rows], segments=16)
+    kinds = [rows[b + 1][2] for b in bands]
+    for v in body.data.vertices:
+        if math.hypot(v.co.x, v.co.y) > 0.1:
+            k = round(math.atan2(v.co.y, v.co.x) / (2.0 * math.pi / 16))
+            wobble = 1.0 + 0.012 * noise.noise(Vector((k * 1.7, seed, 0.3)))
+            v.co.x *= wobble
+            v.co.y *= wobble
+    staves = [i for i, k in enumerate(kinds) if k in ('stave', 'end')]
+    hoops = [i for i, k in enumerate(kinds) if k == 'iron']
+    pool = [i for i, k in enumerate(kinds) if k == 'water']
+    lt.assign(body, lp.trim_material())
+    lp.lathe_uv(body, 'Siding', staves, grain='up', seed=seed, per_column=True)
+    lp.lathe_uv(body, 'Iron', hoops, grain='around', seed=seed + 1)
+    lt.trim_uv(body, pool, 'Glass', align='world', v_offset=0.05)
+    parts = [body]
+    # The lid: three boards on two battens, the last board short of the back where the downspout comes in.
+    lid_z = height + 0.012
+    for k, (y, x0, x1) in enumerate(((-0.2, -0.27, 0.27), (0.0, -0.33, 0.33), (0.2, -0.27, 0.05))):
+        board = lp.block((x1 - x0, 0.19, 0.024), ((x0 + x1) * 0.5, y, lid_z), (0.0, 0.0, rnd.uniform(-1.5, 1.5)))
+        parts.append(lp.grain(board, 'Siding', axis=(1.0, 0.0, 0.0), seed=rnd.randint(0, 999)))
+    for x in (-0.16, 0.16):
+        batten = lp.block((0.06, 0.58, 0.03), (x, 0.0, lid_z - 0.027))
+        parts.append(lp.grain(batten, 'Beams', axis=(0.0, 1.0, 0.0), seed=rnd.randint(0, 999)))
+        for y in (-0.2, 0.0):
+            parts.append(lp.nail((x, y, lid_z + 0.012), (0.0, 0.0, 1.0), size=0.02))
+    # The downspout: a short run down the wall behind, an elbow, its mouth into the gap.
+    mouth = Vector((0.17, 0.2, lid_z + 0.05))
+    pts = [Vector((0.17, 0.42, lid_z + 0.58)), Vector((0.17, 0.42, lid_z + 0.22)), Vector((0.17, 0.36, lid_z + 0.12)),
+           Vector((0.17, 0.27, lid_z + 0.07)), mouth]
+    pipe = lp.sweep(pts, lp.ngon(0.045, 10))
+    lt.assign(pipe, TIN)
+    lt.box_uv(pipe, 'MetalWorn', texel_density=1024, seed=seed + 3)
+    parts.append(pipe)
+    for z in (lid_z + 0.45, lid_z + 0.2):
+        band = lp.block((0.11, 0.11, 0.02), (0.17, 0.42, z))
+        lt.assign(band, TIN)
+        lt.box_uv(band, 'MetalWorn', texel_density=1024, seed=seed + 4)
+        parts.append(band)
+    obj = lp.join(name, parts)
+    ring = [Vector((math.cos(a) * r, math.sin(a) * r, z)) for a in (k * math.pi / 4 for k in range(8))
+            for r, z in ((r_end, 0.0), (r_mid + proud, height * 0.5), (r_end + 0.03, height + 0.03))]
+    lp.hull_points(obj, ring)
+    lp.finish(obj, ao=0.4, nanite=False, smooth=40.0)
+    obj['LODs'] = '50,25'
+    return obj
+
+
 models = [
     barrel_a('Barrel_A', 10),
     barrel_b('Barrel_B', 20),
     crate_a('Crate_A', 30),
     crate_b('Crate_B', 40),
     water_trough('WaterTrough', 50),
+]
+models += [
+    barrel_c('Barrel_C', 60),
 ]
 
 if lt.want_preview():

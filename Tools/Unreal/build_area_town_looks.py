@@ -1,7 +1,9 @@
 """The town's buildings re-finished with no new draw (Docs/Work/2026-11-04-Towns/PLAN.md 4.2 item 1): each building's roof
 tint, siding tint and porch (the trim boards swapped or not) from Art/Levels/<Area>/town_looks.json, written into its
 model's custom primitive data, which M_World's TrimRecolor reads on MI_HouseTrim (Tools/Unreal/build_world_materials.py:
-TRIM_DATA, 0-2 the roof tint, 3 the swap, 4-6 the siding tint, 7 the whitewash; the defaults change nothing).
+TRIM_DATA, 0-2 the roof tint, 3 the swap, 4-6 the siding stain, 7 the paint's cover, 8-10 its colour, 11 the roof's grey;
+zeros change nothing). Tints: a roof is a tint list or {tint, grey}; a siding is {tint (the bare boards' stain), paint
+(sRGB hex; none is whitewash cream), wash (how much paint covers the boards)}.
 
 First the table is checked against the neighbour rule: buildings next to each other along a side (town_looks.json sides)
 differ in roof (its tint, or a roof kit that isn't the shake strip) AND siding AND porch; buildings facing each other across
@@ -26,8 +28,17 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(HERE)
 REPO = os.path.dirname(os.path.dirname(HERE))
 # M_World's TrimRecolor indices (build_world_materials.TRIM_DATA; kept here, not imported: that module builds as it runs).
-ROOF, SWAP, SIDING, WASH = 0, 3, 4, 7
-DEFAULTS = (1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0)
+ROOF, SWAP, SIDING, WASH, PAINT, GREY = 0, 3, 4, 7, 8, 11
+DEFAULTS = (1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+
+def linear(hex_colour):
+    """An sRGB hex colour's linear values (the paint is listed as it looks, the material wants linear)."""
+    out = []
+    for i in (1, 3, 5):
+        c = int(hex_colour[i:i + 2], 16) / 255.0
+        out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+    return out
 
 
 def log(text):
@@ -79,11 +90,16 @@ def data_of(looks, spec):
     """The eight custom data floats for a building's looks."""
     values = list(DEFAULTS)
     if not spec.get('roofKit'):
-        values[ROOF:ROOF + 3] = [float(v) for v in looks['tints']['roof'][spec['roof']]]
+        roof = looks['tints']['roof'][spec['roof']]
+        roof = roof if isinstance(roof, dict) else {'tint': roof}
+        values[ROOF:ROOF + 3] = [float(v) for v in roof['tint']]
+        values[GREY] = float(roof.get('grey', 0.0))
     values[SWAP] = 1.0 if spec.get('porchSwap') else 0.0
     siding = looks['tints']['siding'][spec['siding']]
-    values[SIDING:SIDING + 3] = [float(v) for v in siding['tint']]
+    values[SIDING:SIDING + 3] = [float(v) for v in siding.get('tint', (1.0, 1.0, 1.0))]
     values[WASH] = float(siding.get('wash', 0.0))
+    if siding.get('paint'):
+        values[PAINT:PAINT + 3] = linear(siding['paint'])
     return values
 
 
@@ -134,7 +150,9 @@ def run(area, mode='set'):
         for component in components(actor):
             component.modify()
             for index, value in enumerate(values):
-                component.set_custom_primitive_data_float(index, value)
+                # The defaults are what the level saves (set_custom_primitive_data_* is run-time only, never saved);
+                # setting them resets the run-time data to them.
+                component.set_default_custom_primitive_data_float(index, value)
         written += 1
         log(f'{key}: roof {roof_of(spec)}, siding {spec["siding"]}, porch {"swapped" if spec.get("porchSwap") else "as built"}'
             + (' (cleared)' if mode == 'clear' else ''))

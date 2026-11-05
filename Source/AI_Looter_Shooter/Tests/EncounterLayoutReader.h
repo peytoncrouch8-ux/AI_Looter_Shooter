@@ -136,6 +136,8 @@ namespace EncounterLayout
 		FAreaShape Ground;
 		FName During;
 		FName After;
+		/** Fought this far over the ground under it (cm; "aloft": the barge's deck and hall over the chapel knoll); 0 on the ground. */
+		double Aloft = 0.0;
 	};
 
 	/** One camp, patrol or ambush, as the layout has it (a camp's middle is among its spots). */
@@ -156,6 +158,8 @@ namespace EncounterLayout
 		bool bFind = false;
 		/** Story fights whose roaming ground it stands in by design (MiserPlot among boot hill's graves): not kept clear of them. */
 		TArray<FString> InsideFights;
+		/** An ambush springs only within this of its own height (trigger.maxRise, cm); 0: no such limit. */
+		double TriggerMaxRise = 0.0;
 	};
 
 	struct FAreaLayout
@@ -286,6 +290,11 @@ namespace EncounterLayout
 			}
 		}
 		Object->TryGetBoolField(TEXT("find"), Made.bFind);
+		const TSharedPtr<FJsonObject>* Trigger = nullptr;
+		if (Object->TryGetObjectField(TEXT("trigger"), Trigger) && Trigger && Trigger->IsValid())
+		{
+			(*Trigger)->TryGetNumberField(TEXT("maxRise"), Made.TriggerMaxRise);
+		}
 		if (Object->TryGetArrayField(TEXT("inside"), Field))
 		{
 			for (const TSharedPtr<FJsonValue>& Fight : *Field)
@@ -377,6 +386,7 @@ namespace EncounterLayout
 				FString Mission;
 				Fight.During = Object->TryGetStringField(TEXT("during"), Mission) ? FName(*Mission) : NAME_None;
 				Fight.After = Object->TryGetStringField(TEXT("after"), Mission) ? FName(*Mission) : NAME_None;
+				Object->TryGetNumberField(TEXT("aloft"), Fight.Aloft);
 			}
 		}
 		for (const TCHAR* Section : { TEXT("camps"), TEXT("patrols"), TEXT("ambushes") })

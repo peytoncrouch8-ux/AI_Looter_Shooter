@@ -97,7 +97,18 @@ bool FEncounterCampPlacementTest::RunTest(const FString& Parameters)
 			}
 			for (const FAreaFight& Fight : Layout.Fights)
 			{
-				if (MayOverlapInTime(Each.After, Fight) && !Each.InsideFights.Contains(Fight.Id))
+				if (!MayOverlapInTime(Each.After, Fight) || Each.InsideFights.Contains(Fight.Id))
+				{
+					continue;
+				}
+				if (Fight.Aloft > 0.0)
+				{
+					// A fight aloft (the barge's, 38-47 m over the chapel knoll) shares no ground with what's under her: an ambush
+					// under her has to spring below her deck (its trigger's maxRise), never from it; anything else keeps off.
+					TestTrue(FString::Printf(TEXT("%s is off %s's ground, or springs under her (%.0f cm up) only"), *At, *Fight.Id, Fight.Aloft),
+						Fight.Ground.Distance(Spot) >= FightClear || (Each.TriggerMaxRise > 0.0 && Each.TriggerMaxRise < Fight.Aloft));
+				}
+				else
 				{
 					TestTrue(FString::Printf(TEXT("%s is off %s's ground"), *At, *Fight.Id), Fight.Ground.Distance(Spot) >= FightClear);
 				}

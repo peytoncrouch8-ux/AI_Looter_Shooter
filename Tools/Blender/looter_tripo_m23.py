@@ -26,6 +26,7 @@ from mathutils import Matrix, Vector
 
 import looter_model as lm
 import looter_tripo_buildings as tb
+import looter_tripo_repack as repack
 import looter_tripo_wardens as tw
 
 # Base specs for looter_tripo_wardens.build (boxes [] = no hulls from it: each fit makes its own). Unreal: X front, Y right;
@@ -45,11 +46,11 @@ BASE = {
     # Sandbags: GLB wall along Y (12 rows, as tall as long: fit_sandbags cuts it to waist height). Its length stays on
     # Blender Y = UE X (build_area_main3 turns the actor's X along the gate's side).
     'CompanySandbags': dict(category='Tripo', kind='prop', master='World', maps=1024, turn=0.0, size=('length', 2.0),
-                            pivot='bottom', boxes=[]),
+                            pivot='bottom', boxes=[], repack_after=True),
     # Board: GLB face toward +X, width along Y. Turned -90: the face to Blender -Y (UE +X, where ACompanySign draws its
     # words), width along Blender X (UE Y).
     'CompanyCheckpointSign': dict(category='Tripo', kind='prop', master='World', maps=1024, turn=-90.0,
-                                  size=('width', 3.0), pivot='bottom', boxes=[]),
+                                  size=('width', 3.0), pivot='bottom', boxes=[], repack_after=True),
     # Banner: GLB length along Y, its faces +-X. Turned +90: length along Blender X (UE Y), faces +-Blender Y (UE +-X).
     'CompanyBanner': dict(category='Tripo', kind='prop', master='World', maps=2048, turn=90.0, size=('width', 12.0),
                           pivot='center', boxes=[]),
@@ -435,6 +436,10 @@ def build(name):
     tw.SPECS[name] = BASE[name]
     obj, report = tw.build(name)
     FITS[name](obj, report)
+    if BASE[name].get('repack_after'):
+        # After the fit (it cuts, re-slots and reads Tripo's colours on its UVs): the faces left on the Tripo set
+        # re-packed and its maps re-cut from the GLB's 4096 delivery (looter_tripo_repack; REPACK.md).
+        repack.after_fit(obj, name, BASE[name], report)
     if not [c for c in obj.children if c.name.startswith('UCX_')]:
         obj['Collision'] = 'None'
     V = verts(obj)

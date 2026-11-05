@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "Story/StoryCondition.h"
 #include "World/BargeRules.h"
+#include "World/PlayableAloft.h"
 #include "BargeBoarding.generated.h"
 
 class ABargeFurnace;
@@ -75,7 +76,7 @@ enum class EBargeState : uint8
  * into the shell. Without the hull (not imported) she's an iron box and the kit lays its own deck plates, coaming and rails on it.
  */
 UCLASS()
-class AI_LOOTER_SHOOTER_API ABargeBoarding : public AActor
+class AI_LOOTER_SHOOTER_API ABargeBoarding : public AActor, public IPlayableAloft
 {
 	GENERATED_BODY()
 
@@ -143,6 +144,9 @@ public:
 	/** The droppers' ropes' tops for BargeDeckRoof or BargeDeckTower (their ARappelSpawner's RopeTops), each its landing's. */
 	UFUNCTION(BlueprintCallable, Category = "Barge")
 	TArray<FVector> GetDropRopeTops(FName Fight) const;
+
+	/** In her bounds (BargeRules::IsAboard) while she hangs, burst or dying up there: the level's boundary counts it inside. */
+	virtual bool IsAboardAt(const FVector& WorldPoint) const override;
 
 	/** The stoker's desk top, where the manifest lies. */
 	UFUNCTION(BlueprintCallable, Category = "Barge")

@@ -1,0 +1,27 @@
+[
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "homeI",
+      "kind": "RR_Home_I",
+      "location": [
+        -1400,
+        7300
+      ],
+      "yaw": 15,
+      "note": "the L house (empty), the towns plan's step 2: east of the undertaker's yard at Main Street's south-east corner (not plan lot 5: Pen Lane's end has no room), its front 14 m from the street's east end; pivot = its front door"
+    },
+    "comment": "RR_Home_I in the build-only props"
+  },
+  {
+    "path": "level.lights",
+    "op": "merge",
+    "value": {
+      "homeI": {
+        "dark": true
+      }
+    },
+    "comment": "B lived: the lamp at its SOCKET_Light and its two lamplit panes at the lived houses' level (cottageNorth's); I empty: dark (it has no WindowGlow slot)"
+  }
+]

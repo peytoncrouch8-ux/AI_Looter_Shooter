@@ -160,8 +160,16 @@ def of_class(name):
 
 
 def attach(child, parent):
+    # The barge's root is movable and a static child can't ride a movable parent (Unreal refuses the attach with a warning and
+    # leaves it loose: her encounter and rope spawners stood free, so the boundary test couldn't judge them by her). The
+    # child goes movable first.
+    root = child.get_editor_property('root_component')
+    if root is not None:
+        root.set_mobility(unreal.ComponentMobility.MOVABLE)
     keep = unreal.AttachmentRule.KEEP_WORLD
     child.attach_to_actor(parent, '', keep, keep, keep, False)
+    if child.get_attach_parent_actor() != parent:
+        unreal.log_warning(f'Main 6: {child.get_actor_label()} did not attach to {parent.get_actor_label()}')
 
 
 def story_prop(build, model, location, rotator, scale, label, shown=(), hidden=(), look=None):

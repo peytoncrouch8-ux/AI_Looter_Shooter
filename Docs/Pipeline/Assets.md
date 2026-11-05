@@ -46,6 +46,19 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
      averages 0.045 linear luma), TopTint 1.25. `DetailMaskAlpha` 1: the base colour map's alpha gates the set's light and
      dark (a paint set's chips on painted zones, none on rust; grain, roughness and plates stay); `MI_TripoDredgeBarge_Walls`
      (PaintWorn 0.65 at 1.6 m, plates 2.0 x 1.0 m) uses it once REBAKE writes the chip weight into the walls' BC alpha.
+   - Town looks (2026-11-04, `M_World` static `TrimRecolor`, on `MI_HouseTrim` only, set by the DetailInstances step):
+     custom primitive data 0-2 roof tint (shake strip E), 3 H1/H2 trim swap, 4-6 bare siding stain (strip A), 7 paint
+     cover, 8-10 paint colour (linear; zero = cream 0xe6dac2), 11 roof grey (desaturate before the tint). Paint keeps half
+     the boards' grain (luminance over strip A's mean 0.161) and leaves the dark gaps bare. Table
+     `Art/Levels/<Area>/town_looks.json` (sRGB paint, neighbour rule checked), written by
+     `Tools/Unreal/build_area_town_looks.py <Area> [check|clear]` (re-run after any rebuild of the level's buildings).
+     Round 1 (the plan's multipliers only: x0.45-1.15, a cream lerp) read as nothing; round 2's painted frontier palette
+     (chalk, sage, grey-blue, mustard, brick, silvered/tarred bare; silver, honey, tar-paper, moss roofs) reads at 30 m.
+     The false fronts' street faces are mostly other materials (WoodPlanks, PaintCream, signs): side walls and roofs carry
+     most of it. Cost: MI_HouseTrim 229 -> 269 PS, 5 -> 6 samplers; every other instance unchanged. Lessons: a level keeps
+     only the component's Custom Primitive Data Defaults (`set_default_custom_primitive_data_float`;
+     `set_custom_primitive_data_*` is run-time only and is lost on save); a mesh with no data reads zeros, never the
+     parameter's default (that is the material editor's preview), so the code takes zeros as no change.
    - M_Terrain's Medium path (2026-11-04, `TERRAIN_NEAR` and the code beside it): Quality Switches send material quality
      Medium (r.MaterialQualityLevel 2, EffectsQuality@1) and Low to a cheaper graph; High and Epic take Default (stats
      unchanged: 160 VS / 972 PS / 13 samplers / 14 graph samples). Medium: no side-laid rock normals; thatch, stony and the

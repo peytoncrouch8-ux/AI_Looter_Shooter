@@ -185,7 +185,7 @@ def _save_colour(image, path, max_size=None):
     fmt.file_format, fmt.color_mode, fmt.color_depth, fmt.compression = 'PNG', 'RGB', '8', 90
     view.view_transform, view.look, view.exposure, view.gamma = 'Standard', 'None', 0.0, 1.0
     try:
-        out.save_render(filepath=path, scene=scene)
+        lt.retry_write(lambda: out.save_render(filepath=path, scene=scene), path)   # Windows may hold a fresh file
     finally:
         (fmt.file_format, fmt.color_mode, fmt.color_depth, fmt.compression, view.view_transform, view.look,
          view.exposure, view.gamma) = kept

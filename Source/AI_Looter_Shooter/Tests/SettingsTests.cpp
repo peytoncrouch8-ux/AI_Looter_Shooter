@@ -13,6 +13,7 @@
 #include "UI/Style/LooterUIFocus.h"
 #include "Blueprint/UserWidget.h"
 #include "Engine/World.h"
+#include "HAL/IConsoleManager.h"
 #include "InputAction.h"
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
@@ -58,6 +59,11 @@ bool FQualityPresetsTest::RunTest(const FString& Parameters)
 		TestEqual(Name + TEXT(" static mesh LOD distance"), Settings.FindRef(TEXT("r.StaticMeshLODDistanceScale")), bMedium ? 1.25f : 1.f);
 		// The shrubs' shadows only on High and Epic (the user's pick, 2026-11-04: about 0.1 ms at the farm).
 		TestEqual(Name + TEXT(" shrub shadows"), Whole(TEXT("Looter.Scatter.HighShadows")), bHighOrEpic ? 1 : 0);
+		// Capsule shadows (which nothing casts) off below High: they alone kept Medium's distance-field scene updated every
+		// frame (0.1-0.3 ms in the open views, 2026-11-04 night).
+		TestEqual(Name + TEXT(" capsule indirect shadows"), Whole(TEXT("r.CapsuleIndirectShadows")), bHighOrEpic ? 1 : 0);
+		// The variable is the engine's, so the preset really sets something (a renamed one would be skipped quietly).
+		TestNotNull(TEXT("r.CapsuleIndirectShadows exists"), IConsoleManager::Get().FindConsoleVariable(TEXT("r.CapsuleIndirectShadows")));
 	}
 
 	// A fresh install starts on the minimum spec, without motion blur, with the minimap and the FPS counter showing.

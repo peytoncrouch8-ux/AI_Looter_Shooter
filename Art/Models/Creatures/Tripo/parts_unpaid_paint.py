@@ -196,6 +196,10 @@ def paint(body, body_tripo, hat, hat_tripo, solid_faces):
     colour = rb._dilate(colour, hit, steps=FILL)
     c0 = int(round(SIZE * PACK))
     colour[:SIZE - c0, c0:] = np.array(lt.hex_color(SOLID)[:3], np.float32)       # rows top first: the upper right
+    # Tripo's paint layout repainted in our character looks per garment (skin, linen, oilskin, wool, felt: Tools/Blender/
+    # looter_tripo_zones_tables.unpaid, the REBAKE lane 2026-11-04): off unless LOOTER_REBAKE=Unpaid (or =1).
+    import looter_tripo_zones_tables as zt
+    colour = zt.unpaid(target, colour, body, hat, solid_faces)
     path = lt.texture_path(SET, 'BC')
     os.makedirs(os.path.dirname(path), exist_ok=True)
     lt.write_png(path, lt.to8(rb._linear_to_srgb(colour)))

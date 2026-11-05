@@ -1,0 +1,38 @@
+[
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "homeB",
+      "kind": "RR_Home_B",
+      "location": [
+        -1750,
+        50
+      ],
+      "yaw": 0,
+      "note": "the dogtrot (lived in), the towns plan's step 2: the open ground behind the south side's west end, on the Rest's stock-pen side (plan lot 6, not lot 3: lot 3 has no room, Docs/Work/2026-11-04-Towns/HOMES.md), its front to the north, its back to the farm road; pivot = its front door"
+    },
+    "comment": "LEFT OUT 2026-11-04 (Main): B stands 2.8 m from the Unpaid rise spot (-1300, -800) inside the TownGate fight, which Phase 3 just tuned and the user has not played; apply this (layout_patch.py RansomsRest <this file> --check first) when it has a lot of its own"
+  },
+  {
+    "path": "level.lights",
+    "op": "merge",
+    "value": {
+      "homeB": {
+        "lamp": [
+          3,
+          16
+        ],
+        "reach": 400,
+        "gloomGlow": 4
+      }
+    },
+    "comment": "B lived: the lamp at its SOCKET_Light and its two lamplit panes at the lived houses' level (cottageNorth's); I empty: dark (it has no WindowGlow slot)"
+  },
+  {
+    "path": "level.smoke",
+    "op": "append",
+    "value": "homeB",
+    "comment": "B's chimney smoke (SOCKET_Smoke; the empty L house has none)"
+  }
+]

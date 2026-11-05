@@ -32,6 +32,9 @@ namespace
 	constexpr float FirstSettleSeconds = 6.f;
 	constexpr float SettleSeconds = 3.f;
 	constexpr float MeasureSeconds = 3.f;
+	// The warm pass's stay at each view: long enough for its streaming and first shader compiles, which otherwise land in
+	// the measured seconds as one long frame (2026-11-04: Farm's 2.2 s stall on a cold run made it read 30 ms).
+	constexpr float WarmSeconds = 4.f;
 	// The screenshot is written at the end of a frame; give it a moment before the view moves.
 	constexpr float ShotSeconds = 1.f;
 
@@ -56,6 +59,24 @@ void UViewTourSubsystem::Tick(float DeltaTime)
 	const float Delta = static_cast<float>(FApp::GetDeltaTime());
 	Clock += Delta;
 	const float Settle = Current == 0 ? FirstSettleSeconds : SettleSeconds;
+	if (bWarming)
+	{
+		// The warm pass: every view once, unmeasured and unshot, then the real pass from the first.
+		if (Clock > (Current == 0 ? FirstSettleSeconds : WarmSeconds))
+		{
+			if (Current + 1 < Stops.Num())
+			{
+				Visit(Current + 1);
+			}
+			else
+			{
+				bWarming = false;
+				UE_LOG(LogLooter, Display, TEXT("Looter.Tour: warm pass done, measuring."));
+				Visit(0);
+			}
+		}
+		return;
+	}
 	if (Clock > Settle && Clock <= Settle + MeasureSeconds)
 	{
 		if (Frames == 0)
@@ -106,7 +127,7 @@ bool UViewTourSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) 
 	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE;
 }
 
-bool UViewTourSubsystem::Start(const FString& ViewsFile, bool bInShots, bool bInQuit)
+bool UViewTourSubsystem::Start(const FString& ViewsFile, bool bInShots, bool bInQuit, bool bInWarm)
 {
 	FString Text;
 	const FString Path = FPaths::ProjectDir() / ViewsFile;
@@ -157,6 +178,7 @@ bool UViewTourSubsystem::Start(const FString& ViewsFile, bool bInShots, bool bIn
 
 	bShots = bInShots;
 	bQuit = bInQuit;
+	bWarming = bInWarm;
 	Rows.Reset();
 	if (!Camera)
 	{
@@ -164,7 +186,8 @@ bool UViewTourSubsystem::Start(const FString& ViewsFile, bool bInShots, bool bIn
 		Params.ObjectFlags |= RF_Transient;
 		Camera = World->SpawnActor<ACameraActor>(Params);
 	}
-	UE_LOG(LogLooter, Display, TEXT("Looter.Tour: %d viewpoints from %s, quality %s."), Stops.Num(), *ViewsFile, *QualityName(World));
+	UE_LOG(LogLooter, Display, TEXT("Looter.Tour: %d viewpoints from %s, quality %s%s."), Stops.Num(), *ViewsFile, *QualityName(World),
+		bWarming ? TEXT(", a warm pass first") : TEXT(""));
 	Visit(0);
 	return true;
 }
@@ -262,7 +285,7 @@ void UViewTourSubsystem::Report()
 #if !UE_BUILD_SHIPPING
 namespace
 {
-	/** Looter.Tour [views file] [noshots] [quit] */
+	/** Looter.Tour [views file] [noshots] [quit] [warm] */
 	void TourCommand(const TArray<FString>& Args, UWorld* World)
 	{
 		UWorld* GameWorld = World && World->IsGameWorld() ? World : nullptr;
@@ -279,11 +302,16 @@ namespace
 		FString File = DefaultViews;
 		bool bShots = true;
 		bool bQuit = false;
+		bool bWarm = false;
 		for (const FString& Arg : Args)
 		{
 			if (Arg.Equals(TEXT("noshots"), ESearchCase::IgnoreCase))
 			{
 				bShots = false;
+			}
+			else if (Arg.Equals(TEXT("warm"), ESearchCase::IgnoreCase))
+			{
+				bWarm = true;
 			}
 			else if (Arg.Equals(TEXT("quit"), ESearchCase::IgnoreCase))
 			{
@@ -294,7 +322,7 @@ namespace
 				File = Arg;
 			}
 		}
-		if (!Tour->Start(File, bShots, bQuit) && bQuit)
+		if (!Tour->Start(File, bShots, bQuit, bWarm) && bQuit)
 		{
 			FPlatformMisc::RequestExit(false, TEXT("Looter.Tour"));
 		}
@@ -302,7 +330,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs TourCommandRegistration(
 		TEXT("Looter.Tour"),
-		TEXT("Looks from each viewpoint of the level (default Art/Levels/TutorialIsland/views.json), measures frame times there and takes a screenshot: Looter.Tour [views file] [noshots] [quit]"),
+		TEXT("Looks from each viewpoint of the level (default Art/Levels/TutorialIsland/views.json), measures frame times there and takes a screenshot: Looter.Tour [views file] [noshots] [quit] [warm] (warm: every view once unmeasured first)"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&TourCommand));
 }
 #endif

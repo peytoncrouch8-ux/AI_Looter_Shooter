@@ -22,9 +22,9 @@
                   run after M_World): the model importer clears an instance's parameters on a re-import, so after
                   re-importing one of their models run this script with DetailInstances (rebuilding M_World keeps them).
                   TrimRecolor (static, off; on MI_HouseTrim, TRIM_INSTANCES, also set by the DetailInstances step): the house
-                  trim sheet's roof shakes (strip E), weathered siding (strip A, with a whitewash lerp) and H1/H2 trim boards
-                  (swapped on a flag) recoloured from the actor's custom primitive data 0-7 (TRIM_DATA; defaults change
-                  nothing); build_area_town_looks.py sets them per building from town_looks.json.
+                  trim sheet's roof shakes (strip E: tint, greyed), weathered siding (strip A: stain, then paint of any colour) and
+                  H1/H2 trim boards (swapped on a flag) from the actor's saved custom primitive data defaults 0-11 (TRIM_DATA; a mesh
+                  with none reads zeros, which change nothing); build_area_town_looks.py sets them per building from town_looks.json.
   M_Gun           M_World's maps for gun parts, plus per-gun wear: Wear (0 fresh to 1 battered) comes from each part's
                   custom primitive data 0 (set by UWeaponModelComponent, no material copies per gun): scuffs where the
                   finish is rubbed through to a paler layer, grime in the creases, a duller finish. No moss. Its notches
@@ -973,23 +973,38 @@ def apply_detail():
 # The static switch TrimRecolor (group Trim, off: the graph as it was) on MI_HouseTrim only (TRIM_INSTANCES). The house trim
 # sheet's strips (looter_textures TRIM_STRIPS, in Blender's V, which runs up: 1 - UV0 V here, the FBX import flips it) take
 # the actor's custom primitive data: 0-2 the roof tint on strip E (the shakes, a multiplier), 3 a flag that swaps the H1
-# (teal) and H2 (oxide-red) trim boards, 4-6 the siding tint on strip A (the weathered boards) and 7 how far the siding is
-# lerped to whitewash cream after it (TRIM_CREAM). The defaults (1, 1, 1, 0) change nothing: every other prop on HouseTrim
-# looks as it did. Set per building by Tools/Unreal/build_area_town_looks.py from Art/Levels/<Area>/town_looks.json.
+# (teal) and H2 (oxide-red) trim boards, 4-6 the siding stain on strip A (the weathered boards, a multiplier for bare
+# boards), 7 how much paint covers the siding, 8-10 the paint's colour (linear; zero is whitewash cream, TRIM_CREAM) and
+# 11 how far the shakes go grey (weathered silver, tar paper) before their tint. Paint keeps half the boards' grain (their
+# luminance over the strip's mean, TRIM_SIDING_MEAN) and leaves the dark gaps between boards bare. A mesh with no data
+# reads zeros, which change nothing: every other prop on HouseTrim looks as it did. Set per building by
+# Tools/Unreal/build_area_town_looks.py from Art/Levels/<Area>/town_looks.json.
 TRIM_SWITCH = 'TrimRecolor'
 TRIM_CREAM = (0.7913, 0.7011, 0.5395)          # 0xe6dac2, linear
-TRIM_DATA = {'roof': 0, 'swap': 3, 'siding': 4, 'wash': 7}   # custom primitive data indices (build_area_town_looks.py)
+TRIM_DATA = {'roof': 0, 'swap': 3, 'siding': 4, 'wash': 7, 'paint': 8, 'grey': 11}   # custom primitive data indices
+TRIM_SIDING_MEAN = 0.161                       # strip A's mean linear luminance (T_HouseTrim_BC, measured 2026-11-04)
 TRIM_INSTANCES = ('/Game/Art/Materials/MI_HouseTrim',)
 TRIM_RECOLOR_CODE = """float Vb = 1.0 - UV.y;
 float3 C = Color;
+// A primitive with no custom data reads zeros (the parameter's default is the material editor's preview only):
+// a zero tint means none, a zero paint colour is cream, so every untouched house-trim mesh keeps its look.
+float3 One = float3(1.0, 1.0, 1.0);
+float3 RoofTint = dot(Roof.rgb, One) > 0.0 ? Roof.rgb : One;
+float3 SidingTint = dot(Siding.rgb, One) > 0.0 ? Siding.rgb : One;
+float3 PaintColor = dot(Paint.rgb, One) > 0.0 ? Paint.rgb : Cream;
+float L = dot(C, float3(0.3, 0.59, 0.11));
 // H1 and H2 swapped (Roof.a): the other board's texel, a strip (1/32) away; the gradients taken before the branch.
 float2 Dx = ddx(UV), Dy = ddy(UV);
 [branch] if (Roof.a > 0.5 && Vb >= 0.0625 && Vb < 0.125)
     C = Texture2DSampleGrad(Map, View.MaterialTextureBilinearWrapedSampler, UV + float2(0.0, Vb >= 0.09375 ? 0.03125 : -0.03125), Dx, Dy).rgb;
 if (Vb >= 0.375 && Vb < 0.5)
-    C *= Roof.rgb;
+    C = lerp(C, L.xxx, saturate(Paint.a)) * RoofTint;
 else if (Vb >= 0.875)
-    C = lerp(C * Siding.rgb, Cream, saturate(Siding.a));
+{
+    float Grain = L / SidingMean;
+    float Cover = saturate(Siding.a) * saturate(Grain * 2.5 - 0.5);
+    C = lerp(C * SidingTint, PaintColor * lerp(1.0, Grain, 0.5), Cover);
+}
 return C;"""
 
 
@@ -1008,8 +1023,10 @@ def trim_recolor(g, bc, x, y):
                       sampler_type=unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, texture=unreal.load_asset(WHITE))
     return g.custom(TRIM_RECOLOR_CODE, [
         ('Color', bc, 'RGB'), ('UV', uv, ''),
-        ('Roof', data('TrimRoof', TRIM_DATA['roof'], (1.0, 1.0, 1.0, 0.0), y + 200), ''),
-        ('Siding', data('TrimSiding', TRIM_DATA['siding'], (1.0, 1.0, 1.0, 0.0), y + 300), ''),
+        ('Roof', data('TrimRoof', TRIM_DATA['roof'], (1.0, 1.0, 1.0, 0.0), y + 200), 'RGBA'),
+        ('Siding', data('TrimSiding', TRIM_DATA['siding'], (1.0, 1.0, 1.0, 0.0), y + 300), 'RGBA'),
+        ('Paint', data('TrimPaint', TRIM_DATA['paint'], (0.0, 0.0, 0.0, 0.0), y + 350), 'RGBA'),
+        ('SidingMean', g.node(unreal.MaterialExpressionConstant, x - 400, y + 600, r=TRIM_SIDING_MEAN), ''),
         ('Map', trim_map, ''),
         ('Cream', g.node(unreal.MaterialExpressionConstant3Vector, x - 400, y + 500,
                          constant=unreal.LinearColor(*TRIM_CREAM, 1.0)), ''),

@@ -2774,9 +2774,11 @@
       "cottageNorthEast": { "lamp": [3,16], "reach": 400, "gloomGlow": 4 },
       "cottageSouthWest": { "dark": true },
       "dugout": { "lamp": [2,9], "reach": 300, "gloomGlow": 4 },
-      "sheriff": { "lamp": [1.5,6.0], "reach": 300, "gloomGlow": 6 }
+      "sheriff": { "lamp": [1.5,6.0], "reach": 300, "gloomGlow": 6 },
+      "homeI": { "dark": true },
+      "homeB": { "lamp": [3,16], "reach": 400, "gloomGlow": 4 }
     },
-    "smoke": ["farmhouse","store","undertaker","cottageNorth","cottageNorthEast","dugout","depot","locomotive","workshop"],
+    "smoke": ["farmhouse","store","undertaker","cottageNorth","cottageNorthEast","dugout","depot","locomotive","workshop","homeB"],
     "cliffs": {
       "varied": ["boundaryFoot","eastRidge","hogback","larkspurEast","escarpment","bluffPath","ransomsPoint","coffinRock","theSink","sinkRamp","theNose","millGorge"],
       "top": [0.72,1.12],
@@ -2972,6 +2974,20 @@
         "location": [0,-1100],
         "yaw": -90,
         "note": "Main Street's west end: the arch over the road, its front down the road west, its posts on townGateNorth and townGateSouth"
+      },
+      {
+        "id": "homeI",
+        "kind": "RR_Home_I",
+        "location": [-1400,7300],
+        "yaw": 15,
+        "note": "the L house (empty), the towns plan's step 2: east of the undertaker's yard at Main Street's south-east corner (not plan lot 5: Pen Lane's end has no room), its front 14 m from the street's east end; pivot = its front door"
+      },
+      {
+        "id": "homeB",
+        "kind": "RR_Home_B",
+        "location": [-1750,50],
+        "yaw": 0,
+        "note": "the dogtrot (lived in), the towns plan's step 2: the open ground behind the south side's west end, on the Rest's stock-pen side (plan lot 6, not lot 3: lot 3 has no room, Docs/Work/2026-11-04-Towns/HOMES.md), its front to the north, its back to the farm road; pivot = its front door"
       }
     ],
     "environment": {
@@ -3004,7 +3020,7 @@
         },
         "Smog": {
           "about": "Soul smog over the Rest (the Wardens story, 2026-10-31; Docs/Work/2026-10-31-Wardens/CONTRACT.md, lane WORLD): Vane's dredge barge over the Sink pours black runoff into the sky, so from Main 1 until Main 6 is done (build_area_landfall.py's AStoryLighting rule, after the deck's Dusk rules) the golden hour is choked: the haze nearly four times as thick (still starting 60 m out, so a fight stays clear) and a sickly grey-green, its glow toward the sun dulled to brass; the sun dimmer, a touch cooler; the sky light dimmer and the sky itself greyed toward its horizon; the far ranges and the clouds greyed and greened through MPC_Lighting; the exposure lowered so the whole valley reads oppressed. Tune on the Point (PointOverValley) and the farm: the barge must still read as a silhouette at 200 m.",
-          "sun": { "azimuth": 247.5, "elevation": 14, "intensity": 4.5, "temperature": 4000 },
+          "sun": { "azimuth": 247.5, "elevation": 14, "intensity": 4.5, "temperature": 4000, "shadowDistance": 6000 },
           "sky": { "intensity": 0.75 },
           "atmosphere": { "skyLuminance": [0.9, 1.1, 1.35], "ozone": 1.3 },
           "fog": { "density": 0.011, "inscattering": [0.17, 0.19, 0.14],
@@ -3015,7 +3031,7 @@
         },
         "SmogThin": {
           "about": "The smog thinned (Choke Point's turn-in on, lane MAIN45: one hose choked, the barge down to one stack; after Main 6 it stays thin with no source; build_area_main5.py's AStoryLighting rule, before the Smog rule): halfway back from Smog to the clean golden hour.",
-          "sun": { "azimuth": 247.5, "elevation": 15, "intensity": 5.5, "temperature": 4050 },
+          "sun": { "azimuth": 247.5, "elevation": 15, "intensity": 5.5, "temperature": 4050, "shadowDistance": 6000 },
           "sky": { "intensity": 0.88 },
           "atmosphere": { "skyLuminance": [0.95, 1.22, 1.65] },
           "fog": { "density": 0.007, "inscattering": [0.23, 0.25, 0.24],
@@ -3234,7 +3250,7 @@
       }
     ],
     "encounters": {
-      "about": "What happens between the story's fights (Docs/Polish/BorderlandsComparison.md, item 7): camps (a few creatures, a Restless leader and a Supply Crate), patrols (a pack walking a stretch of road there and back) and ambushes (they spring as the player walks onto a landmark's ground). Placed by Tools/Unreal/build_area_camps.py, checked by Looter.Encounters.Camps.Placement and .Gating (since 2026-10-21 the user's bigger fights: camps and patrols 5-8, ambushes and fights 6-10; set pieces, a setPiece block: build_area_setpieces.py, ASetPieceSpawner, once a session by their story flag), counted by Looter.Progression.Pacing (Docs/Progression.md). Layout cm, X north, Y east. after: the missions turned in before it's on; like every encounter it starts over when the level loads (the crates stay opened: the session keeps them). keepOut and storyFights are what they keep off: the safe zones and arrivals, and the scripted fights' grounds while those fights can happen (a fight during a main mission is over once a later main mission is turned in; a roaming group's ground is shared, only its spots kept clear). budget: main (on the story's path, counted before countedBefore's own fights), roaming (with the few roaming kills a normal play makes), optional (an explorer's).",
+      "about": "What happens between the story's fights (Docs/Polish/BorderlandsComparison.md, item 7): camps (a few creatures, a Restless leader and a Supply Crate), patrols (a pack walking a stretch of road there and back) and ambushes (they spring as the player walks onto a landmark's ground). Placed by Tools/Unreal/build_area_camps.py, checked by Looter.Encounters.Camps.Placement and .Gating (since 2026-10-21 the user's bigger fights: camps and patrols 5-8, ambushes and fights 6-10; set pieces, a setPiece block: build_area_setpieces.py, ASetPieceSpawner, once a session by their story flag), counted by Looter.Progression.Pacing (Docs/Progression.md). Layout cm, X north, Y east. after: the missions turned in before it's on; like every encounter it starts over when the level loads (the crates stay opened: the session keeps them). keepOut and storyFights are what they keep off: the safe zones and arrivals, and the scripted fights' grounds while those fights can happen (a fight during a main mission is over once a later main mission is turned in; a roaming group's ground is shared, only its spots kept clear; a fight aloft, its height over the ground in cm (the barge's deck and hall over the chapel knoll), keeps clear only of what could wake from up there: an ambush whose trigger's maxRise is under it may stand below her). budget: main (on the story's path, counted before countedBefore's own fights), roaming (with the few roaming kills a normal play makes), optional (an explorer's).",
       "keepOut": [
         { "zone": "farm", "note": "Delia's salt line: a safe zone, always" },
         { "zone": "mainStreet", "note": "safe after Main 3" },
@@ -3251,9 +3267,9 @@
         { "id": "BellAnswered", "obstacle": "churchyardFence", "during": "Main4", "by": "build_area_main4.py (the tender's drop on ropes: four riflemen level 3, two hose-men level 4)" },
         { "id": "IntakeDrop", "zone": "sink", "during": "Main5", "by": "build_area_main5.py (two drops down the barge's hose, the Sink's 4-5)" },
         { "id": "IntakeSpiders", "zone": "sink", "during": "Main5", "by": "build_area_main5.py (three spiders down the webbed ramp)" },
-        { "id": "BargeDeck", "obstacle": "churchyardFence", "during": "Main6", "by": "build_area_main6.py (the barge's deck 25 m over the chapel knoll: six riflemen, three hose-men, level 6; The Pilot Light, 2026-11-01)" },
-        { "id": "FurnaceHall", "obstacle": "churchyardFence", "during": "Main6", "by": "build_area_main6.py (the furnace hall: the Chief Stoker, Hallowed 7; four riflemen, three hose-men, level 6)" },
-        { "id": "WestRoadCrew", "at": [2800, -7900], "radius": 3000, "during": "Main7", "by": "build_area_main7.py (the barge's crew on the west road: three riflemen, two hose-men, level 6; Given to the Wind)" },
+        { "id": "BargeDeck", "obstacle": "churchyardFence", "during": "Main6", "aloft": 4750, "by": "build_area_main6.py (the barge's deck 25 m over the chapel knoll: six riflemen, three hose-men, level 6; The Pilot Light, 2026-11-01)" },
+        { "id": "FurnaceHall", "obstacle": "churchyardFence", "during": "Main6", "aloft": 3800, "by": "build_area_main6.py (the furnace hall: the Chief Stoker, Hallowed 7; four riflemen, three hose-men, level 6)" },
+        { "id": "WestRoadCrew", "at": [5150, -1500], "radius": 1250, "during": "Main7", "by": "build_area_main7.py (the barge's crew at the west road's chapel end, 12.5 m hunting ground: three riflemen, two hose-men, level 6; Given to the Wind. Moved 2026-11-04 from the sheep fold's middle: the road's other stretches are the WestRoad patrol's, the fold camp's and the Tollman's)" },
         { "id": "BootHill", "zone": "bootHill", "after": "Main4", "by": "build_area_chapel.py (roaming)" },
         { "id": "NorthRoad", "at": [4256, 1350], "radius": 2500, "after": "Main4", "by": "build_area_chapel.py (roaming): halfway between the hanging tree and the north road" },
         { "id": "WhitlockHands", "obstacle": "barnYardFence", "during": "Side2", "by": "build_area_whitlock.py" },

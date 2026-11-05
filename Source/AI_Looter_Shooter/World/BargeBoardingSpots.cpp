@@ -207,3 +207,10 @@ FVector ABargeBoarding::GetHoseTop() const
 {
 	return GetActorTransform().TransformPosition(BargeRules::DrumUnderKeel);
 }
+
+bool ABargeBoarding::IsAboardAt(const FVector& WorldPoint) const
+{
+	// Up there to stand on: hanging over the knoll, burst, or dying in the sky (not away, falling with the scene, or fallen).
+	const bool bAloft = State == EBargeState::Hanging || State == EBargeState::Burst || State == EBargeState::Dying;
+	return bAloft && BargeRules::IsAboard(GetActorTransform().InverseTransformPositionNoScale(WorldPoint) - FVector(0.0, 0.0, KitLift));
+}

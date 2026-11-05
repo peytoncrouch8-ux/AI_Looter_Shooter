@@ -619,16 +619,7 @@ class AreaBuild:
                            folder='Buildings', tags=('Obstacle',), scale=(scale,) * 3 if scale != 1.0 else None)
             placed += 1
 
-        # The models only the build places stand on the ground under their location, which the terrain now gives.
-        for prop in self.props:
-            name = self.model_names.get(prop['kind'], prop['kind'])
-            if name not in meshes:
-                self.warn(f'no SM_{name} yet (prop {prop["id"]})')
-                continue
-            x, y = prop['location']
-            self.place(unreal.load_asset(meshes[name]), (x, y, ground_height(x, y, 0.0)), prop.get('yaw', 0.0),
-                       label=prop['id'], folder='Buildings', tags=('Obstacle',))
-            placed += 1
+        placed += self.place_props(meshes)
 
         # A station's landing lies on its platform, which stands only now.
         for station, key, spot in stations:
@@ -660,6 +651,23 @@ class AreaBuild:
                                folder='Orchard', tags=('Tree',))
                     placed += 1
         self.log(f'placed {placed} models')
+
+    def place_props(self, meshes):
+        """The models only the build places (level.props: the town gate, and since 2026-11-04 the homes the towns plan adds,
+        RR_Home_B and RR_Home_I) stand on the ground under their location, which the terrain now gives. "lift" (cm): a
+        prop that wants raising or sinking from the ground at its pivot (a house on a slope: its pivot is the front door, so
+        the lift is read off the probe's heights under its footprint). Returns how many."""
+        placed = 0
+        for prop in self.props:
+            name = self.model_names.get(prop['kind'], prop['kind'])
+            if name not in meshes:
+                self.warn(f'no SM_{name} yet (prop {prop["id"]})')
+                continue
+            x, y = prop['location']
+            self.place(unreal.load_asset(meshes[name]), (x, y, ground_height(x, y, 0.0) + float(prop.get('lift', 0.0))),
+                       prop.get('yaw', 0.0), label=prop['id'], folder='Buildings', tags=('Obstacle',))
+            placed += 1
+        return placed
 
     def source_scale(self, key):
         """A placement's uniform scale from layout.json ("scale"), 1 without one."""
@@ -1285,6 +1293,43 @@ class AreaBuild:
             placed += 1
         return placed
 
+    def replace_house_lights(self):
+        """The lived-in houses' lights again (level.lights): the last build's Lights_<key> are taken out by label, house_lights
+        places them, and who lives in each lit house is set again (build_area_townlife.py's households, for a level that has
+        the town life). Returns how many were taken out."""
+        old = [a for a in actors.get_all_level_actors() if unreal.Name(self.tag) in a.tags
+               and str(a.get_actor_label()).startswith('Lights_') and str(a.get_folder_path()) == f'{self.folder}/Effects']
+        if old:
+            actors.destroy_actors(old)
+        self.house_lights()
+        if any(spot['kind'] == 'Grave_Ellis' for spot in self.layout['placements'].values()):
+            town_life = importlib.reload(importlib.import_module('build_area_townlife'))
+            town_life.set_households(self, town_life.level_actors(self))
+        return len(old)
+
+    def prop_smoke(self, ids):
+        """Chimney smoke for the level.props named in level.smoke (effects() does the placements': a prop is in the level only
+        after models(), and the props mode places them alone): a plume at each Smoke socket, leaned as effects() leans it."""
+        smoking = [key for key in self.source.get('level', {}).get('smoke', []) if key in ids]
+        meshes = mesh_index()
+        if not smoking or 'SmokePlume' not in meshes:
+            return
+        plume = unreal.load_asset(meshes['SmokePlume'])
+        stale = [a for a in actors.get_all_level_actors() if unreal.Name(self.tag) in a.tags
+                 and str(a.get_actor_label()) in {f'Smoke_{key}' for key in smoking}]
+        if stale:
+            actors.destroy_actors(stale)
+        for building in actors.get_all_level_actors():
+            if unreal.Name(self.tag) not in building.tags or str(building.get_actor_label()) not in smoking:
+                continue
+            for mesh_component in building.get_components_by_class(unreal.StaticMeshComponent):
+                mesh = mesh_component.static_mesh
+                if mesh is None or mesh.find_socket('Smoke') is None:
+                    continue
+                where = mesh_component.get_socket_transform('Smoke', unreal.RelativeTransformSpace.RTS_WORLD).translation
+                self.place(plume, (where.x, where.y, where.z), WIND_YAW, label=f'Smoke_{building.get_actor_label()}',
+                           folder='Effects')
+
     def house_lights(self):
         """The lived-in houses' lights (level.lights, by placement key): AHouseLights on each one's SOCKET_Light, its lamp
         there and the model's WindowGlow slot brightened at dusk, with the lamp's candelas by day and at dusk ("lamp") and
@@ -1359,7 +1404,8 @@ class AreaBuild:
         sky and fog, with "beyond" only what lies past the boundary (a grounded area's ring, canyon wall and
         backdrop; an island's sky islands), with "cliffs" only the cliff faces and the outcrops, with "dressing" only
         the obstacles' fences, walls, graves, cairns and yard props (build_area_dressing.py), with "water" only the
-        waterfalls and their feet (falls()), or with "lights" only the lived-in houses' lights (house_lights())."""
+        waterfalls and their feet (falls()), with "lights" only the lived-in houses' lights (house_lights()), or with
+        "props" only level.props (the town gate, the homes the towns plan adds) with their lights and smoke."""
         with open(self.computed_path) as f:
             self.layout = json.load(f)
         # Reloaded, as the editor keeps modules between runs, so an edited one takes effect.
@@ -1424,23 +1470,30 @@ class AreaBuild:
             levels.save_current_level()
             self.log('waterfalls placed and saved')
             return
+        if mode == 'props':
+            # level.props alone (the town gate, the new homes), without a full build: the last build's are taken out by label
+            # (nothing is cleared by folder: the folder named holds nothing and only opens the level), the lived-in houses'
+            # lights, households and chimney smoke follow them, as in the full build. The scatter, the loot and the fauna
+            # read the level's buildings: run them again after (Docs/Pipeline/Levels.md).
+            self.open_level('Buildings/NoProps')
+            ids = {prop['id'] for prop in self.props}
+            old = [a for a in actors.get_all_level_actors() if unreal.Name(self.tag) in a.tags and str(a.get_actor_label()) in ids]
+            if old:
+                actors.destroy_actors(old)
+            count = self.place_props(mesh_index())
+            self.prop_smoke(ids)
+            self.replace_house_lights()
+            levels.save_current_level()
+            self.log(f'props placed and saved ({count} placed, {len(old)} of the last build taken out)')
+            return
         if mode == 'lights':
             # The lived-in houses' lights alone (level.lights: lamp, reach, the windows' dusk and smog glow), so a change to them
             # needs no full build. Nothing is cleared by folder (the folder named holds nothing; it only opens the level): the
             # last build's Lights_<key> are taken out by label, as the build's own tag marks them.
             self.open_level('Effects/Lights')
-            old = [a for a in actors.get_all_level_actors() if unreal.Name(self.tag) in a.tags
-                   and str(a.get_actor_label()).startswith('Lights_') and str(a.get_folder_path()) == f'{self.folder}/Effects']
-            if old:
-                actors.destroy_actors(old)
-            self.house_lights()
-            # Who lives in each lit house is the town life's (build_area_townlife.py sets it on the Lights_<key>): the new
-            # lights get it again, as the gameplay pass would, for a level that has the town life.
-            if any(spot['kind'] == 'Grave_Ellis' for spot in self.layout['placements'].values()):
-                town_life = importlib.reload(importlib.import_module('build_area_townlife'))
-                town_life.set_households(self, town_life.level_actors(self))
+            old = self.replace_house_lights()
             levels.save_current_level()
-            self.log(f'lights placed and saved ({len(old)} of the last build\'s taken out)')
+            self.log(f'lights placed and saved ({old} of the last build taken out)')
             return
         if mode == 'dressing':
             # On the terrain's tiles, which stand already; in the area's look (the cairns' granite).
@@ -1508,8 +1561,8 @@ def run(name, only_gameplay=False, mode=None):
 
 if __name__ == '__main__':
     args = sys.argv[1:]
-    modes = ('gameplay', 'environment', 'beyond', 'cliffs', 'dressing', 'water', 'lights')
+    modes = ('gameplay', 'environment', 'beyond', 'cliffs', 'dressing', 'water', 'lights', 'props')
     if not args or args[0] in modes:
-        raise SystemExit('usage: build_area.py <Area> [gameplay|environment|beyond|cliffs|dressing|water|lights] (the area is '
+        raise SystemExit('usage: build_area.py <Area> [gameplay|environment|beyond|cliffs|dressing|water|lights|props] (the area is '
                          'a folder under Art/Levels)')
     run(args[0], mode=next((a for a in args[1:] if a in modes), None))

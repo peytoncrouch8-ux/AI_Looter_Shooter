@@ -14,7 +14,8 @@ What it places, from the built level (the layout's roads, the chapel's sockets, 
   Point, just off the road, a hold of a second frees each (Main 7 step 0's optional, a lasting objective) and its soul
   follows Abel's lantern (UCarriedLanternSubsystem); cracked, it stays cracked (SoulCoal.<Id>).
 - WestRoadCrew (AEncounterSpawner): the Company men who bailed out of the barge, three riflemen and two hose-men at level 6,
-  on the west road halfway between the deck and the chapel, during Main 7's walk home (step 4) until the turn-in; their
+  at the west road's chapel end (the walk home's last stretch; the rest of the road is the Unpaid's), during Main 7's walk
+  home (step 4) until the turn-in; their
   hose-men latch Abel's lantern, not Sully (the C++). Hob's word as they come into sight (an unseen speaker point's mutter).
 - Abel's lantern's rest on Saint Ada's Reliquary (AReliquaryLantern, tagged Reliquary_Lantern: it seats itself on her
   ember), step 5's hold; the Reliquary lit for good once she wakes (its LitWhen: Main7.SaintAdaAwake).
@@ -78,9 +79,14 @@ RIM_LUMPS, RIM_RING = 18, (1500.0, 4200.0)
 FIELD_SIZE = (16.0, 42.0)
 # A lump never sits more than this over or under the ground found round it (a rock, a step): moved along, else left out.
 LUMP_STEP = 80.0
-# The west road's crew: halfway along the west road (share), spread this far, active from this far.
-CREW_AT = 0.55
-CREW_SPREAD, CREW_ACTIVATION, CREW_GIVE_UP = 900.0, 5000.0, 5500.0
+# The west road's crew: at the road's chapel end (share 0: the road's first point, 4.5 m short of the churchyard's fence), spread
+# this far, active from this far, and hunting within CREW_GIVE_UP of the spawner (layout.json gameplay.encounters.storyFights
+# WestRoadCrew says the same circle). Halfway along the road (share 0.55, give-up 55 m, until 2026-11-04) put them in the
+# sheep fold camp's ground, and the road's other stretches belong to the WestRoad patrol, the fold's camp and the Tollman:
+# the chapel end is the only stretch with room for a fight's ground (Looter.Encounters.Camps.Placement keeps each fight's
+# ground 3 m off every camp's and patrol's, and the camps' grounds off it).
+CREW_AT = 0.0
+CREW_SPREAD, CREW_ACTIVATION, CREW_GIVE_UP = 400.0, 5000.0, 1250.0
 CREW_GROUPS = (('DredgerRifleman', 3), ('DredgerHoseMan', 2))
 CREW_LEVEL = 6
 CREW_WORD_RADIUS = 3800.0

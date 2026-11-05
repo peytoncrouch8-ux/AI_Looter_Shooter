@@ -2338,8 +2338,259 @@ def render_heroes(hero_ids_):
     lt.write_png(os.path.join(HERO_DIR, 'Compare_Heroes_1m.png'), lt.to8(np.clip(row, 0.0, 1.0)))
 
 
+# --- The town's handbills (2026-11-04, the towns round: TownClutter.py's Handbills_A and _B) ---
+# A second atlas, a model texture set rather than a decal: Art/Textures/Handbills/T_Handbills_BC, _N, _ORM (1024 px,
+# 1024 px/m, opaque: each sheet's outline is the mesh's). Every bill is invented; Rye is the only type face. Run:
+#     Tools\artrun.ps1 -Script Tools\Blender\looter_posters.py -ScriptArgs '--handbills'
+
+HANDBILLS_SET = 'Handbills'
+# name: (cell box in px of the 1024 atlas, x0 y0 x1 y1 with y down; the sheet's size in mm), the sheet centred in it.
+HANDBILL_CELLS = {
+    'Notice': ((0, 0, 316, 436), (300.0, 420.0)),
+    'Lost': ((316, 0, 548, 316), (220.0, 300.0)),
+    'Auction': ((548, 0, 824, 376), (260.0, 360.0)),
+    'Rooms': ((824, 0, 1024, 152), (190.0, 140.0)),
+    'Torn': ((824, 152, 1024, 316), (190.0, 150.0)),
+    'Stage': ((0, 436, 256, 782), (240.0, 330.0)),
+    'Service': ((256, 436, 482, 732), (210.0, 280.0)),
+    'Hands': ((482, 376, 728, 712), (230.0, 320.0)),
+    'Sale': ((728, 376, 944, 652), (200.0, 260.0)),
+    'Back': ((0, 782, 216, 1024), (200.0, 230.0)),
+}
+# Where each sheet is nailed (mm from its top left): the corners without a nail curl off the wall (the mesh's rule).
+HANDBILL_PINS = {
+    'Notice': [(12.0, 11.0), (288.0, 12.0), (14.0, 405.0)],
+    'Lost': [(110.0, 10.0)],
+    'Auction': [(12.0, 12.0), (248.0, 12.0), (247.0, 348.0), (13.0, 349.0)],
+    'Rooms': [(10.0, 10.0), (180.0, 11.0)],
+    'Torn': [(12.0, 12.0), (178.0, 14.0)],
+    'Stage': [(12.0, 11.0), (228.0, 13.0)],
+    'Service': [(105.0, 10.0)],
+    'Hands': [(11.0, 12.0), (219.0, 11.0), (218.0, 308.0)],
+    'Sale': [(10.0, 10.0), (190.0, 11.0), (100.0, 250.0)],
+    'Back': [],
+}
+INK_BLACK = (0.17, 0.145, 0.13)
+INK_RED = (0.72, 0.29, 0.21)
+# The bills' copy: (kind, ...) per line, y the baseline in mm from the sheet's top. 'type': text, cap, y, width (mm or
+# None: its own), ink ('k' black, 'r' red), wood (big wood type); 'rule': y, thick, margin; 'stars': y, size, inset.
+HANDBILL_COPY = {
+    'Notice': dict(tone=0xe0d6bd, seed=11, lines=[
+        ('type', 'NOTICE', 46.0, 70.0, 250.0, 'k', True), ('rule', 80.0, 2.0, 22.0), ('rule', 84.5, 0.8, 22.0),
+        ('type', "TO THE RESIDENTS OF RANSOM'S REST", 9.5, 104.0, 250.0, 'k', False),
+        ('type', 'By order of the Board, all claims on the', 5.0, 130.0, None, 'k', False),
+        ('type', 'valley floor and the river bottoms are held', 5.0, 140.0, None, 'k', False),
+        ('type', 'by VANE CONSOLIDATED pending survey.', 5.0, 150.0, None, 'k', False),
+        ('type', 'Persons found digging, dredging or burning', 5.0, 162.0, None, 'k', False),
+        ('type', 'without a Company permit will be removed.', 5.0, 172.0, None, 'k', False),
+        ('stars', 196.0, 6.0, 40.0), ('type', 'THE COMPANY PROVIDES', 12.0, 222.0, 220.0, 'r', False),
+        ('type', 'WORK', 30.0, 266.0, None, 'k', True), ('type', 'WAGES', 30.0, 306.0, None, 'k', True),
+        ('type', 'LIGHT', 30.0, 346.0, None, 'r', True), ('rule', 362.0, 1.2, 60.0),
+        ('type', 'C. VANE, CHAIRMAN', 7.0, 384.0, None, 'k', False)]),
+    'Lost': dict(tone=0xc9cbbf, seed=12, lines=[
+        ('type', 'LOST', 44.0, 62.0, 170.0, 'k', True), ('rule', 72.0, 1.4, 20.0),
+        ('type', 'A ROAN MARE', 13.0, 96.0, 170.0, 'k', False),
+        ('type', 'white blaze, answers to BISCUIT', 5.0, 116.0, None, 'k', False),
+        ('type', 'strayed from the Whitlock place', 5.0, 128.0, None, 'k', False),
+        ('type', 'on or about the ninth.', 5.0, 140.0, None, 'k', False),
+        ('type', 'REWARD', 26.0, 186.0, 160.0, 'r', True), ('rule', 198.0, 0.9, 40.0),
+        ('type', "inquire at Pruitt's", 6.0, 222.0, None, 'k', False),
+        ('type', 'NO QUESTIONS', 9.0, 262.0, None, 'k', False)]),
+    'Auction': dict(tone=0xd8c590, seed=13, lines=[
+        ('type', 'PUBLIC', 16.0, 44.0, 150.0, 'k', False), ('type', 'AUCTION', 40.0, 92.0, 225.0, 'k', True),
+        ('rule', 104.0, 1.8, 20.0), ('type', 'THE GOODS OF A FAMILY GONE WEST', 7.5, 126.0, 220.0, 'k', False),
+        ('type', 'FARM STOCK & IMPLEMENTS', 10.0, 152.0, 220.0, 'r', False),
+        ('type', 'Ploughs, harrows, a hay rake', 5.5, 174.0, None, 'k', False),
+        ('type', 'a grindstone, a churn, the kettle', 5.5, 186.0, None, 'k', False),
+        ('type', 'a sound wagon and its harness', 5.5, 198.0, None, 'k', False),
+        ('stars', 220.0, 5.0, 50.0), ('type', 'SATURDAY', 22.0, 262.0, 190.0, 'k', True),
+        ('type', 'AT NOON', 14.0, 288.0, None, 'k', False), ('rule', 302.0, 0.9, 50.0),
+        ('type', 'TERMS CASH', 9.0, 326.0, None, 'r', False)]),
+    'Rooms': dict(tone=0xe2d9c2, seed=14, lines=[
+        ('type', 'ROOMS', 30.0, 56.0, 150.0, 'k', True), ('rule', 66.0, 1.2, 20.0),
+        ('type', 'Clean Beds & Hot Baths', 8.0, 88.0, 150.0, 'k', False),
+        ('type', 'by the night or the week', 5.0, 104.0, None, 'k', False),
+        ('type', 'inquire within', 6.0, 124.0, None, 'r', False)]),
+    'Torn': dict(tone=0xd2c7a8, seed=15, lines=[
+        ('type', 'ARD', 30.0, 46.0, None, 'r', True), ('rule', 58.0, 1.4, 16.0),
+        ('type', 'for information leading to', 5.0, 78.0, None, 'k', False),
+        ('type', 'the return of the payroll', 5.0, 90.0, None, 'k', False),
+        ('type', 'P. M. CO.', 12.0, 118.0, None, 'k', False)]),
+    'Stage': dict(tone=0xd6bdaa, seed=16, lines=[
+        ('type', 'STAGE LINE', 22.0, 46.0, 200.0, 'k', True), ('rule', 56.0, 1.5, 18.0),
+        ('type', "GRAVESEND & RANSOM'S REST", 7.5, 76.0, 200.0, 'k', False),
+        ('type', 'SERVICE', 28.0, 132.0, 190.0, 'k', True), ('type', 'SUSPENDED', 26.0, 172.0, 200.0, 'r', True),
+        ('rule', 186.0, 0.9, 40.0), ('type', 'until further notice', 6.0, 208.0, None, 'k', False),
+        ('type', 'by order of the Company', 6.0, 222.0, None, 'k', False),
+        ('stars', 252.0, 5.0, 60.0), ('type', 'NO MAIL', 14.0, 292.0, None, 'k', False)]),
+    'Service': dict(tone=0xe3ddcc, seed=17, lines=[
+        ('stars', 26.0, 5.0, 40.0), ('type', 'SUNDAY', 18.0, 64.0, 150.0, 'k', False),
+        ('type', 'SERVICE', 30.0, 104.0, 180.0, 'k', True), ('rule', 116.0, 1.2, 24.0),
+        ('type', 'CHAPEL OF SAINT ADA', 9.0, 140.0, 170.0, 'k', False),
+        ('type', 'all are welcome', 6.0, 164.0, None, 'k', False),
+        ('type', 'the lamps will be lit', 6.0, 178.0, None, 'r', False),
+        ('rule', 196.0, 0.8, 50.0), ('type', 'Hymns at dusk', 7.0, 226.0, None, 'k', False)]),
+    'Hands': dict(tone=0xdcd2b8, seed=18, lines=[
+        ('type', 'HANDS', 36.0, 58.0, 190.0, 'k', True), ('type', 'WANTED', 24.0, 96.0, 160.0, 'r', True),
+        ('rule', 108.0, 1.4, 20.0), ('type', "for the Company's dredge", 7.0, 130.0, None, 'k', False),
+        ('type', 'STRONG BACKS', 11.0, 162.0, 180.0, 'k', False), ('type', 'GOOD PAY', 16.0, 192.0, 150.0, 'k', True),
+        ('type', 'meals & a berth aboard', 5.5, 214.0, None, 'k', False),
+        ('stars', 236.0, 5.0, 50.0), ('type', 'apply at the depot', 7.0, 264.0, None, 'k', False),
+        ('type', 'VANE CONSOLIDATED', 6.0, 290.0, None, 'r', False)]),
+    'Sale': dict(tone=0xd9cb98, seed=19, lines=[
+        ('type', 'FOR SALE', 24.0, 50.0, 170.0, 'k', True), ('rule', 62.0, 1.2, 18.0),
+        ('type', 'A GOOD WAGON', 12.0, 92.0, 160.0, 'k', False),
+        ('type', 'and a team of two', 6.5, 112.0, None, 'k', False),
+        ('type', 'leaving the valley', 5.5, 136.0, None, 'k', False),
+        ('type', 'BEST OFFER', 14.0, 180.0, None, 'r', True),
+        ('type', 'see Mercer, east end', 6.0, 214.0, None, 'k', False)]),
+    'Back': dict(tone=0xd8ccad, seed=20, lines=[]),
+}
+
+
+class BillSheet(Sheet):
+    """A handbill centred in its cell of the handbills atlas."""
+
+    def __init__(self, name):
+        (x0, y0, x1, y1), size_mm = HANDBILL_CELLS[name]
+        self.cell = name
+        self.shape = (y1 - y0, x1 - x0)
+        self.size = size_mm
+        self.ox = (self.shape[1] - size_mm[0] * MM) * 0.5
+        self.oy = (self.shape[0] - size_mm[1] * MM) * 0.5
+
+
+def handbill_uv(name, x_mm, y_mm):
+    """The Blender UV (V up) of a point x_mm, y_mm from a sheet's top left in the handbills atlas."""
+    (x0, y0, x1, y1), (w, h) = HANDBILL_CELLS[name]
+    px = x0 + ((x1 - x0) - w * MM) * 0.5 + x_mm * MM
+    py = y0 + ((y1 - y0) - h * MM) * 0.5 + y_mm * MM
+    return px / ATLAS, 1.0 - py / ATLAS
+
+
+def bill_paper(sheet, seed, tone):
+    """A handbill's paper: its tone, sun-faded and toned at the edges, a stain or two, a rain run, foxing, one fold,
+    grime at its foot. Returns (colour, maps)."""
+    shape = sheet.shape
+    rng = np.random.default_rng(seed)
+    u, v = sheet.grid()
+    W, H = sheet.size
+    edge = np.minimum(np.minimum(u, W - u), np.minimum(v, H - v))
+    big = _noise(shape, seed + 1, 50.0, octaves=2)
+    mid = _noise(shape, seed + 2, 12.0)
+    fine = _noise(shape, seed + 3, 0.6)
+    fibers = 0.55 * _noise(shape, seed + 4, 3.5, 0.45) + 0.55 * _noise(shape, seed + 5, 0.45, 3.5)
+    color = np.ones(shape + (3,), np.float32) * rgb(tone)
+    sun = smooth(-0.9, 1.4, 0.6 * big - 0.003 * (v - H * 0.4)) * smooth(0.0, 30.0, edge)
+    color = mix(color, np.minimum(rgb(tone) * 1.07, 1.0), sun * 0.6)
+    # Toned at the edges, lightly: a bill a season on the wall, not a burnt map.
+    toned = (1.0 - smooth(0.0, 6.0, edge + 3.0 * mid)) * 0.42 + (1.0 - smooth(0.0, 30.0, edge)) * 0.12
+    color = mix(color, rgb(0xbfa47c), np.clip(toned, 0.0, 1.0))
+    color = color * (1.0 + 0.025 * big + 0.012 * mid + 0.02 * fine + 0.014 * fibers)[..., None]
+    for k in range(int(rng.integers(1, 3))):
+        center = (float(rng.uniform(0.2, 0.8) * W), float(rng.uniform(0.15, 0.85) * H))
+        inside, tide = tide_stain(u, v, center, float(rng.uniform(0.12, 0.22) * W), float(rng.uniform(0.7, 1.5)),
+                                  seed + 21 + k, shape)
+        color = multiply(color, inside * 0.45, (0.95, 0.9, 0.78))
+        color = mix(color, rgb(0x9a7b52), np.clip(tide, 0.0, 1.0) * 0.32)
+    inside, tide = drip(u, v, float(rng.uniform(0.15, 0.85) * W), 0.0, float(rng.uniform(0.3, 0.6) * H), seed + 31)
+    color = multiply(color, inside * 0.45, (0.93, 0.88, 0.76))
+    color = mix(color, rgb(0x9a7b52), np.clip(tide, 0.0, 1.0) * 0.26)
+    h, w = shape
+    chance = ((1.0 - smooth(0.0, 40.0, edge)) * 0.7 + 0.3 * smooth(0.6, 1.8, mid) + 0.05).ravel()
+    picks = rng.choice(h * w, size=50, replace=False, p=chance / chance.sum())
+    pts = [(p % w + 0.5, p // w + 0.5) for p in picks]
+    sizes = [float(rng.choice([0.6, 0.9, 1.4], p=[0.5, 0.35, 0.15])) for _ in picks]
+    cores, halos = spots(shape, rng, pts, sizes, [float(rng.uniform(0.25, 0.75)) for _ in picks])
+    color = multiply(color, halos * 0.3, rgb(0xc9a070))
+    color = multiply(color, cores * 0.75, rgb(0xa06a3e))
+    across = rng.random() < 0.5
+    p0, p1 = ((-10.0, H * 0.5 + rng.uniform(-8, 8)), (W + 10.0, H * 0.5 + rng.uniform(-8, 8))) if across else \
+        ((W * 0.5 + rng.uniform(-6, 6), -10.0), (W * 0.5 + rng.uniform(-6, 6), H + 10.0))
+    shade, cracks = crease(u, v, p0, p1, seed + 41, 0.9)
+    color = color * (1.0 + 0.08 * np.clip(shade, -1.5, 1.5))[..., None]
+    color = multiply(color, cracks * 0.12, (0.6, 0.52, 0.42))
+    grime = (1.0 - smooth(0.0, 45.0, H - v)) * (0.5 + 0.5 * smooth(-1.0, 1.0, _noise(shape, seed + 60, 6.0)))
+    color = multiply(color, grime * 0.2, rgb(0x8c7a62))
+    return np.clip(color, 0.0, 1.0), dict(fibers=fibers, fine=fine, cracks=cracks, shade=shade, edge=edge)
+
+
+def handbill(name):
+    """One bill's cell: (colour (h, w, 3), roughness, metal (the nail heads), height)."""
+    spec = HANDBILL_COPY[name]
+    sheet = BillSheet(name)
+    seed = 900 + spec['seed'] * 10
+    rng = np.random.default_rng(seed)
+    color, maps = bill_paper(sheet, seed, spec['tone'])
+    black, red = Ink(sheet.shape), Ink(sheet.shape)
+    W = sheet.size[0]
+    for line in spec['lines']:
+        if line[0] == 'type':
+            _, text, cap, y, width, ink, wood = line
+            # width is the most the line may take (condensed to it, never stretched past its own width by more than
+            # a fifth: wood type was cut wide, never spaced out).
+            limit = min(width or W, W - 24.0)
+            _, natural = set_line(text, cap)
+            if natural > limit:
+                fit = limit
+            elif wood and width is not None:
+                fit = min(limit, natural * 1.2)
+            else:
+                fit = None
+            type_line(black if ink == 'k' else red, sheet, rng, text, cap, W * 0.5, y, width=fit, wood=wood)
+        elif line[0] == 'rule':
+            _, y, thick, margin = line
+            rule(black, sheet, margin, W - margin, y, thick, rng)
+        elif line[0] == 'stars':
+            _, y, size, inset = line
+            for x in (inset, W * 0.5, W - inset):
+                type_shape(black, sheet, [star(x, y, size)])
+    a = letterpress(black, maps['fine'], maps['fibers'], seed + 1) * (1.0 - 0.75 * maps['cracks'])
+    color = multiply(color, a, INK_BLACK)
+    ink_all = a
+    red.cov = np.roll(np.roll(red.cov, 1, axis=1), -1, axis=0)
+    red.wood = np.roll(np.roll(red.wood, 1, axis=1), -1, axis=0)
+    a = letterpress(red, maps['fine'], maps['fibers'], seed + 2, fade=0.85) * (1.0 - 0.75 * maps['cracks'])
+    color = multiply(color, a, INK_RED)
+    ink_all = np.maximum(ink_all, a)
+    mask = np.ones(sheet.shape, np.float32)
+    heads = np.zeros(sheet.shape, np.float32)
+    for k, (nx, ny) in enumerate(HANDBILL_PINS[name]):
+        cx, cy = sheet.px((nx, ny))
+        paint_nail(color, mask, heads, cx, cy, 4.8 * MM, seed + 70 + k, rust=0.7)
+    rough = 0.88 - 0.1 * ink_all - 0.45 * heads
+    height = 0.00004 * maps['fibers'] + 0.00025 * maps['cracks'] + 0.0002 * heads
+    return np.clip(color, 0.0, 1.0), rough, heads * 0.6, height
+
+
+def build_handbills():
+    """Writes the handbills atlas (Art/Textures/Handbills/T_Handbills_BC, _N, _ORM) and a flat look at it."""
+    color = np.ones((ATLAS, ATLAS, 3), np.float32) * rgb(0xcfc2a2)
+    rough = np.full((ATLAS, ATLAS), 0.88, np.float32)
+    metal = np.zeros((ATLAS, ATLAS), np.float32)
+    height = np.zeros((ATLAS, ATLAS), np.float32)
+    for name in HANDBILL_CELLS:
+        (x0, y0, x1, y1), _ = HANDBILL_CELLS[name]
+        c, r, mt, ht = handbill(name)
+        color[y0:y1, x0:x1], rough[y0:y1, x0:x1], metal[y0:y1, x0:x1], height[y0:y1, x0:x1] = c, r, mt, ht
+    lt.save_set(HANDBILLS_SET, color, height, 1.0 / PX_PER_M, np.clip(rough, 0.0, 1.0), np.clip(metal, 0.0, 1.0),
+                normal_strength=1.0)
+    look = color.copy()
+    for k, (name, ((x0, y0, x1, y1), _)) in enumerate(HANDBILL_CELLS.items()):
+        for sl in ((slice(y0, y0 + 1), slice(x0, x1)), (slice(y1 - 1, y1), slice(x0, x1)),
+                   (slice(y0, y1), slice(x0, x0 + 1)), (slice(y0, y1), slice(x1 - 1, x1))):
+            look[sl] = rgb(0xf2a64a)
+    out = os.path.join(lt.PREVIEW_DIR, 'TownProps')
+    os.makedirs(out, exist_ok=True)
+    lt.write_png(os.path.join(out, 'Atlas_Handbills.png'), lt.to8(look))
+    lt._log(f'posters: handbills -> {os.path.join(lt.TEXTURE_DIR, HANDBILLS_SET)}')
+
+
 def main():
     argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
+    if '--handbills' in argv:
+        build_handbills()
+        return
     heroes = hero_ids(argv)
     if heroes:
         for hero_id in heroes:
