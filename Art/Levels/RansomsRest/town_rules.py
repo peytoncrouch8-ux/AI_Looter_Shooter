@@ -1072,9 +1072,25 @@ def extras(r):
 
 # Worn lanes the dressing keeps (no layout road: a road is a terrain read block; the GROUND lane paints them trodden from
 # town.json's "lanes"): make_town keeps every piece off them as off a path, and weeds line their edges.
+# A layout road of the same id (LEVEL's painted lane, when it lands) replaces the entry: lane_route() and make_town follow it.
+# The default route keeps north of the fallen pine (westRoadLog, its stub at (5260, -5300): DEMO5, it lay across the lane).
 LANES = [{'id': 'hamletLane', 'kind': 'path', 'width': 350.0,
-          'path': [[4716.0, -5000.0], [5700.0, -5800.0], [6900.0, -6800.0]],
+          'path': [[4716.0, -5000.0], [5500.0, -5100.0], [6150.0, -5900.0], [6900.0, -6800.0]],
           'note': "Glebe Corner's lane from the west road to the boarding house (LEVEL, HOMES.md round 5)"}]
+
+
+def lanes(layout):
+    """The lanes the dressing keeps that the layout has no road for (a layout road of the same id is the lane)."""
+    ids = {r['id'] for r in layout.get('roads', [])}
+    return [lane for lane in LANES if lane['id'] not in ids]
+
+
+def lane_route(world, lane_id):
+    """A lane's points and half width: the layout's road of that id if it has one, else LANES'."""
+    for rid, pts, half, kind in world.roads:
+        if rid == lane_id:
+            return [tuple(p) for p in pts], half
+    return None, None
 # Open ground the scatter's trees keep out of (town.json noTrees: build_area.py's no_tree_zones() places them as NoTrees
 # boxes). hamlet: Glebe Corner's clearing in Widow's Pines (HOMES.md round 5). eastRow: the east row's houses, yards and
 # outbuildings (the cottonwood stand is whole again in the layout, 2026-11-05, and the row stands in it: the box clears all
@@ -1087,9 +1103,13 @@ NO_TREES = [
 ]
 
 
+# The fenced lots' own (hamlet(): a lot's fence and its house's back closed into a polygon), kept tree-free too.
+LOT_NO_TREES = []
+
+
 def tree_free(x, y):
-    """Whether (x, y) is in one of NO_TREES' areas (no scattered tree will stand there)."""
-    for area in NO_TREES:
+    """Whether (x, y) is in one of NO_TREES' areas or a fenced lot (no scattered tree will stand there)."""
+    for area in NO_TREES + LOT_NO_TREES:
         poly = area['polygon']
         hit = False
         for i in range(len(poly)):
@@ -1100,13 +1120,20 @@ def tree_free(x, y):
             return True
     return False
 LANE_WEED_STEP = 400.0
+# A lane's signpost's names (upper: up the lane; lower: back the way it came), and the board's yaw in the post's frame
+# (build_area_dressing.SIGN_UPPER_YAW: ARoadSign::BoardYaw(0)).
+SIGNS = {'hamletLane': ('GLEBE CORNER', 'CHAPEL')}
+SIGN_UPPER_YAW = -78.0
 
 
 def hamlet(r):
-    """Glebe Corner: the boarding house's more life (a bench on its porch, a rain barrel at its corner, a woodpile on its
-    north wall, a hitch rail and a trough in the lane's turning space before it, its notices), home P's porch gone to
-    ruin, N's rotted woodpile, the lane's mouth (a lantern post, left dark) and its edges' weeds."""
+    """Glebe Corner as a place people live (round 8, DEMO5: "houses set in a clearing"): yard fences (the boarding house's
+    picket round its side yard and kitchen garden, P's and N's rails broken and gappy), the boarding house's bench, rain
+    barrel, woodpile and notices, its hitch rail and trough on the lane by its front, a hand pump by the lane, the lane's
+    working end (the hand cart, a woodpile), its mouth's lantern post and signpost, its edges' grass; P's tipped chair, N's
+    rotted woodpile. The lane's pieces follow the lane's route wherever it runs (lane_route)."""
     f = {fr.b.id: fr for fr in r.frames}
+    d = r.d
     if 'boardingHouse' in f:
         fr = f['boardingHouse']
         x0, x1, y0, y1 = fr.body
@@ -1114,38 +1141,95 @@ def hamlet(r):
                 group='boardingHouse', alts=[(30.0 + fr.lap, -250.0, 0.0)])
         r.local(fr, 'Barrel_C', x1 - 60.0, y1 + 45.0 + fr.lap, 0.0, 'small', group='boardingHouse',
                 alts=[(x0 + 60.0, y1 + 45.0 + fr.lap, 0.0)])
-        r.local(fr, 'FirewoodStack', (x0 + x1) * 0.5, y1 + 35.0 + fr.lap, 90.0, 'big', against='boardingHouse',
-                along=True, group='boardingHouse', alts=[(x0 + 200.0, y1 + 35.0 + fr.lap, 90.0)])
-        # (The lane ends 7.75 m out, 3.25 m to its right: the rail stands on the turning space's left, along the front.)
-        r.local(fr, 'HitchRail', 520.0, 250.0, 0.0, 'street', group='boardingHouse',
-                alts=[(650.0, 250.0, 0.0), (520.0, 120.0, 0.0), (420.0, -420.0, 90.0)])
-        r.local(fr, 'WaterTrough', 520.0, 380.0, 90.0, 'street', group='boardingHouse', alts=[(520.0, -420.0, 90.0)])
+        r.local(fr, 'FirewoodStack', x0 + 160.0, y1 + 35.0 + fr.lap, 90.0, 'big', against='boardingHouse',
+                along=True, group='boardingHouse', alts=[((x0 + x1) * 0.5, y1 + 35.0 + fr.lap, 90.0)])
         r.local(fr, 'Handbills_A', x1 - 110.0, y1 + 1.0 + fr.lap, 90.0, 'wall', mount='wall', lift=145.0,
                 group='boardingHouse')
+        # The kitchen garden in its side yard (its left: the boundary's cliff 3.7 m off), the picket round the yard,
+        # whole, from 0.5 m off the front corner round to 0.5 m off the back one (open along the house: an open line
+        # fences nothing in, only its own run).
+        r.local(fr, 'KitchenGarden', x1 - 280.0, y1 + 140.0 + fr.lap, 90.0, 'big', group='boardingHouse',
+                alts=[(x1 - 320.0, y1 + 140.0 + fr.lap, 90.0)])
+        fence(d, fr, 'boardingHouse_yard', 'picket', ((x1 + 60.0, y1 + 50.0), (x1 + 60.0, y1 + 290.0),
+                                                     (x0 + 40.0, y1 + 290.0), (x0 + 40.0, y1 + 50.0)), broken=0.0)
     if 'homeP' in f:
         fr = f['homeP']
-        # The shut log house: a chair tipped on its short porch, boards down off it.
-        # (its porch is the door's alone: the chair lies tipped in the grass off its end, the boards are the menu's)
+        x0, x1, y0, y1 = fr.body
+        # The shut log house: its chair tipped in the grass off its porch's end; a rail fence round its back lot and sheds
+        # gone to ruin (sections broken, some gone).
         r.local(fr, 'PorchChair', 120.0, 215.0, 70.0, 'small', lift=23.0, tilt=(0.0, 90.0),
                 box=(-25.0, 25.0, -100.0, 100.0), group='homeP', alts=[(120.0, -330.0, 50.0)])
+        # (behind it N faces it, its sheds stand on its left: the rails run its back only, from clear of N's door to past
+        # the sheds' line)
+        fence(d, fr, 'homeP_lot', 'rail', ((x0 - 300.0, -150.0), (x0 - 300.0, y1 + 350.0)), broken=0.35, missing=0.15)
     if 'homeN' in f:
         fr = f['homeN']
         x0, x1, y0, y1 = fr.body
-        # The shut cabin: the winter's wood never burned, against its lean-to.
+        # The shut cabin: the winter's wood never burned, by its lean-to; its lot's rails the same.
         r.local(fr, 'FirewoodStack', x0 - 260.0, y1 + 35.0 + fr.lap, 90.0, 'big', group='homeN',
                 alts=[(x0 - 260.0, y0 - 35.0 - fr.lap, 90.0), (-400.0, y1 + 35.0 + fr.lap, 90.0),
                       (-400.0, y0 - 35.0 - fr.lap, 90.0)])
+        fence(d, fr, 'homeN_lot', 'rail', ((x1 - 60.0, y1 + 120.0), (-850.0, y1 + 120.0), (-850.0, y0 - 120.0),
+                                            (x1 - 60.0, y0 - 120.0)), broken=0.3, missing=0.1)
     for lane in LANES:
-        pts = [tuple(p) for p in lane['path']]
-        half = lane['width'] * 0.5
-        (ax, ay), (bx, by) = pts[0], pts[1]
-        length = math.hypot(bx - ax, by - ay) or 1.0
-        dx, dy = (bx - ax) / length, (by - ay) / length
-        # The lantern post at its mouth, beside it (emissive only: LIGHTS may leave it dark).
-        r.add('LanternPost', ax + dx * 400.0 - dy * (half + 70.0), ay + dy * 400.0 + dx * (half + 70.0),
-              math.degrees(math.atan2(dy, dx)) + 90.0, lane['id'], 'verge',
-              alts=[(ax + dx * 400.0 + dy * (half + 70.0), ay + dy * 400.0 - dx * (half + 70.0),
-                     math.degrees(math.atan2(dy, dx)) - 90.0)])
+        pts, half = lane_route(r.world, lane['id'])
+        if not pts:
+            continue
+        g = lane['id']
+
+        def along_lane(dist, side, out, from_end=False):
+            """A point dist cm along the lane (from its end when from_end), out cm off its middle to a side (+1 left), and
+            the lane's heading there."""
+            seq = list(reversed(pts)) if from_end else pts
+            left = dist
+            for (ax, ay), (bx, by) in zip(seq, seq[1:]):
+                seg = math.hypot(bx - ax, by - ay)
+                if left <= seg or (bx, by) == seq[-1]:
+                    t = min(left, seg) / seg
+                    dx, dy = (bx - ax) / seg, (by - ay) / seg
+                    if from_end:
+                        dx, dy = -dx, -dy       # the lane's own heading; side stays relative to it
+                    side_sign = side
+                    x, y = ax + (bx - ax) * t, ay + (by - ay) * t
+                    return x - dy * out * side_sign, y + dx * out * side_sign, math.degrees(math.atan2(dy, dx))
+                left -= seg
+            return None
+        # Which side of the lane's end the boarding house stands (its yard side).
+        bh = f.get('boardingHouse')
+        ex, ey = pts[-1]
+        px, py = pts[-2]
+        hx, hy = (bh.b.x, bh.b.y) if bh else (ex, ey)
+        house_side = 1.0 if ((ex - px) * (hy - ey) - (ey - py) * (hx - ex)) > 0.0 else -1.0
+        # The mouth: the lantern post (emissive only: LIGHTS may leave it dark) on one side, the signpost on the other: an
+        # ARoadSign (build_area_dressing places town.json's "signs" with their names painted on the boards, the roadside's
+        # make), its upper board up the lane to the hamlet, its lower back to the road toward the chapel.
+        for mesh, dist, side in (('LanternPost', 400.0, 1.0), ('Signpost', 300.0, -1.0)):
+            a = along_lane(dist, side, half + 70.0)
+            b = along_lane(dist + 150.0, -side, half + 70.0)
+            if not a:
+                continue
+            if mesh == 'Signpost':
+                p = r.add(mesh, a[0], a[1], a[2] - SIGN_UPPER_YAW, g, 'verge',
+                          alts=[(b[0], b[1], b[2] - SIGN_UPPER_YAW)] if b else [])
+                if p is not None:
+                    p.sign = SIGNS.get(g, ('', ''))
+            else:
+                r.add(mesh, a[0], a[1], a[2] + 90.0 * side, g, 'verge',
+                      alts=[(b[0], b[1], b[2] - 90.0 * side)] if b else [])
+        # The working end, by the boarding house's front: the hitch rail and the trough along the lane on its side, the
+        # pump behind them, a wheelbarrow and a woodpile at the end.
+        # (Round 9: all on the boarding house's side, its front yard: across the lane is P's front, 2026-11-05 DEMO.)
+        for mesh, dist, side, out, turn, cls in (('HitchRail', 380.0, house_side, half + 60.0, 90.0, 'street'),
+                                                  ('WaterTrough', 700.0, house_side, half + 80.0, 90.0, 'street'),
+                                                  ('HandPump', 540.0, house_side, half + 330.0, 0.0, 'big'),
+                                                  ('Wheelbarrow', 950.0, house_side, half + 120.0, 0.0, 'big'),
+                                                  ('FirewoodStack', 1150.0, house_side, half + 160.0, 90.0, 'big')):
+            a = along_lane(dist, side, out, from_end=True)
+            alts = [along_lane(dist + 250.0, side, out, from_end=True), along_lane(dist + 500.0, side, out, from_end=True),
+                    along_lane(dist, -side, out, from_end=True)]
+            if a:
+                r.add(mesh, a[0], a[1], a[2] + turn + jitter((g, mesh), 4.0), 'boardingHouse', cls,
+                      alts=[(b[0], b[1], b[2] + turn) for b in alts if b])
         # Its edges' short grass, both sides, one strip in SKIP_EVERY left out.
         k = 0
         for (ax, ay), (bx, by) in zip(pts, pts[1:]):
@@ -1156,12 +1240,50 @@ def hamlet(r):
                 t = (j + 0.5) * seg / n
                 for side in (1.0, -1.0):
                     k += 1
-                    if crc(lane['id'], k) % SKIP_EVERY == 0:
+                    if crc(g, k) % SKIP_EVERY == 0:
                         continue
                     nx, ny = -dy * side, dx * side
                     yaw = math.degrees(math.atan2(ny, nx))
                     r.add('WeedFringe_A', ax + dx * t + nx * (half + 25.0), ay + dy * t + ny * (half + 25.0),
-                          yaw + jitter((lane['id'], k), 6.0), lane['id'], 'weed', along=True)
+                          yaw + jitter((g, k), 6.0), g, 'weed', along=True)
+
+
+def rnd(v):
+    return round(float(v), 1)
+
+
+def fence(d, fr, lid, kit, local_pts, broken=0.0, missing=0.0):
+    """A lot's fence (an open line: its house closes it) in the house's frame, a rule line; its lot kept tree-free."""
+    pts = [fr.b.at(lx, ly) for lx, ly in local_pts]
+    entry = dict(id=lid, kit=kit, points=[[rnd(x), rnd(y)] for x, y in pts], closed=False, gates=[], broken=broken,
+                 group=fr.b.id, _rule=True)
+    if missing:
+        entry['missing'] = missing
+    d.lines.append(entry)
+    # The lot: the fence and its house's body (the hull of both), so what stands between the wall and the rails is in it.
+    x0, x1, y0, y1 = fr.body
+    corners = [fr.b.at(lx, ly) for lx, ly in ((x0, y0), (x1, y0), (x1, y1), (x0, y1))]
+    LOT_NO_TREES.append({'id': lid, 'polygon': [[rnd(x), rnd(y)] for x, y in hull(pts + corners)]})
+
+
+def hull(points):
+    """The convex hull of points (monotone chain), counter-clockwise."""
+    pts = sorted(set((round(x, 1), round(y, 1)) for x, y in points))
+    if len(pts) < 3:
+        return pts
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lower, upper = [], []
+    for q in pts:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], q) <= 0.0:
+            lower.pop()
+        lower.append(q)
+    for q in reversed(pts):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], q) <= 0.0:
+            upper.pop()
+        upper.append(q)
+    return lower[:-1] + upper[:-1]
 
 
 def dress(mt, d, skip=()):
@@ -1170,9 +1292,11 @@ def dress(mt, d, skip=()):
     r.frames = frames(mt, d.world)
     rule_spots(d.world, mt)
     d.no_trees.extend(dict(n) for n in NO_TREES)
+    del LOT_NO_TREES[:]
     street(r)
     extras(r)
     hamlet(r)
+    d.no_trees.extend(dict(n) for n in LOT_NO_TREES)
     for f in r.frames:
         r.menu(f)
     for f in r.frames:

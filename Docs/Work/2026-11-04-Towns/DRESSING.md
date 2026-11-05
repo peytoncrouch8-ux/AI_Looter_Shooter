@@ -249,3 +249,47 @@ PenLane, YardRoad, Farm), Looter.Breakable / Economy.Balance (no breakable mesh 
   The rail's spots now on the turning space's left along the front (the lane ends 7.75 m out, 3.25 m right of the door).
 - Porch pieces on the real floors (probe actor z + the builders' deck heights): boarding house (z 34.6 incl. its lift 10, + 55),
   K, M, O: all 0.0 cm off. Weeds: -5 strips (the new pieces' feet).
+
+# Round 8 (2026-11-05 11:55; DEMO5.md: Glebe Corner "houses set in a clearing")
+- `make_town.py --out town_next.json`, twice identical; town.json untouched. 436 -> 438 pieces, 18 new types, 5 fence lines (2 ->
+  5), 1 named signpost, noTrees + 3 lots.
+- Fences (town.json lines; kits the town uses, no new types): `boardingHouse_yard` picket, whole, round the boarding house's side
+  yard (to 0.8 m short of the boundary's line) with its kitchen garden, rain barrel and woodpile in it; `homeP_lot` rail along
+  P's back (broken 0.35, missing 0.15; its sides are N's door and the sheds); `homeN_lot` rail round N's back and sides (0.3,
+  0.1). Open lines (the house closes them); an open line no longer fences in what's on its house side (make_town: only closed
+  lines enclose). check_lines checks a rule's line along its whole run (roads), the rules' spawn spots and patrol routes, and
+  the layout's obstacles (rocks, ruins, groups, walls; trees not: the lot is cleared). Each lot (its fence and its house's
+  body, hulled) is a NoTrees area too (town_rules.LOT_NO_TREES), so Main's `notrees` mode then the scatter clear them.
+- The lane's working end (positions from the lane's route: they follow LEVEL's painted road when it lands as a layout road
+  `hamletLane`, which then replaces LANES' entry): hitch rail and trough along the lane on the boarding house's side, a hand
+  pump across, a wheelbarrow and a woodpile at its end (the hand cart found no room by P). The old rail and trough by the root
+  cellar's door are gone. The default lane rerouted north of the fallen pine ((4716,-5000), (5500,-5100), (6150,-5900),
+  (6900,-6800)).
+- The signpost: town.json "signs" (new key): `hamletLane_signpost_01` at (5033, -5281), "GLEBE CORNER" up the lane, "CHAPEL"
+  back; build_area_dressing.place_town_signs stands it as an ARoadSign (the roadside's make, names on the boards) in
+  Dressing/Roadside. The spot is checked as a Signpost piece; it isn't written as an instance. Not run in the editor yet.
+- forget_own: every instance of a mesh only the town places (its design's meshes less SHARED_MESHES: the prop groups', fences',
+  roadside's, rocks') is its own wherever a build stood it: the 11:15 probe held an older build than town.json (homeM's laundry
+  at its round-5 spot blocked the block). 171 own instances.
+- vs town.json: + boardingHouse KitchenGarden, HandPump, Wheelbarrow, FirewoodStack, 2 weeds; - its ToolsLeaning_A (the side
+  yard's woodpile took its spot), 3 weeds; moved: the boarding house's rail and trough (to the lane), its first woodpile (to the
+  yard's back), the lantern post (the new route), N's and P's boards (their fences).
+- Left for LEVEL: the root cellar stands in the boarding house's front yard (its door 2.3 m from the porch steps).
+
+# Round 9 (2026-11-05 12:30; LEVEL's road hamletLane in layout.json, sheds A/B and the root cellar moved; HOMES.md round 6)
+- `make_town.py --out town_next.json`, twice identical; town.json untouched. 438 pieces, 5 fence lines (all pass), 1 named sign.
+- The lane: the layout's road (dirt, 3.0 m) replaces LANES' entry by id (town_rules.lanes(): town.json "lanes" now empty;
+  lane_route() reads world.roads), so the mouth's lantern post and signpost, the edge weeds and the working end follow it.
+- The working end, all on the boarding house's side (across is P's front): hitch rail (6878, -6341) and trough (6579, -6221)
+  along the lane, the pump behind them (6697, -6127), a woodpile (6404, -6091) and a wheelbarrow (6292, -6083) back along it
+  toward the root cellar. Signpost "GLEBE CORNER" / "CHAPEL" at (4583, -6338) by the west road (3 m off the WestRoad patrol).
+- Fences and the garden unchanged and clear of the moved sheds and cellar (check_lines). Held for the probe after the terrain
+  run: nothing new; the boarding house's back yard (laundry, block, second woodpile) stays out on the knoll's toe.
+- After Main's 13:30 probe: one more `make_town.py --out town_next.json` for the carved lane's ground.
+
+# Round 10 (2026-11-05 14:03; the carved lane, probe 14:02)
+- `make_town.py --out town_next.json`, twice identical; town.json untouched. 438 pieces, identical to round 9 (no piece moved,
+  added or dropped on the carved ground; 5 fence lines, 1 named sign, 12 lights). Still out by the rules: the boarding house's
+  laundry, second woodpile and block (43-78 cm on the knoll's toe), its tools (its side yard is full), homeO's laundry (no spot by
+  the smokehouse). The kitchen garden's last 30 cm lie past the probe's hamlet region (X 8000): 99 of 121 samples measured, 12 cm
+  of fall, kept.

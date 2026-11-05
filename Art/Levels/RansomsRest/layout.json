@@ -1328,6 +1328,12 @@
       "width": 250,
       "path": [[-480,2060],[-1500,2060],[-2300,2110],[-2450,2300],[-2450,3700]],
       "note": "Pen Lane: a back lane behind Pruitt's, two empty houses on it"
+    },
+    {
+      "id": "hamletLane",
+      "kind": "dirt",
+      "width": 300,
+      "path": [[4318,-6000],[4800,-6200],[5150,-6280],[5550,-6230],[5950,-6100],[6200,-6390],[7050,-6600],[7200,-6620]]
     }
   ],
   "bridges": [
@@ -3078,14 +3084,14 @@
         "yaw": 45,
         "note": "home N (shut): the street's far south-west end, facing north-east back up the lane; 4.3 m from the Burnt Homestead's ruin"
       },
-      { "id": "shedA", "kind": "RR_Shed_A", "location": [6025,-6775], "yaw": 315, "note": "shed A, behind home P" },
-      { "id": "shedB", "kind": "RR_Shed_B", "location": [5775,-6375], "yaw": 315, "note": "shed B, behind home P" },
+      { "id": "shedA", "kind": "RR_Shed_A", "location": [6025,-6825], "yaw": 315, "note": "shed A, behind home P (moved 0.5 m off the lane)" },
+      { "id": "shedB", "kind": "RR_Shed_B", "location": [5725,-5925], "yaw": 285, "note": "shed B, a tool shed on the lane's east side at the hamlet's mouth (was in the lane)" },
       {
         "id": "rootCellar",
         "kind": "RR_RootCellar",
-        "location": [7325,-6525],
-        "yaw": 90,
-        "note": "the root cellar by the boarding house's south end, its door to the yard"
+        "location": [6375,-5675],
+        "yaw": 0,
+        "note": "the root cellar beside the boarding house's south end, behind the porch line, its door to the boarding house (was in the front yard)"
       }
     ],
     "environment": {

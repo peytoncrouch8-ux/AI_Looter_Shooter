@@ -2608,6 +2608,32 @@ def place_signs(build, plan, signs, cls, meshes):
                   f'"{upper}" ahead, "{lower}" back')
 
 
+def place_town_signs(build, ground, cls, meshes):
+    """A town's named signposts (town.json "signs": at, yaw, upper, lower; make_town checks their spots as a Signpost
+    piece) as ARoadSigns, the roadside's make: Glebe Corner's at its lane's mouth. In Dressing/Roadside, tagged Obstacle."""
+    town, _ = load_town(build.source)
+    signs = (town or {}).get('signs') or []
+    if not signs:
+        return
+    if cls is None:
+        cls = unreal.load_class(None, CLASSES + 'RoadSign')
+    if cls is None or 'Signpost' not in meshes:
+        build.warn('no RoadSign class or SM_Signpost: the town\'s signposts are left out')
+        return
+    post = unreal.load_asset(meshes['Signpost'])
+    for sign in signs:
+        x, y = sign['at'][:2]
+        actor = build.place(cls, (x, y, ground(x, y)), float(sign.get('yaw', 0.0)), label=f'RoadSign_{sign["id"]}',
+                            folder=f'{FOLDER}/{ROADSIDE_FOLDER}', tags=(TAG, 'Obstacle'))
+        component = actor.get_editor_property('post')
+        component.set_static_mesh(post)
+        component.set_editor_property('ld_max_draw_distance', float(PIECES['Signpost'][2]))
+        actor.set_editor_property('upper_name', unreal.Text(sign.get('upper', '')))
+        actor.set_editor_property('lower_name', unreal.Text(sign.get('lower', '')))
+        build.log(f'dressing: the town\'s signpost {sign["id"]} at ({x:.0f}, {y:.0f}): "{sign.get("upper", "")}" '
+                  f'ahead, "{sign.get("lower", "")}" back')
+
+
 def place_map_roads(build):
     """One AMapRoad per layout road (when the layout's roadside block asks for mapRoads): its smoothed middle line,
     width and kind, which UMinimapSubsystem paints into the minimap's bake, so the HUD minimap and the map page show
@@ -2683,6 +2709,7 @@ def place(build, meshes):
                     folder=FOLDER, tags=(TAG, 'Obstacle'))
     place_town_lights(build, ground)
     place_signs(build, plan, signs, sign_cls, meshes)
+    place_town_signs(build, ground, sign_cls, meshes)
     place_map_roads(build)
     for oid, note in plan.notes.items():
         build.log(f'dressing {oid}: {note}')

@@ -336,6 +336,12 @@ SPAWNERS = ('EncounterSpawner', 'AmbushSpawner', 'PatrolSpawner')
 PASSABLE = ('Bush_', 'Reeds_', 'LilyPads_', 'Flowers_', 'Web_', 'Cocoon_', 'EggSac_', 'Grave_MoundSunken', 'WeedFringe_',
             'PlankCrossing_', 'StrawLitter_', 'FallenBoards_', 'Handbills_')
 BREAKABLE = ('Crate_A', 'Crate_B', 'Barrel_A')   # build_area_loot.BREAKABLE_MESHES
+# What other placers stand too (build_area_dressing's GROUPS and SPOTS, the layout's fences and walls, the roadside's
+# lanterns, markers and signposts, the farm's hay): their instances near the town are obstacles, never the town's own.
+SHARED_MESHES = ('Barrel_A', 'Barrel_B', 'Coffin_Broken', 'Coffin_Closed', 'Crate_A', 'Crate_B', 'Dray', 'FallenPine',
+                 'HayBale_Round', 'HayBale_Square', 'HitchRail', 'LeanTo', 'LumberStack', 'Outhouse', 'WaterTrough',
+                 'Woodshed', 'DeadTree_A', 'DeadTree_B', 'DeadTree_C', 'LanternPost', 'Signpost')
+SHARED_PREFIXES = ('Fence', 'StoneWall', 'Cairn_', 'Grave_', 'Rock_', 'Boulder_', 'Log_', 'Stump_')
 
 
 def load(path):
@@ -624,7 +630,7 @@ class World:
         for p in level.get('props', []):
             self.add_building(p['id'], p['kind'], p, sizes)
         self.roads = [(r['id'], [tuple(q[:2]) for q in r['path']], r['width'] * 0.5, r.get('kind'))
-                      for r in layout.get('roads', []) + town_rules.LANES]
+                      for r in layout.get('roads', []) + town_rules.lanes(layout)]
         self.trails = []
         for t in layout.get('trails', []):
             pts = []
@@ -828,7 +834,10 @@ class World:
         mine_now = defaultdict(list)
         for p in design:
             mine_now[p.mesh].append((p.x, p.y))
-        town_only = set(town_rules.KIT) | set(town_rules.WALK_VARIANTS)
+        # Meshes only this town places (nothing else in the level does: not the layout's prop groups, its fences, the
+        # roadside or the spots: SHARED_MESHES): every instance of one is its own, wherever a build before stood it (a
+        # probe can be older than the town.json beside it, 2026-11-05).
+        town_only = set(town_rules.KIT) | set(town_rules.WALK_VARIANTS) |             ({p.mesh for p in design} - set(SHARED_MESHES) - {m for m in self.meshes.bounds if m.startswith(SHARED_PREFIXES)})
         fence_lines = [[tuple(q) for q in line.get('points', [])] + ([tuple(line['points'][0])] if line.get('closed')
                                                                     else []) for line in lines if line.get('points')]
 
@@ -1562,7 +1571,8 @@ class Placer:
                             box_line_dist(box, pts) < 30.0:
                         return f'its yard\'s fence {lid}', None
                     continue
-                if box_line_dist(box, pts) < (5.0 if soft else 20.0) or (inside(pts[:-1], x, y) and not soft):
+                if box_line_dist(box, pts) < (5.0 if soft else 20.0) or \
+                        (line['closed'] and inside(pts[:-1], x, y) and not soft):
                     return f'the fence {lid}', None
 
         # Everything placed already: a walk's pieces join one another and the awnings stand over them; what stands on a
@@ -1926,6 +1936,11 @@ ABOUT = (
 
 def write(d, world, approved):
     placed = [p for p in d.pieces if p.placed]
+    # A signpost with names stands as an ARoadSign (town.json "signs"), not an instance.
+    signs = sorted(({'id': p.id, 'at': [rnd1(p.x), rnd1(p.y)], 'yaw': rnd1(p.yaw % 360.0), 'upper': p.sign[0],
+                     'lower': p.sign[1], 'group': p.group} for p in placed if getattr(p, 'sign', None)),
+                   key=lambda e: e['id'])
+    placed = [p for p in placed if not getattr(p, 'sign', None)]
     pieces = sorted((piece_json(p) for p in placed if not p.deferred), key=lambda e: e['id'])
     later = sorted((piece_json(p) for p in placed if p.deferred), key=lambda e: e['id'])
     deferred = Counter(p.mesh for p in placed if p.deferred)
@@ -1963,7 +1978,8 @@ def write(d, world, approved):
     parts = ['{', f'  "about": {dumps(ABOUT)},', '  "pieces": [', ',\n'.join(f'    {dumps(p)}' for p in pieces), '  ],',
              '  "lines": [', ',\n'.join(f'    {dumps(l)}' for l in sorted(lines, key=lambda l: l['id'])), '  ],',
              '  "noTrees": [', ',\n'.join(f'    {dumps(n)}' for n in d.no_trees if n.get('polygon')), '  ],',
-             '  "lanes": [', ',\n'.join(f'    {dumps(lane)}' for lane in town_rules.LANES), '  ],',
+             '  "lanes": [', ',\n'.join(f'    {dumps(lane)}' for lane in town_rules.lanes(world.layout)), '  ],',
+             '  "signs": [', ',\n'.join(f'    {dumps(sign)}' for sign in signs), '  ],',
              f'  "deferred": {dumps(dict(sorted(deferred.items())))},',
              '  "deferredPieces": [', ',\n'.join(f'    {dumps(p)}' for p in later), '  ],',
              '  "lights": [', ',\n'.join(f'    {dumps(l)}' for l in lights), '  ],',
@@ -1975,32 +1991,58 @@ def write(d, world, approved):
 
 
 def check_lines(d, world):
-    """Each chicken yard's fence: off the buildings, the roads and the spots, or the yard is left out (and its coop and
-    hens with it)."""
+    """Each fence line (a chicken yard's, a lot's): off the buildings' walls, porches and door ways, the roads, the spots
+    (a rule line, the rules' too) and the layout's obstacles (rocks, ruins, groups, walls, a stand of trees where the
+    scatter grows one), or the line is left out (a chicken yard's coop and hens with it). An open line is checked along
+    its run only (it closes nothing)."""
     for line in d.lines:
         pts = [tuple(p) for p in line['points']]
-        closed = pts + [pts[0]]
+        run = pts + [pts[0]] if line.get('closed') else pts
+        rule = line.get('_rule', False)
+        samples = []
+        for a, c in zip(run, run[1:]):
+            n = max(1, int(math.dist(a, c) // 50.0))
+            samples += [(a[0] + (c[0] - a[0]) * k / n, a[1] + (c[1] - a[1]) * k / n) for k in range(n + 1)]
         problem = None
         for b in world.buildings.values():
             for part in b.walls + b.ways + [deck for deck, _ in b.decks]:
-                if box_line_dist(part, closed) < 30.0:
+                if box_line_dist(part, run) < 30.0:
                     problem = f'{b.id}'
+        # (A hand-made yard's corners only, as since 2026-10-14; a rule's line along its whole run.)
         for rid, rpts, half, _ in world.roads:
-            for a, c in zip(closed, closed[1:]):
-                for q in (a, c):
-                    if min(seg_point(r0, r1, q)[1] for r0, r1 in zip(rpts, rpts[1:])) < half + 40.0:
-                        problem = f'the road {rid}'
+            if any(min(seg_point(r0, r1, q)[1] for r0, r1 in zip(rpts, rpts[1:])) < half + 40.0
+                   for q in (samples if rule else run)):
+                problem = f'the road {rid}'
         for name, spot, clear, kind in world.spots:
-            if kind in ('tall',) + RULE_KINDS:
+            if kind == 'tall' or (kind in RULE_KINDS and not rule):
                 continue
+            if kind in ('spawn', 'rspawn') and rule:
+                clear = max(clear, town_rules.SPAWN_CLEAR_RULES)
             if isinstance(spot, Box):
-                if box_line_dist(spot, closed) < clear:
+                if box_line_dist(spot, run) < clear:
                     problem = name
-            elif min(seg_point(a, c, spot)[1] for a, c in zip(closed, closed[1:])) < clear:
+            elif min(seg_point(a, c, spot)[1] for a, c in zip(run, run[1:])) < clear:
                 problem = name
+        if rule:
+            for name, rpts in world.routes:
+                if any(min(seg_point(r0, r1, q)[1] for r0, r1 in zip(rpts, rpts[1:])) < town_rules.SPAWN_CLEAR_RULES
+                       for q in samples):
+                    problem = name
+            for oid, kind, opts, oclosed, clear in world.obstacles:
+                if kind in ('fence', 'trees'):
+                    continue        # (a lot's fence clears its own lot of trees: town_rules.LOT_NO_TREES)
+                for q in samples:
+                    if kind == 'trees' and town_rules.tree_free(*q):
+                        continue
+                    seq = list(opts) + ([opts[0]] if oclosed else [])
+                    if (oclosed and inside(opts, *q)) or \
+                            min(seg_point(o0, o1, q)[1] for o0, o1 in zip(seq, seq[1:])) < min(clear, 80.0):
+                        problem = f'the layout\'s {kind} {oid}'
+                        break
         if problem:
             line['_ok'] = False
-            world.warnings.append(f'the chicken yard {line["id"]} meets {problem}: left out with its coop and hens')
+            world.warnings.append(f'the fence {line["id"]} meets {problem}: left out' +
+                                  (' with its coop and hens' if 'chickens' in line['id'] else ''))
             for p in d.pieces:
                 if getattr(p, 'yard', None) == line['id']:
                     p.cls = 'dropped'

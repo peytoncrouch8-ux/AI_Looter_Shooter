@@ -351,3 +351,27 @@ generator run, below).
    `Looter.Encounters.Camps` (the WestRoad patrol and its corridor); a PIE walk from the
    chapel yard down to the hamlet and along the west road past the lane's mouth at dusk; `Tools\tour.ps1` + `Tools\perf.ps1`
    (one lit house, one plume, 6 buildings in the pines' edge: the chapel knoll and the road view).
+
+# Round 6: the hamlet's lane as a real road (Main 11:55, 2026-11-05)
+- `towns_hamlet_lane.patch.json` (`--check` passes, not applied): road `hamletLane` (kind dirt, **3.0 m**) and three prop moves. Path (X north, Y east, cm):
+  (4318,-6000) on the west road's centre line, (4800,-6200), (5150,-6280), (5550,-6230), (5950,-6100), (6200,-6390), (7050,-6600), (7200,-6620).
+  It leaves the road 5.5 m before the patrol route ends, passes the fallen pine's south foot at 2.6 m (the pine is not touched), runs
+  north along P's flank (edge 29 cm from its porch) and ends in the boarding house's front yard (3.3 m off its porch). 3.5 m was tried:
+  the porches of the boarding house and P are then 4 cm off the edge (best waypoints), so 3.0.
+- North of the log is the knoll's toe (the ground climbs 1 m in 2 m from Y -5200); the lane goes round the log's foot instead.
+- Moved by the same patch (they sat in the lane or the porch's yard): shed A (6025,-6825), shed B (5725,-5925) at the lane's mouth on its
+  east side, the root cellar (6375,-5675) beside the boarding house's south end, behind the porch line, its door to the boarding house.
+- **Home N is not on the lane** (11.5 m off its end): P and N face north-east and N stands behind P's south-west corner; no road or path
+  of 3 m or 2 m passes P to N's porch without touching (searched). Dressing: a worn footpath. A layout that serves N too exists
+  (N at (6125,-5975) yaw 270 on the lane's east side, P (6275,-6975) yaw 90, the boarding house at (7325,-6025)) but it takes the
+  ground of the cellar and shed B: the cellar would go behind P, 11 m from the boarding house; not done.
+- DRESSING: town.json `lanes` hamletLane takes this path (width 300); its lantern post at the mouth follows the new mouth (4318,-6000).
+- Generator: `--macro --computed` (two quoted strings, `Tools\artrun.ps1 -Script Art\Models\Terrain\RansomsRest.py -ScriptArgs '--macro','--computed'`),
+  nothing else; apply the lane patch first (layoutSha1 changes, `--computed` records the new one; round 4's cottonwood paring is then
+  already in the recorded hash, so the revert patch is moot if the lane runs). `terrain_check` PASS expected (no boundary or rise change).
+- `terrain_compare -Except towns_except.json`: the exceptions need no new entry. The lane is 24 m (centre line) from the nearest frozen
+  area (`zone_chapel`); its shoulders (2.2 m) and the erosion feather (6 m) end 14 m short of it. The lane itself is a real change
+  (carve 12 cm, shoulders): about 31 m x 7 m (~220 m2), at most 0.2 m, outside every listed area, so the overall verdict also lists it
+  next to the Larkspur Bench (expected). The erosion keeps the road's cells (mask roads 1.5 m + shoulders): under 5 cm there.
+- Checks: off every fight ground, encounter spot, roost, loot, cliff and river; the first ~14 m stand in the WestRoad patrol's corridor
+  (the Unpaid walk the road, not the lane); the Burnt Homestead polygon 4.2 m, its chimney 14+ m; ground 21..37 cm, steepest 8 cm/m.

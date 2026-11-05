@@ -5,22 +5,87 @@
     "value": {
       "id": "hamletLane",
       "kind": "dirt",
-      "width": 350,
+      "width": 300,
       "path": [
         [
-          4716,
-          -5000
+          4318,
+          -6000
         ],
         [
-          5700,
-          -5800
+          4800,
+          -6200
         ],
         [
-          6900,
-          -6800
+          5150,
+          -6280
+        ],
+        [
+          5550,
+          -6230
+        ],
+        [
+          5950,
+          -6100
+        ],
+        [
+          6200,
+          -6390
+        ],
+        [
+          7050,
+          -6600
+        ],
+        [
+          7200,
+          -6620
         ]
       ]
     },
-    "comment": "OPTIONAL and a read block: the lane as a carved dirt road changes layoutSha1 and needs the terrain generator (--computed, and the macro for its paint); without it the lane is dressing (worn ground, ruts)"
+    "comment": "Glebe Corner's lane: from the west road at (4318,-6000) (its centre line), round the fallen pine's foot (2.6 m from westRoadLog), along P's flank to the boarding house's front yard. A read block: layoutSha1 changes, the terrain generator reruns (--macro --computed). 3.0 m: at 3.5 m the porches of the boarding house and P are 4 cm off its edge."
+  },
+  {
+    "path": "level.props",
+    "op": "merge",
+    "where": {
+      "id": "shedA"
+    },
+    "value": {
+      "location": [
+        6025,
+        -6825
+      ],
+      "yaw": 315,
+      "note": "shed A, behind home P (moved 0.5 m off the lane)"
+    }
+  },
+  {
+    "path": "level.props",
+    "op": "merge",
+    "where": {
+      "id": "shedB"
+    },
+    "value": {
+      "location": [
+        5725,
+        -5925
+      ],
+      "yaw": 285,
+      "note": "shed B, a tool shed on the lane's east side at the hamlet's mouth (was in the lane)"
+    }
+  },
+  {
+    "path": "level.props",
+    "op": "merge",
+    "where": {
+      "id": "rootCellar"
+    },
+    "value": {
+      "location": [
+        6375,
+        -5675
+      ],
+      "yaw": 0,
+      "note": "the root cellar beside the boarding house's south end, behind the porch line, its door to the boarding house (was in the front yard)"
+    }
   }
 ]
