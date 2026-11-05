@@ -248,7 +248,7 @@ PIECES = {
     # Wall pieces (the bills, the corner lamp) hang lifted, so they have no footprint.
     'BarrelFire': ((60, 63, 101), 'middle', CLUTTER_CULL),
     'BarrelStack_A': ((200, 96, 135), 'middle', SMALL_CULL),
-    'Barrel_C': ((78, 66, 100), 'middle', CLUTTER_CULL),
+    'Barrel_C': ((66, 81, 151), 'middle', CLUTTER_CULL),
     'Boardwalk_4m_Patched': ((400, 303, 50), 'middle', WALK_VARIANT_CULL),
     'Boardwalk_4m_Worn': ((400, 303, 50), 'middle', WALK_VARIANT_CULL),
     'Boardwalk_Steps_Worn': ((40, 302, 37), 'middle', WALK_VARIANT_CULL),
@@ -331,7 +331,7 @@ FOOTPRINT_AHEAD = {'Woodshed': 21.0, 'LumberStack': 28.0, 'LeanTo': 6.0,
                    'Outcrop_TorA': 15.0, 'Outcrop_TorB': 48.0, 'Outcrop_TorC': -19.0,
                    'Awning_4m': 162.0, 'Awning_Post': 162.0, 'BroomBucket': 22.0, 'FlourSacks': 5.0, 'FlowerBox': 12.0,
                    'HandPump': -14.0, 'MilkCans': 11.0, 'PorchLantern': 17.0, 'RockingChair': -7.0,
-                   'RockingChair_Shawl': -7.0, 'SignBracket': 48.0,
+                   'RockingChair_Shawl': -7.0, 'SignBracket': 48.0, 'Barrel_C': -7.0,
                    # The towns round's (town_rules.dressing_size: their boxes' middles off their pivots).
                    'DragHarrow': 12.0, 'FeedTrough': 14.0, 'Ladder_A': 20.0, 'LumberPile_Small': 11.0, 'SackPile_B': 8.0,
                    'ToolBarrel': 10.0, 'ToolsLeaning_A': 25.0, 'Vignette_Alley_A': 66.0, 'Vignette_BackYard_A': 24.0,
@@ -340,7 +340,7 @@ FOOTPRINT_AHEAD = {'Woodshed': 21.0, 'LumberStack': 28.0, 'LeanTo': 6.0,
 FOOTPRINT_RIGHT = {'EggSac_Burst': -16.0, 'Outcrop_TorA': 33.0, 'Outcrop_TorC': 65.0, 'Outcrop_TorD': 66.0,
                    'Boardwalk_2m': -100.0, 'Boardwalk_4m': -200.0, 'Boardwalk_Steps': -16.0, 'FlourSacks': -17.0,
                    'KitchenGarden': 8.0, 'Boardwalk_4m_Patched': -200.0, 'Boardwalk_4m_Worn': -200.0,
-                   'Boardwalk_Steps_Worn': -16.0, 'Barrel_C': 6.0, 'Grindstone': 12.0, 'SackPile_B': -15.0,
+                   'Boardwalk_Steps_Worn': -16.0, 'Grindstone': 12.0, 'SackPile_B': -15.0,
                    'Sawhorse_Log': -14.0, 'ToolBarrel': -26.0, 'Vignette_Alley_A': 12.0, 'Vignette_BackYard_A': -6.0,
                    'Vignette_PorchLived_A': -10.0, 'Vignette_ShopFront_A': 12.0, 'Vignette_ShopFront_B': -6.0}
 
