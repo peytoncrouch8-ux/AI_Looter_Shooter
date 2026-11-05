@@ -3,7 +3,20 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
-## START HERE (2026-11-05 10:15: THREE playtest builds; build 3 is the one to play; none played yet)
+## START HERE (2026-11-05 17:50: build 3 is the one to play; build 4 waits on the barge seam fix; none played yet)
+**Since build 3 (committed, not packaged):** the hamlet Glebe Corner (the user's "hamlet out of town": the boarding house lived, homes P
+and N shut, sheds A/B, the root cellar; towns_hamlet.patch.json) with a real painted dirt road `hamletLane` (the terrain rebuilt,
+every check PASS), fences, a kitchen garden, a hand pump, the hitch rail and trough on the lane, a GLEBE CORNER / RANSOM FARM signpost
+(round 11: 1.5x, letters 12.9 cm, at eye height; the back board names the farm due south); NoTrees boxes (new `notrees` build mode)
+instead of round 4's cottonwood paring (reverted: layoutSha1 back); the barge's walks rebuilt as ship's passages (REWORK round 6:
+straight plated walls in her plating, strake at 95 cm, flashing at 200, bulwark band and capping; DEMO4's jagged shards gone). Clean
+56-view tour (round 11, game thread 4.2 ms): ALL <= 8.3 ms (Aerial_Dusk 8.21). Barge 12/12.
+**Running:** REWORK round 7: DEMO6 found holes in the house walks' wall/floor seam (daylight through; x ~1250-1450 starboard,
+1620-2180 port, more) - the user chose "Fix first"; then `build_round12.ps1` (scratchpad: import ArtExport_TripoR7, the signpost's
+dressing, tests, clean tour) and build 4. The feed store fits nowhere (for a later town). REBAKE notes for later: the walls set's
+Cycles-bake repeatability band, the casing's red panel chip weight 0; the barge build varies ~100 tris a run (BMesh set order).
+
+## Before (2026-11-05 10:15: three builds)
 **Build 3** `Builds\Playtest6-11-05_1004\Windows\AI_Looter_Shooter.exe` (commit 1e3158cd, smoke PASS, full cook 5574) = build 2
 + the east row on the yard road (homes K, M, O lived, shed C, smokehouse, privy; towns_backstreet.patch.json; no back street fits:
 biggest free patch 12 x 24 m), the barge on round 5d (a thin Tripo strap across the starboard walk at 1.35 m removed; the stern
