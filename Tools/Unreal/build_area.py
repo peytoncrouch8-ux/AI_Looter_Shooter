@@ -1507,6 +1507,18 @@ class AreaBuild:
             levels.save_current_level()
             self.log('waterfalls placed and saved')
             return
+        if mode == 'notrees':
+            # The NoTrees boxes alone (level.noTreeZones and the town's: the new lots' yards, the hamlet's clearing), without a
+            # full build: the last build's are taken out by label; run the scatter after (it reads them as it grows).
+            self.open_level('Scatter/NoTreesOnly')
+            old = [a for a in actors.get_all_level_actors() if unreal.Name(self.tag) in a.tags
+                   and str(a.get_actor_label()).startswith('NoTrees_')]
+            if old:
+                actors.destroy_actors(old)
+            self.no_tree_zones()
+            levels.save_current_level()
+            self.log(f'no-tree boxes placed and saved ({len(old)} of the last build taken out)')
+            return
         if mode == 'props':
             # level.props alone (the town gate, the new homes), without a full build: the last build's are taken out by label
             # (nothing is cleared by folder: the folder named holds nothing and only opens the level), the lived-in houses'
@@ -1599,8 +1611,8 @@ def run(name, only_gameplay=False, mode=None):
 
 if __name__ == '__main__':
     args = sys.argv[1:]
-    modes = ('gameplay', 'environment', 'beyond', 'cliffs', 'dressing', 'water', 'lights', 'props')
+    modes = ('gameplay', 'environment', 'beyond', 'cliffs', 'dressing', 'water', 'lights', 'props', 'notrees')
     if not args or args[0] in modes:
-        raise SystemExit('usage: build_area.py <Area> [gameplay|environment|beyond|cliffs|dressing|water|lights|props] (the area is '
+        raise SystemExit('usage: build_area.py <Area> [gameplay|environment|beyond|cliffs|dressing|water|lights|props|notrees] (the area is '
                          'a folder under Art/Levels)')
     run(args[0], mode=next((a for a in args[1:] if a in modes), None))

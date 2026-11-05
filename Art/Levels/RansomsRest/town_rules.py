@@ -97,7 +97,7 @@ KIT = {
     # lantern 0.78 m out), ~3.0 m up; LampPost_C stands on its post's foot, its lanterns 0.7 m out along its Y.
     'LampPost_B': ((0.0, 70.0, 0.0, 70.0), 90.0, True, 'wall', 2, 0, 'SMALL_CULL', False),   # a bracket: no shadow
     'LampPost_C': ((-11.0, 11.0, -11.0, 11.0), 322.0, True, 'upright', 2, 0, 'SMALL_CULL', True),
-    'Barrel_C': ((-33.0, 33.0, -33.0, 45.0), 100.0, True, 'upright', 2, 1, 'CLUTTER_CULL', True),
+    'Barrel_C': ((-48.0, 33.0, -33.0, 33.0), 151.0, True, 'upright', 2, 1, 'CLUTTER_CULL', True),   # probe 07:46
 }
 # The walks' variants take the original's frame and bounds (make_town's walk code treats them as their original).
 WALK_VARIANTS = {'Boardwalk_4m_Worn': 'Boardwalk_4m', 'Boardwalk_4m_Patched': 'Boardwalk_4m',
@@ -118,7 +118,9 @@ CHOSEN = ('WeedFringe_A', 'WeedFringe_B', 'WeedFringe_C', 'PlankCrossing_A', 'St
           'Vignette_Alley_A', 'ToolsLeaning_A', 'Ladder_A', 'Boardwalk_4m_Patched', 'LampPost_B', 'LampPost_C',
           # The feed store's dock (the back street, LEVEL's lots; plan 4.4's "feed store's front"): placed only where a
           # shop has a front deck, so it costs nothing until one stands.
-          'Vignette_ShopFront_B')
+          'Vignette_ShopFront_B',
+          # The boarding house's rain barrel (Glebe Corner, out of every town view; 19 types).
+          'Barrel_C')
 # Also left out for the draws (2026-11-04, the first estimate: +29-36 draws in the street views before these cuts):
 # Boardwalk_4m_Worn (three slots: WoodHoney; Patched is two and reads stronger) and Vignette_PorchEmpty_A (three slots
 # and a shadow for the one shut porch with room for it, the hotel's: a tipped chair, a crate of empties and fallen boards
@@ -182,9 +184,12 @@ FRAMES = {
     'RR_FeedStore': dict(lap=LAP,       # the 1.0 m dock 2.5 m deep, its steps on the right
         walls=[(-1000.0, 5.0, -350.0, 350.0)], decks=[((0.0, 250.0, -350.0, 350.0), 100.0)],
         steps=[(250.0, 369.0, -350.0, -200.0)], doors=[(250.0, 0.0, 1.0, 0.0, 200.0, 200.0)]),
-    'RR_BoardingHouse': dict(lap=LAP,   # the outside stair up the right gable (keep 1.4 m clear there)
+    # The boarding house (TownBuildings.py, measured 2026-11-05 for Glebe Corner): its porch 2.0 m out of the laps across
+    # the middle 8.2 m at BASE 0.55, steps 1.6 m in its middle; the outside stair up its right gable (keep 1.4 m clear).
+    'RR_BoardingHouse': dict(lap=LAP,
         walls=[(-800.0, 5.0, -550.0, 550.0), (-700.0, -73.0, -685.0, -550.0)],
-        decks=[((0.0, 230.0, -550.0, 550.0), 45.0)], doors=[(230.0, 0.0, 1.0, 0.0, 120.0, 220.0)]),
+        decks=[((0.0, 203.0, -410.0, 410.0), 55.0)], steps=[(203.0, 270.0, -80.0, 80.0)],
+        doors=[(5.0, 0.0, 1.0, 0.0, 120.0, 300.0)]),
     # K, M, O measured from Homestead.py's builders (2026-11-05, once placed: the east row): the porch deck from the wall's
     # laps 1.9 m (O 1.8) out at the house's BASE (K 0.5, M 0.45, O 0.55 m), its steps in its middle 1.4 m wide, the door at
     # the pivot (O's porch runs 1.4 m right of its door).
@@ -195,11 +200,13 @@ FRAMES = {
     'RR_Home_M': dict(lap=LAP, walls=[(-560.0, 5.0, -460.0, 460.0)], decks=[((0.0, 193.0, -260.0, 260.0), 45.0)],
                       steps=[(193.0, 245.0, -70.0, 70.0)], doors=[(5.0, 0.0, 1.0, 0.0, 110.0, 300.0)]),
     'RR_Home_N': dict(lap=LAP, walls=[(-500.0, 5.0, -310.0, 310.0), (-720.0, -500.0, -310.0, 310.0)],
-                      decks=[((0.0, 200.0, -150.0, 150.0), 45.0)], doors=[(200.0, 0.0, 1.0, 0.0, 110.0, 200.0)]),
+                      decks=[((0.0, 172.0, -120.0, 120.0), 40.0)], doors=[(5.0, 0.0, 1.0, 0.0, 110.0, 250.0)]),
     'RR_Home_O': dict(lap=LAP, walls=[(-760.0, 5.0, -392.0, 108.0)], decks=[((0.0, 183.0, -403.0, 118.0), 55.0)],
                       steps=[(183.0, 250.0, -213.0, -73.0)], doors=[(5.0, 0.0, 1.0, 0.0, 100.0, 300.0)]),
-    'RR_Home_P': dict(lap=LAP, walls=[(-500.0, 5.0, -562.0, 238.0)], decks=[((0.0, 210.0, -150.0, 150.0), 45.0)],
-                      doors=[(210.0, 0.0, 1.0, 0.0, 110.0, 200.0)]),
+    # P (Homestead.py home_p, measured 2026-11-05 for Glebe Corner): its short porch 2.7 m across the door, 1.6 m deep, its
+    # deck 4 cm under BASE 0.45; the frame addition set back 0.4 m on its right.
+    'RR_Home_P': dict(lap=LAP, walls=[(-500.0, 5.0, -562.0, 238.0)], decks=[((0.0, 160.0, -135.0, 135.0), 41.0)],
+                      steps=[(160.0, 210.0, -70.0, 70.0)], doors=[(5.0, 0.0, 1.0, 0.0, 95.0, 250.0)]),
     'RR_Shed_A': dict(lap=LAP, walls=[(-240.0, 5.0, -80.0, 220.0)], doors=[(5.0, 0.0, 1.0, 0.0, 90.0, 150.0)]),
     'RR_Shed_B': dict(lap=LAP, walls=[(-180.0, 5.0, -125.0, 115.0)], doors=[(5.0, 0.0, 1.0, 0.0, 90.0, 150.0)]),
     'RR_Shed_C': dict(lap=LAP, walls=[(-300.0, 5.0, -130.0, 130.0)], doors=[(5.0, 0.0, 1.0, 0.0, 120.0, 150.0)]),
@@ -226,6 +233,9 @@ TYPES = {
     'cottageNorth': 'homeLived', 'cottageNorthEast': 'homeLived', 'dugout': 'homeLived', 'farmhouse': 'homeLived',
     'homeB': 'homeLived', 'homeK': 'homeLived', 'homeM': 'homeLived', 'homeO': 'homeLived',
     'shedC': 'outbuilding', 'smokehouse': 'outbuilding', 'privyB': 'outbuilding',
+    # Glebe Corner (LEVEL, towns_hamlet.patch.json): the boarding house lived, P and N shut.
+    'boardingHouse': 'homeLived', 'homeP': 'homeEmpty', 'homeN': 'homeEmpty',
+    'shedA': 'outbuilding', 'shedB': 'outbuilding', 'rootCellar': 'outbuilding',
     'cottageSouth': 'homeEmpty', 'cottageSouthWest': 'homeEmpty', 'penLaneWest': 'homeEmpty', 'penLaneEast': 'homeEmpty',
     'amosHouse': 'homeEmpty', 'homeI': 'homeEmpty',
     'barn': 'barn', 'whitlockBarn': 'barn',
@@ -245,7 +255,9 @@ DRESSED = ('cabinNorthWest', 'sheriff', 'cottageNorth', 'saloon', 'cabinNorth', 
            'cabinSouth', 'store', 'cottageSouth', 'undertaker', 'penLaneWest', 'penLaneEast', 'workshop', 'homeB',
            'homeI', 'amosHouse',
            # The east row on the yard road (LEVEL, 2026-11-05: towns_backstreet.patch.json) and its outbuildings.
-           'homeK', 'homeM', 'homeO', 'shedC', 'smokehouse', 'privyB')
+           'homeK', 'homeM', 'homeO', 'shedC', 'smokehouse', 'privyB',
+           # Glebe Corner, the hamlet below the chapel knoll.
+           'boardingHouse', 'homeP', 'homeN', 'shedA', 'shedB', 'rootCellar')
 FRINGE_ONLY = ('amosHouse',)
 # The weeds by type: a lived house's and an open shop's wall foot short dry grass, a shut or empty one's tall dock and
 # thistle; one strip in SKIP_EVERY left out for rhythm.
@@ -1058,13 +1070,109 @@ def extras(r):
         r.local(fr, 'Vignette_Alley_A', 307.0, -370.0, 0.0, 'small', against='homeI', along=True, group='homeI')
 
 
+# Worn lanes the dressing keeps (no layout road: a road is a terrain read block; the GROUND lane paints them trodden from
+# town.json's "lanes"): make_town keeps every piece off them as off a path, and weeds line their edges.
+LANES = [{'id': 'hamletLane', 'kind': 'path', 'width': 350.0,
+          'path': [[4716.0, -5000.0], [5700.0, -5800.0], [6900.0, -6800.0]],
+          'note': "Glebe Corner's lane from the west road to the boarding house (LEVEL, HOMES.md round 5)"}]
+# Open ground the scatter's trees keep out of (town.json noTrees: build_area.py's no_tree_zones() places them as NoTrees
+# boxes). hamlet: Glebe Corner's clearing in Widow's Pines (HOMES.md round 5). eastRow: the east row's houses, yards and
+# outbuildings (the cottonwood stand is whole again in the layout, 2026-11-05, and the row stands in it: the box clears all
+# of it; the houses are the screen between the street and the Sink now). The rules keep their pieces off a trees
+# obstacle only outside these.
+NO_TREES = [
+    {'id': 'hamlet', 'polygon': [[5450.0, -5450.0], [8150.0, -5450.0], [8150.0, -6100.0], [7500.0, -7100.0],
+                                 [6700.0, -8000.0], [6000.0, -8700.0], [5450.0, -8700.0]]},
+    {'id': 'eastRow', 'polygon': [[700.0, 6350.0], [3050.0, 6350.0], [3050.0, 9600.0], [700.0, 9600.0]]},
+]
+
+
+def tree_free(x, y):
+    """Whether (x, y) is in one of NO_TREES' areas (no scattered tree will stand there)."""
+    for area in NO_TREES:
+        poly = area['polygon']
+        hit = False
+        for i in range(len(poly)):
+            (x0, y0), (x1, y1) = poly[i], poly[(i + 1) % len(poly)]
+            if (y0 > y) != (y1 > y) and x < x0 + (y - y0) * (x1 - x0) / (y1 - y0):
+                hit = not hit
+        if hit:
+            return True
+    return False
+LANE_WEED_STEP = 400.0
+
+
+def hamlet(r):
+    """Glebe Corner: the boarding house's more life (a bench on its porch, a rain barrel at its corner, a woodpile on its
+    north wall, a hitch rail and a trough in the lane's turning space before it, its notices), home P's porch gone to
+    ruin, N's rotted woodpile, the lane's mouth (a lantern post, left dark) and its edges' weeds."""
+    f = {fr.b.id: fr for fr in r.frames}
+    if 'boardingHouse' in f:
+        fr = f['boardingHouse']
+        x0, x1, y0, y1 = fr.body
+        r.local(fr, 'Bench', 30.0 + fr.lap, 250.0, 0.0, 'porch', mount='porch', lift=55.0, against='boardingHouse',
+                group='boardingHouse', alts=[(30.0 + fr.lap, -250.0, 0.0)])
+        r.local(fr, 'Barrel_C', x1 - 60.0, y1 + 45.0 + fr.lap, 0.0, 'small', group='boardingHouse',
+                alts=[(x0 + 60.0, y1 + 45.0 + fr.lap, 0.0)])
+        r.local(fr, 'FirewoodStack', (x0 + x1) * 0.5, y1 + 35.0 + fr.lap, 90.0, 'big', against='boardingHouse',
+                along=True, group='boardingHouse', alts=[(x0 + 200.0, y1 + 35.0 + fr.lap, 90.0)])
+        # (The lane ends 7.75 m out, 3.25 m to its right: the rail stands on the turning space's left, along the front.)
+        r.local(fr, 'HitchRail', 520.0, 250.0, 0.0, 'street', group='boardingHouse',
+                alts=[(650.0, 250.0, 0.0), (520.0, 120.0, 0.0), (420.0, -420.0, 90.0)])
+        r.local(fr, 'WaterTrough', 520.0, 380.0, 90.0, 'street', group='boardingHouse', alts=[(520.0, -420.0, 90.0)])
+        r.local(fr, 'Handbills_A', x1 - 110.0, y1 + 1.0 + fr.lap, 90.0, 'wall', mount='wall', lift=145.0,
+                group='boardingHouse')
+    if 'homeP' in f:
+        fr = f['homeP']
+        # The shut log house: a chair tipped on its short porch, boards down off it.
+        # (its porch is the door's alone: the chair lies tipped in the grass off its end, the boards are the menu's)
+        r.local(fr, 'PorchChair', 120.0, 215.0, 70.0, 'small', lift=23.0, tilt=(0.0, 90.0),
+                box=(-25.0, 25.0, -100.0, 100.0), group='homeP', alts=[(120.0, -330.0, 50.0)])
+    if 'homeN' in f:
+        fr = f['homeN']
+        x0, x1, y0, y1 = fr.body
+        # The shut cabin: the winter's wood never burned, against its lean-to.
+        r.local(fr, 'FirewoodStack', x0 - 260.0, y1 + 35.0 + fr.lap, 90.0, 'big', group='homeN',
+                alts=[(x0 - 260.0, y0 - 35.0 - fr.lap, 90.0), (-400.0, y1 + 35.0 + fr.lap, 90.0),
+                      (-400.0, y0 - 35.0 - fr.lap, 90.0)])
+    for lane in LANES:
+        pts = [tuple(p) for p in lane['path']]
+        half = lane['width'] * 0.5
+        (ax, ay), (bx, by) = pts[0], pts[1]
+        length = math.hypot(bx - ax, by - ay) or 1.0
+        dx, dy = (bx - ax) / length, (by - ay) / length
+        # The lantern post at its mouth, beside it (emissive only: LIGHTS may leave it dark).
+        r.add('LanternPost', ax + dx * 400.0 - dy * (half + 70.0), ay + dy * 400.0 + dx * (half + 70.0),
+              math.degrees(math.atan2(dy, dx)) + 90.0, lane['id'], 'verge',
+              alts=[(ax + dx * 400.0 + dy * (half + 70.0), ay + dy * 400.0 - dx * (half + 70.0),
+                     math.degrees(math.atan2(dy, dx)) - 90.0)])
+        # Its edges' short grass, both sides, one strip in SKIP_EVERY left out.
+        k = 0
+        for (ax, ay), (bx, by) in zip(pts, pts[1:]):
+            seg = math.hypot(bx - ax, by - ay)
+            dx, dy = (bx - ax) / seg, (by - ay) / seg
+            n = int(seg // LANE_WEED_STEP)
+            for j in range(n):
+                t = (j + 0.5) * seg / n
+                for side in (1.0, -1.0):
+                    k += 1
+                    if crc(lane['id'], k) % SKIP_EVERY == 0:
+                        continue
+                    nx, ny = -dy * side, dx * side
+                    yaw = math.degrees(math.atan2(ny, nx))
+                    r.add('WeedFringe_A', ax + dx * t + nx * (half + 25.0), ay + dy * t + ny * (half + 25.0),
+                          yaw + jitter((lane['id'], k), 6.0), lane['id'], 'weed', along=True)
+
+
 def dress(mt, d, skip=()):
     """The rules' pieces for the design d (after its hand-made ones)."""
     r = Rules(mt, d, skip)
     r.frames = frames(mt, d.world)
     rule_spots(d.world, mt)
+    d.no_trees.extend(dict(n) for n in NO_TREES)
     street(r)
     extras(r)
+    hamlet(r)
     for f in r.frames:
         r.menu(f)
     for f in r.frames:

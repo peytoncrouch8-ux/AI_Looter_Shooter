@@ -216,3 +216,36 @@ PenLane, YardRoad, Farm), Looter.Breakable / Economy.Balance (no breakable mesh 
   smithyTown, homeL); the bills' lifts now from the buildings' probed heights (bathhouse 142.7, smithy 153.9). Nothing removed.
 - Unchecked: by eye in Unreal; 12 pieces still outside every probe region (Pen Lane's C weeds and boards, homeL's second boards,
   the dugout's line: flat or hand-made, as built).
+
+# Round 6 (2026-11-05 10:30; Glebe Corner, LEVEL's hamlet: towns_hamlet.patch.json; the cottonwood paring reverted)
+- Run: `make_town.py --out town_next.json --patch Docs/Work/2026-11-04-Towns/towns_backstreet_revert_cottonwoods.patch.json,Docs/Work/2026-11-04-Towns/towns_hamlet.patch.json`
+  (both not in layout.json yet; once they are, the same without --patch). Twice identical; town.json untouched. 393 -> 433.
+- town_rules: DRESSED + boardingHouse (homeLived), homeP, homeN (homeEmpty), shedA, shedB, rootCellar (outbuilding). Frames
+  measured from the builders: the boarding house's porch (2.0 m, the middle 8.2 m, floor 0.55, steps 1.6 m), N's portico (1.7 m,
+  0.40), P's door porch (2.7 x 1.6 m, 0.41). hamlet(): the boarding house's bench on the porch, a rain barrel (Barrel_C, now in
+  CHOSEN: 19 chosen, 17 placed), a woodpile on its north wall, a hitch rail and a trough in the lane's turning space, its notices;
+  P's chair tipped in the grass off its porch's end; N's rotted woodpile; the lane's lantern post (LanternPost, emissive: LIGHTS
+  may leave it dark) and its edges' short grass. build_area_townlife.HOUSEHOLDS + boardingHouse: 'Cottage'.
+- The lane: `town_rules.LANES` (hamletLane, path, 3.5 m: (4716,-5000), (5700,-5800), (6900,-6800)), no layout road. make_town keeps
+  every piece off it as off a path; town.json carries it as "lanes" (for GROUND's trodden paint; build_area_dressing ignores it).
+- NoTrees: town.json noTrees + `hamlet` (LEVEL's clearing polygon) and `eastRow` (X 700..3050, Y 6350..9600: the row stands in
+  the restored cottonwood stand, so the box clears the stand where the row is; the houses are the screen now). The rules skip a
+  trees obstacle inside these. **Outside my files:** build_area.py places town.json's noTrees as NoTrees boxes only in its full
+  build (`no_tree_zones()`); the `dressing` mode doesn't. Either a full build, or a mode in build_area.py that runs
+  `no_tree_zones()` (then the scatter).
+- Placed now (+40): boardingHouse Bench, PorchChair, Washtub, Handbills_A, 5 weeds; homeP 2 FallenBoards, 7 weeds; homeN 1
+  FallenBoards, 11 weeds; sheds 3 and cellar 3 weed strips; the lane 3; homeK's LaundryLine (the stand no longer blocks it).
+  Moved: homeK's block and firewood, homeM's block and laundry back toward their design spots (the pared strip is gone).
+- Waiting for the probe's `hamlet` region (the 09:33 probe has none): every standing yard piece there is held back by the rule
+  (11: the boarding house's woodpiles, block, laundry, tools, barrel, rail, trough; N's woodpile; P's chair; the lantern post).
+  After the hamlet is built and probed, rerun without --patch.
+
+# Round 7 (2026-11-05 11:16; the hamlet built, probe 11:15 with its region; patches in layout.json)
+- `make_town.py --out town_next.json` (no --patch), twice identical; town.json untouched. 433 -> 436 pieces; 18 new types placed
+  (Barrel_C now; cap 24). NoTrees: Main's build_area.py `notrees` mode places them (then the scatter).
+- The 11 held pieces: 8 back (the boarding house's rain barrel, north woodpile, tools, hitch rail, trough; the lane's lantern post
+  (nudged 1 m off a 52 cm hump); N's woodpile (by its lean-to, its first spot in the pines); P's tipped chair). 3 stay out: the
+  boarding house's laundry line, second woodpile and chopping block behind it (43-78 cm under them: the chapel knoll's toe).
+  The rail's spots now on the turning space's left along the front (the lane ends 7.75 m out, 3.25 m right of the door).
+- Porch pieces on the real floors (probe actor z + the builders' deck heights): boarding house (z 34.6 incl. its lift 10, + 55),
+  K, M, O: all 0.0 cm off. Weeds: -5 strips (the new pieces' feet).

@@ -624,7 +624,7 @@ class World:
         for p in level.get('props', []):
             self.add_building(p['id'], p['kind'], p, sizes)
         self.roads = [(r['id'], [tuple(q[:2]) for q in r['path']], r['width'] * 0.5, r.get('kind'))
-                      for r in layout.get('roads', [])]
+                      for r in layout.get('roads', []) + town_rules.LANES]
         self.trails = []
         for t in layout.get('trails', []):
             pts = []
@@ -1533,6 +1533,8 @@ class Placer:
 
             # Layout obstacles and zones kept out of.
             for oid, kind, pts, closed, clear in w.obstacles:
+                if kind == 'trees' and town_rules.tree_free(x, y):
+                    continue        # a stand's trees are kept out of here (town_rules.NO_TREES)
                 if soft:
                     clear = min(clear, 20.0)
                 xs, ys = [p[0] for p in pts], [p[1] for p in pts]
@@ -1961,6 +1963,7 @@ def write(d, world, approved):
     parts = ['{', f'  "about": {dumps(ABOUT)},', '  "pieces": [', ',\n'.join(f'    {dumps(p)}' for p in pieces), '  ],',
              '  "lines": [', ',\n'.join(f'    {dumps(l)}' for l in sorted(lines, key=lambda l: l['id'])), '  ],',
              '  "noTrees": [', ',\n'.join(f'    {dumps(n)}' for n in d.no_trees if n.get('polygon')), '  ],',
+             '  "lanes": [', ',\n'.join(f'    {dumps(lane)}' for lane in town_rules.LANES), '  ],',
              f'  "deferred": {dumps(dict(sorted(deferred.items())))},',
              '  "deferredPieces": [', ',\n'.join(f'    {dumps(p)}' for p in later), '  ],',
              '  "lights": [', ',\n'.join(f'    {dumps(l)}' for l in lights), '  ],',

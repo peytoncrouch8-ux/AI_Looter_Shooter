@@ -1,0 +1,113 @@
+[
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "boardingHouse",
+      "kind": "RR_BoardingHouse",
+      "location": [
+        7225,
+        -6025
+      ],
+      "yaw": 270,
+      "note": "Glebe Corner's boarding house (lived): the lane's end, its back against the chapel knoll's toe, its porch facing west down the lane; lift 10: the ground climbs 40 cm to its back wall",
+      "lift": 10
+    }
+  },
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "homeP",
+      "kind": "RR_Home_P",
+      "location": [
+        6525,
+        -7025
+      ],
+      "yaw": 45,
+      "note": "home P (shut): the lane's south-west side, 3.5 m off the lane, facing it north-east; sheds A and B beside it"
+    }
+  },
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "homeN",
+      "kind": "RR_Home_N",
+      "location": [
+        6125,
+        -7925
+      ],
+      "yaw": 45,
+      "note": "home N (shut): the street's far south-west end, facing north-east back up the lane; 4.3 m from the Burnt Homestead's ruin"
+    }
+  },
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "shedA",
+      "kind": "RR_Shed_A",
+      "location": [
+        6025,
+        -6775
+      ],
+      "yaw": 315,
+      "note": "shed A, behind home P"
+    }
+  },
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "shedB",
+      "kind": "RR_Shed_B",
+      "location": [
+        5775,
+        -6375
+      ],
+      "yaw": 315,
+      "note": "shed B, behind home P"
+    }
+  },
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "rootCellar",
+      "kind": "RR_RootCellar",
+      "location": [
+        7325,
+        -6525
+      ],
+      "yaw": 90,
+      "note": "the root cellar by the boarding house's south end, its door to the yard"
+    }
+  },
+  {
+    "path": "level.lights",
+    "op": "merge",
+    "value": {
+      "boardingHouse": {
+        "lamp": [
+          3.5,
+          30
+        ],
+        "reach": 350,
+        "gloomGlow": 6
+      },
+      "homeP": {
+        "dark": true
+      },
+      "homeN": {
+        "dark": true
+      }
+    },
+    "comment": "lived = the boarding house (the user, D5); the feed store is an open shop by day with no lit glass (dark), the homes shut"
+  },
+  {
+    "path": "level.smoke",
+    "op": "append",
+    "value": "boardingHouse"
+  }
+]

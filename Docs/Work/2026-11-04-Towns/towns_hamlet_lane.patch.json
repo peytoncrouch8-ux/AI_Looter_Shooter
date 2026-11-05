@@ -1,0 +1,26 @@
+[
+  {
+    "path": "roads",
+    "op": "append",
+    "value": {
+      "id": "hamletLane",
+      "kind": "dirt",
+      "width": 350,
+      "path": [
+        [
+          4716,
+          -5000
+        ],
+        [
+          5700,
+          -5800
+        ],
+        [
+          6900,
+          -6800
+        ]
+      ]
+    },
+    "comment": "OPTIONAL and a read block: the lane as a carved dirt road changes layoutSha1 and needs the terrain generator (--computed, and the macro for its paint); without it the lane is dressing (worn ground, ruts)"
+  }
+]

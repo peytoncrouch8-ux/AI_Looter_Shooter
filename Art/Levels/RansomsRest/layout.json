@@ -1653,9 +1653,9 @@
     {
       "id": "sinkRoadCottonwoods",
       "kind": "trees",
-      "polygon": [[1950,6550],[2150,7000],[2300,7500],[2480,7950],[2640,8150],[2560,7600],[2380,7100],[2200,6600]],
+      "polygon": [[1479,6289],[1885,7305],[2082,8097],[2418,8766],[1882,9034],[1518,8303],[1315,7495],[921,6511]],
       "height": 1100,
-      "note": "cottonwoods behind Main Street's east end, hiding the Sink from the street: pared back to a strip behind the east row (K, M, O stand where the stand's western band was; 2026-11-05 back street)"
+      "note": "cottonwoods behind Main Street's east end, hiding the Sink from the street"
     },
     {
       "id": "denRock",
@@ -2782,9 +2782,12 @@
       "homeL": { "dark": true },
       "homeK": { "lamp": [3,16], "reach": 400, "gloomGlow": 4 },
       "homeM": { "lamp": [3,16], "reach": 400, "gloomGlow": 4 },
-      "homeO": { "lamp": [3,16], "reach": 400, "gloomGlow": 4 }
+      "homeO": { "lamp": [3,16], "reach": 400, "gloomGlow": 4 },
+      "boardingHouse": { "lamp": [3.5,30], "reach": 350, "gloomGlow": 6 },
+      "homeP": { "dark": true },
+      "homeN": { "dark": true }
     },
-    "smoke": ["farmhouse","store","undertaker","cottageNorth","cottageNorthEast","dugout","depot","locomotive","workshop","homeB","smithyTown","bathhouse","homeK","homeM","homeO","smokehouse"],
+    "smoke": ["farmhouse","store","undertaker","cottageNorth","cottageNorthEast","dugout","depot","locomotive","workshop","homeB","smithyTown","bathhouse","homeK","homeM","homeO","smokehouse","boardingHouse"],
     "cliffs": {
       "varied": ["boundaryFoot","eastRidge","hogback","larkspurEast","escarpment","bluffPath","ransomsPoint","coffinRock","theSink","sinkRamp","theNose","millGorge"],
       "top": [0.72,1.12],
@@ -3052,7 +3055,38 @@
         "yaw": 180,
         "note": "smokehouse behind O, 9.6 m from the Sink's rim line"
       },
-      { "id": "privyB", "kind": "RR_Privy_B", "location": [2775,9325], "yaw": 180, "note": "privy behind O" }
+      { "id": "privyB", "kind": "RR_Privy_B", "location": [2775,9325], "yaw": 180, "note": "privy behind O" },
+      {
+        "id": "boardingHouse",
+        "kind": "RR_BoardingHouse",
+        "location": [7225,-6025],
+        "yaw": 270,
+        "note": "Glebe Corner's boarding house (lived): the lane's end, its back against the chapel knoll's toe, its porch facing west down the lane; lift 10: the ground climbs 40 cm to its back wall",
+        "lift": 10
+      },
+      {
+        "id": "homeP",
+        "kind": "RR_Home_P",
+        "location": [6525,-7025],
+        "yaw": 45,
+        "note": "home P (shut): the lane's south-west side, 3.5 m off the lane, facing it north-east; sheds A and B beside it"
+      },
+      {
+        "id": "homeN",
+        "kind": "RR_Home_N",
+        "location": [6125,-7925],
+        "yaw": 45,
+        "note": "home N (shut): the street's far south-west end, facing north-east back up the lane; 4.3 m from the Burnt Homestead's ruin"
+      },
+      { "id": "shedA", "kind": "RR_Shed_A", "location": [6025,-6775], "yaw": 315, "note": "shed A, behind home P" },
+      { "id": "shedB", "kind": "RR_Shed_B", "location": [5775,-6375], "yaw": 315, "note": "shed B, behind home P" },
+      {
+        "id": "rootCellar",
+        "kind": "RR_RootCellar",
+        "location": [7325,-6525],
+        "yaw": 90,
+        "note": "the root cellar by the boarding house's south end, its door to the yard"
+      }
     ],
     "environment": {
       "about": "The golden hour tried out on Lvl_TerrainTest (Tools/Unreal/build_area_environment.py): the sun low in the west-southwest over the canyon, haze thickest down in the canyon and glowing warm toward the sun, the planet's top down on the plains, the cloud dome past the backdrop. Tuned on Ransom's Rest at step 5a. Art note 3 (the sky): the sky's own color cancels most of the warm sun's tint, so it stays a clear blue overhead and warms only toward the sun; the haze ends at 13.5 km, between the backdrop (12 km) and the cloud dome (15 km), so neither the sky nor the clouds wear it; the haze's glow toward the sun matches the warm sky there. Art note 2 (the far band): the fog thinned to 0.003 (dusk 0.004) and the atmosphere's own haze stretched 3 times, so the backdrop's layers fade by distance, darker near and paler far, instead of melting into one pale band; M_Backdrop darkens them toward the sun to their shaded sides.",

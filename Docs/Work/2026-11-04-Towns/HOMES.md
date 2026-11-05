@@ -256,3 +256,98 @@ sheds A and B, root cellar.
   (about 8-14 min offline, layout_computed.json refreshed) and keep the paring. (a) costs no machine time.
 - Rule for every lane: only `level.*` / `gameplay.*` edits leave the terrain alone; roads, pads, zones, obstacles, features, boundary
   and `erosion` are read blocks (a rebuild).
+
+# Round 5: Glebe Corner, a hamlet out of town (the user's call; Main 09:45, 2026-11-05)
+
+**Result: 6 of the 7 stand, the Feed Store does not fit.** Placed: Boarding House (lived), homes N and P (shut), sheds A and B,
+the root cellar, in the clearing below the chapel knoll, off the west road's first stretch. **No pad, no terrain rebuild:** the ground
+there is within -16..+40 cm of every door, and nothing in `towns_hamlet.patch.json` is a read block (checked: layoutSha1 stays
+60948475..., the value after round 4; see the correction above for that value). Patches (`--check` passes, not applied):
+`towns_hamlet.patch.json` (props, lights, smoke) and the optional `towns_hamlet_lane.patch.json` (the lane as a road entry; costs a
+generator run, below).
+
+## Where, and why not the other pitches
+- Method: the 50 cm occupancy raster widened over the whole west half of the map (X -105..120 m, Y -165..90 m: west road, farm, Whitlock),
+  every rule category (fights incl. each story fight alone, encounters/patrols with their routes and corridors, roosts, loot, the Sink
+  rim, cliffs, water, buildings, obstacles, features, pads, roads +1 m, boundary, orchard trees, zone keep-outs), the true heights from
+  the exported terrain tiles (equal to the probe to 0.3 cm). Only three places hold a 12 x 20 m rectangle even with dressing, breakables
+  and tree stands movable: the south back band (round 4: no way in), a pocket south of Coffin Rock (no road within 40 m), and this clearing.
+- **Whitlock's farm side:** the only free ground is the south back band (X -5350..-3900, Y -500..3500). The alley from Pen Lane is
+  closed by the burnt livery's obstacle, and the route from Amos's gate crosses the FurrowDead ambush (r 7.5 m round X -5150..-4400,
+  Y 5000..5720) and the Side 2 bale discs. Not usable.
+- **The farm road / orchard:** Delia's salt-line safe zone, the orchard rows, the OrchardEdge camp (r 13 m) and the Main 3 gate fight cover it.
+- **The west road elsewhere:** the WestRoad patrol corridor (route (4800,-4650), (4700,-5100), (4100,-6500), 8 m either side), the
+  SheepFold camp, the glebe wall's cliffs west of the road, the Tollman's beat beyond. Moving the patrol's corridor off the clearing
+  would open its south edge (X 4800..5600, about 8 x 25 m): not done, the patrol is the user's.
+- **The clearing:** X 5450..8100, Y -8700..-5450, north of the road and west of the chapel knoll, inside Widow's Pines. About 710 m2 of
+  flat ground (heights 30-50 cm, lumps +-15 cm), bounded north-east by the knoll's toe (the ground climbs from Y -5300: 2.6 m by -4900,
+  7 m by -4000), north-west by the playable boundary's diagonal ((6500,-8400) to (8300,-5800)), south by the Burnt Homestead
+  (polygon X 4500..5300, Y -7700..-6700; kept 10 m round its chimney (4900,-7200), find E4's hearth) and the WestRoad patrol corridor.
+  The pines are a scatter stand (`widowsPinesEdge`, obstacle kind trees; the Widow's Pines zone): a NoTrees box clears them, and no
+  read block is touched.
+- Why it reads: a hamlet in the lap of the chapel hill (the churchyard stands 7 m above it, the player sees its lamp from the yard
+  and from the road), the boarding house at the lane's end with its back to the knoll, the pines round three sides.
+
+## Placed (all `level.props`; X north, Y east, cm)
+| id | model | location | yaw | state | clearance (cm, real bounds) | ground vs door |
+|---|---|---|---|---|---|---|
+| `boardingHouse` | RR_BoardingHouse | (7225, -6025) | 270 | **lived** (lamp 3.5 / 30 cd, reach 350, gloomGlow 6 like Pruitt's store, smoke), `lift` 10 | ruin 1306, patrol corridor 1011, road 1628, lane edge 36 | door 25; -12..+40 |
+| `homeP` | RR_Home_P | (6525, -7025) | 45 | shut, dark | ruin 607, patrol 1127, road 1722 | door 27; -2..+18 |
+| `homeN` | RR_Home_N | (6125, -7925) | 45 | shut, dark | ruin 398 (chimney 14 m), patrol 1295 | door 43; -16..0 |
+| `shedA` | RR_Shed_A | (6025, -6775) | 315 | - | ruin 454, patrol 778 | door 38; -13..+6 |
+| `shedB` | RR_Shed_B | (5775, -6375) | 315 | - | ruin 413, patrol 435 | door 33; -6..+6 |
+| `rootCellar` | RR_RootCellar | (7325, -6525) | 90 | - | ruin 1813, patrol 1960 | door 23; -8..+7 |
+- Gaps: boarding house - home P 358, - cellar 187; P - N 167; P - shed A 161; shed A - shed B 150. Off every fight ground, encounter
+  spot and route, roost, loot actor, cliff and river (the raster's categories; the three hay bales and the finds are elsewhere).
+  No town.json or town_next.json piece is near (the nearest are the dugout's, 56 m off).
+- Lane (dressing or road): from the west road at (4716,-5000) through (5700,-5800) to (6900,-6800), 3.5 m of packed dirt, the
+  buildings' porches 0.4-1.5 m off its edge; it begins on the patrol's beat (the Unpaid walk the road, not the lane).
+- Fires: none. Smoke: the boarding house (SOCKET_Smoke; Smoke_2 unused). Households: add boardingHouse = Cottage to
+  `build_area_townlife.HOUSEHOLDS` (not done: outside this job's files) or it stays quiet.
+
+## The Feed Store: open shop, but no room
+- It is an open shop by day (town_rules types it shopOpen: the sliding door ajar, crates and sacks on its dock) with no lit glass,
+  so `"dark": true` and no smoke if it ever stands. It is 14.0 m deep x 7.9 m wide plus the dock. In the clearing's wedge no layout
+  holds it beside the boarding house and a home: the best packings (hundreds tried, lanes of every shape) place three of Boarding House,
+  Feed Store, N, P; with the Feed Store they give Boarding + Feed + one home + two sheds (5 buildings) instead of the 6 above. Swap
+  one for the other only if the shop matters more than a home and the cellar.
+
+## Terrain: no pad (what one would cost)
+- Not needed: footprints within -16..+40 cm of each door (the boarding house takes `lift` 10, the other five need none), outside every
+  frozen town zone, and the pines are no terrain. A pad (rounded rectangle, absolute height in cm, optional `grade` and `bank`) would
+  only level the yards: it and any road entry are read blocks, so layoutSha1 changes and `terrain_check` wants the generator rerun:
+  the shape/erosion/mesh step plus `--macro --computed` (35-45 min), `models.ps1 -Only RansomsRest` (8-10 min plus the import, 10 min),
+  `build_area.py ... beyond`, the scatter (3-5 min): about 60-70 min of machine time, then `terrain_check` and `terrain_compare -Except`
+  (the clearing is not in towns_except.json; nothing there is frozen). The lane as a road entry (`towns_hamlet_lane.patch.json`,
+  kind dirt, 350 wide) costs exactly that run (carve 12 cm, shoulders 2.2 m, macro paint); without it the lane is dressing.
+- Erosion note: the clearing is in the forest zone (erodible) and `level.props` masks only the footprints (+ the feather); a later
+  generator run may move the yards by up to 2 m, smoothly.
+
+## Probe
+- `Saved/rr_town_probe.py` has the region `hamlet` (X 4300..8000, Y -9000..-4300; heights every 50 cm and the actors within 10 m) and
+  `eastRow` (X 900..3000, Y 6400..9700); run it before the props are placed if the real ground is wanted (the numbers above are from the
+  exported tiles and match the probe to 0.3 cm).
+
+## Plan for DRESSING (town_rules.py types the models already: boarding house homeLived, N and P homeEmpty, sheds and cellar outbuilding)
+- Add boardingHouse, homeP, homeN, shedA, shedB, rootCellar to `DRESSED`. NoTrees box `hamlet` in town.json noTrees: polygon (5450,-5450),
+  (8150,-5450), (8150,-6100), (7500,-7100), (6700,-8000), (6000,-8700), (5450,-8700) (the free clearing; the pines stay outside).
+- Boarding House (the lane's end): the hamlet's one lit house: porch lantern lit, a hitch rail and a water trough in the yard in front
+  (the lane's turning space), a ROOMS blade sign, a rain barrel, a woodpile on the north wall; the root cellar's door and a sack pile at
+  its south end; an apple crate stack. Homes P and N (shut): weeds, a tipped chair, boards on the porch, a rotted woodpile; sheds A and B
+  behind P with a broken cart; a dead garden. Weed fringes as for the town (lived A, empty B).
+- The lane: ruts and a worn centre line on the 3.5 m between (4716,-5000) and (6900,-6800), a plank crossing at the road mouth, one
+  lantern post at the mouth that the LIGHTS lane can leave dark; no street events (a hamlet), a handbill on the boarding house.
+
+## Run order (hamlet; no generator, no import, no beyond, no cliffs)
+1. `python Tools/layout_patch.py RansomsRest Docs/Work/2026-11-04-Towns/towns_hamlet.patch.json --check`, then without `--check`; archive it.
+   (Round 4's cottonwood paring first, see the correction above: apply `towns_backstreet_revert_cottonwoods.patch.json` or rerun
+   `--computed`, so that layoutSha1 is a known value.)
+2. DRESSING: DRESSED, the `hamlet` NoTrees box, the HOUSEHOLDS line, the lane pieces; `make_town.py` reads `level.props` as buildings.
+3. Editor: `Tools\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_area.py RansomsRest props" -Until "props placed and saved"`
+   (the six props, the boarding house's lamp and plume, its household).
+4. `build_island_scatter.py RansomsRest` (the pines leave the box, grass keeps off the walls; wait for the count, save), then
+   `build_area_dressing.py`, `build_area_fauna.py` (roof perches), `path_probe.py RansomsRest`.
+5. Tests: `Looter.World.HouseLights` (one more lit house), `Looter.World.RansomsRest.InsideBoundary`, `Looter.UI.Minimap`,
+   `Looter.Encounters.Camps` (the WestRoad patrol and its corridor); a PIE walk from the
+   chapel yard down to the hamlet and along the west road past the lane's mouth at dusk; `Tools\tour.ps1` + `Tools\perf.ps1`
+   (one lit house, one plume, 6 buildings in the pines' edge: the chapel knoll and the road view).

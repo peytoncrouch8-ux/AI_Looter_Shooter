@@ -51,6 +51,8 @@ HOUSEHOLDS = {
     'homeK': 'Cottage',
     'homeM': 'Cottage',
     'homeO': 'Cottage',
+    # Glebe Corner's boarding house (the hamlet below the chapel knoll; its lodgers are heard, never met).
+    'boardingHouse': 'Cottage',
 }
 
 # The settler's cottage's front door in the model's own frame (Art/Models/Buildings/Cottage.py, Cottage_Ransom: the front
