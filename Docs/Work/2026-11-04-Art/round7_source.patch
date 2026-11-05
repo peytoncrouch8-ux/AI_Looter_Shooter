@@ -1,0 +1,206 @@
+diff --git a/Source/AI_Looter_Shooter/Bosses/AbelCorruption.cpp b/Source/AI_Looter_Shooter/Bosses/AbelCorruption.cpp
+index 7771f960..ffbf0b3b 100644
+--- a/Source/AI_Looter_Shooter/Bosses/AbelCorruption.cpp
++++ b/Source/AI_Looter_Shooter/Bosses/AbelCorruption.cpp
+@@ -13,6 +13,7 @@
+ #include "Creatures/DredgerLook.h"
+ #include "Creatures/UnpaidCreature.h"
+ #include "Story/CaptionSubsystem.h"
++#include "Story/StoryLineSet.h"
+ #include "Weapons/WeaponFX.h"
+ #include "World/KeeperLanternPost.h"
+ #include "World/LamplighterRules.h"
+@@ -97,6 +98,8 @@ void UAbelCorruptionComponent::BeginPlay()
+ 		Health->OnDamaged.AddDynamic(this, &UAbelCorruptionComponent::HandleDamaged);
+ 	}
+ 	MakeParts();
++	// His words now, while the level loads, not at his first line in the fight.
++	HoldLines();
+ 	Drunk.Init(false, BoardsDead.Num());
+ }
+ 
+@@ -367,10 +370,33 @@ void UAbelCorruptionComponent::HandleDamaged(float Damage, bool bCritical, FVect
+ // His words
+ // ---------------------------------------------------------------------------
+ 
+-void UAbelCorruptionComponent::Say(FName SetName, const TArray<FStoryLine>& Fallback, int32 LineIndex, bool bInterrupt) const
++void UAbelCorruptionComponent::HoldLines()
+ {
+-	// The writer's set when it's made (create_story_lines.py), the code's draft until then.
+-	TArray<FStoryLine> Said = LandfallRules::LoadLines(SetName);
++	// Every set Say is asked for in AbelCorruption*.cpp. One left off this list still plays: loaded at its first line, a
++	// hitch once, then held like these.
++	static const FName Sets[] = {
++		TEXT("DA_Lines_AbelMutter"), TEXT("DA_Lines_AbelCallHint"), TEXT("DA_Lines_AbelCallBack1"), TEXT("DA_Lines_AbelCallBack2"),
++		TEXT("DA_Lines_AbelFinal"), TEXT("DA_Lines_AbelDrink"), TEXT("DA_Lines_AbelSurge"),
++	};
++	for (const FName& Set : Sets)
++	{
++		if (UStoryLineSet* Loaded = LandfallRules::LoadLineSet(Set))
++		{
++			HeldLines.AddUnique(Loaded);
++		}
++	}
++}
++
++void UAbelCorruptionComponent::Say(FName SetName, const TArray<FStoryLine>& Fallback, int32 LineIndex, bool bInterrupt)
++{
++	// The writer's set when it's made (create_story_lines.py), the code's draft until then. Held once loaded (HeldLines).
++	const TObjectPtr<UStoryLineSet>* Held = HeldLines.FindByPredicate([SetName](const TObjectPtr<UStoryLineSet>& Set) { return Set && Set->GetFName() == SetName; });
++	UStoryLineSet* Set = Held ? Held->Get() : LandfallRules::LoadLineSet(SetName);
++	if (Set && !Held)
++	{
++		HeldLines.Add(Set);
++	}
++	TArray<FStoryLine> Said = Set ? Set->Lines : LandfallRules::LoadLines(SetName);
+ 	if (Said.IsEmpty())
+ 	{
+ 		Said = Fallback;
+diff --git a/Source/AI_Looter_Shooter/Bosses/AbelCorruption.h b/Source/AI_Looter_Shooter/Bosses/AbelCorruption.h
+index d6885035..051a237c 100644
+--- a/Source/AI_Looter_Shooter/Bosses/AbelCorruption.h
++++ b/Source/AI_Looter_Shooter/Bosses/AbelCorruption.h
+@@ -20,6 +20,7 @@ class UMaterialInstanceDynamic;
+ class UMaterialInterface;
+ class USphereComponent;
+ class UStaticMeshComponent;
++class UStoryLineSet;
+ 
+ /**
+  * What the furnace did to Abel (Main 7 "Given to the Wind", MAINS_2_7.md section 11): his smog, the call-backs that burn it
+@@ -158,7 +159,9 @@ private:
+ 	/** Smog streaming off him (pooled puffs off his bones), as much as is left on him. */
+ 	void EmitSmog(float DeltaSeconds);
+ 	/** Says a set's lines (Fallback when the set isn't made); one of them only with LineIndex 0+. */
+-	void Say(FName SetName, const TArray<FStoryLine>& Fallback, int32 LineIndex = INDEX_NONE, bool bInterrupt = false) const;
++	void Say(FName SetName, const TArray<FStoryLine>& Fallback, int32 LineIndex = INDEX_NONE, bool bInterrupt = false);
++	/** Loads the line sets Say is asked for as the level begins, and holds them (HeldLines). */
++	void HoldLines();
+ 	/** Where the shots and lines on him are drawn: the effects' and the hit spheres' components, made once. */
+ 	void MakeParts();
+ 
+@@ -291,4 +294,11 @@ private:
+ 	TObjectPtr<UCapsuleComponent> CollarHit;
+ 	UPROPERTY(Transient)
+ 	TObjectPtr<USphereComponent> LanternHit;
++
++	/**
++	 * His line sets, loaded as the level begins and held for the play: loaded at his first line, one cost the fight a 7 ms
++	 * load (the frame 16 ms, Insights 2026-11-05), and again after each garbage collection let it go.
++	 */
++	UPROPERTY(Transient)
++	TArray<TObjectPtr<UStoryLineSet>> HeldLines;
+ };
+diff --git a/Source/AI_Looter_Shooter/Creatures/CreatureBase.cpp b/Source/AI_Looter_Shooter/Creatures/CreatureBase.cpp
+index e405394d..cd2863d7 100644
+--- a/Source/AI_Looter_Shooter/Creatures/CreatureBase.cpp
++++ b/Source/AI_Looter_Shooter/Creatures/CreatureBase.cpp
+@@ -77,6 +77,16 @@ void ACreatureBase::BeginPlay()
+ {
+ 	Super::BeginPlay();
+ 
++	// The hit zones (the mesh's physics asset bodies) are moved to the pose once a frame, batched as physics starts, not
++	// each time the capsule moves and again after the pose: 2-3 moves a frame per creature cost Abel's fight with ten adds
++	// 0.63 ms of the game thread (Insights, 2026-11-05). A shot meets the zones as this frame's physics began, at most a
++	// frame's pose behind (about a centimetre at a walk). Played worlds only: a test world that never steps physics would
++	// keep its zones where they were made.
++	if (const UWorld* World = GetWorld(); World && World->IsGameWorld())
++	{
++		GetMesh()->bDeferKinematicBoneUpdate = true;
++	}
++
+ 	// Creatures are authored at their real size and always stand upright, whatever the placement tool did. Their area
+ 	// then gives them their level and may promote them for this arrival, and their rank sets their stats, loot and size
+ 	// (BodyScale times the rank's), before they settle on the ground.
+diff --git a/Source/AI_Looter_Shooter/Dev/ViewTour.cpp b/Source/AI_Looter_Shooter/Dev/ViewTour.cpp
+index f881c060..b27ee82a 100644
+--- a/Source/AI_Looter_Shooter/Dev/ViewTour.cpp
++++ b/Source/AI_Looter_Shooter/Dev/ViewTour.cpp
+@@ -61,12 +61,20 @@ void UViewTourSubsystem::Tick(float DeltaTime)
+ 	const float Settle = Current == 0 ? FirstSettleSeconds : SettleSeconds;
+ 	if (bWarming)
+ 	{
+-		// The warm pass: every view once, unmeasured and unshot, then the real pass from the first.
++		// The warm pass: every view once, unmeasured and unshot, then the real pass from the first. A view that changes the
++		// world and never puts it back (exec without after: Landfall's barge views, last in the list by design) is left out:
++		// its state stayed for the real pass, so every view was measured and shot mid-story (2026-11-05: a second barge in
++		// SpyglassBarge, Main 3's sign in MainStreet).
+ 		if (Clock > (Current == 0 ? FirstSettleSeconds : WarmSeconds))
+ 		{
+-			if (Current + 1 < Stops.Num())
++			int32 Next = Current + 1;
++			while (Stops.IsValidIndex(Next) && !Stops[Next].Exec.IsEmpty() && Stops[Next].After.IsEmpty())
+ 			{
+-				Visit(Current + 1);
++				++Next;
++			}
++			if (Next < Stops.Num())
++			{
++				Visit(Next);
+ 			}
+ 			else
+ 			{
+diff --git a/Source/AI_Looter_Shooter/World/LamplighterRules.cpp b/Source/AI_Looter_Shooter/World/LamplighterRules.cpp
+index b20fec47..db30c113 100644
+--- a/Source/AI_Looter_Shooter/World/LamplighterRules.cpp
++++ b/Source/AI_Looter_Shooter/World/LamplighterRules.cpp
+@@ -120,15 +120,31 @@ namespace LandfallRules
+ 		return Campaign.ActiveMission == Main && !Campaign.HasCompleted(Main) ? Campaign.ActiveMissionStep : INDEX_NONE;
+ 	}
+ 
++	UStoryLineSet* LoadLineSet(FName SetName)
++	{
++		if (SetName.IsNone())
++		{
++			return nullptr;
++		}
++		const FString Package = FString(LineSetFolder) + SetName.ToString();
++		const FString ObjectPath = Package + TEXT(".") + SetName.ToString();
++		// Loaded already (held by whoever speaks it): no look at the disk. The package check costs a file lookup each call.
++		// (Not one the garbage collector has already let go and is about to destroy.)
++		UStoryLineSet* Loaded = FindObject<UStoryLineSet>(nullptr, *ObjectPath);
++		if (IsValid(Loaded) && !Loaded->IsUnreachable())
++		{
++			return Loaded;
++		}
++		return FPackageName::DoesPackageExist(Package) ? LoadObject<UStoryLineSet>(nullptr, *ObjectPath) : nullptr;
++	}
++
+ 	TArray<FStoryLine> LoadLines(FName SetName)
+ 	{
+ 		if (SetName.IsNone())
+ 		{
+ 			return TArray<FStoryLine>();
+ 		}
+-		const FString Package = FString(LineSetFolder) + SetName.ToString();
+-		const UStoryLineSet* Set = FPackageName::DoesPackageExist(Package)
+-			? LoadObject<UStoryLineSet>(nullptr, *(Package + TEXT(".") + SetName.ToString())) : nullptr;
++		const UStoryLineSet* Set = LoadLineSet(SetName);
+ 		if (!Set)
+ 		{
+ 			if (!WarnedSets().Contains(SetName))
+diff --git a/Source/AI_Looter_Shooter/World/LamplighterRules.h b/Source/AI_Looter_Shooter/World/LamplighterRules.h
+index 77cb5394..e50a55c8 100644
+--- a/Source/AI_Looter_Shooter/World/LamplighterRules.h
++++ b/Source/AI_Looter_Shooter/World/LamplighterRules.h
+@@ -4,6 +4,7 @@
+ #include "Story/StoryLine.h"
+ 
+ class UObject;
++class UStoryLineSet;
+ struct FCampaignRecord;
+ 
+ /** How the Lamplighter begins as Ransom's Rest opens (LandfallRules::StartFor). */
+@@ -110,6 +111,12 @@ namespace LandfallRules
+ 	/** A line set's lines (empty, warned once, while STORY's script hasn't made it). */
+ 	AI_LOOTER_SHOOTER_API TArray<FStoryLine> LoadLines(FName SetName);
+ 
++	/**
++	 * The line set itself, from memory when it's loaded, else from disk (a hitch mid-play: hold it from begin play, as
++	 * UAbelCorruptionComponent does); null while it isn't made. Nothing holds it: it may be collected once unused.
++	 */
++	AI_LOOTER_SHOOTER_API UStoryLineSet* LoadLineSet(FName SetName);
++
+ 	/** Plays a line set as captions after whatever is being said (bInterrupt: now). The conversation, or INDEX_NONE. */
+ 	AI_LOOTER_SHOOTER_API int32 Say(const UObject* Context, FName SetName, bool bInterrupt = false);
+ }

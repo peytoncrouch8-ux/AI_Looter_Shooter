@@ -3,7 +3,26 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
-## START HERE (2026-11-04 23:00, IN PROGRESS: art round 6 chain; round 5 committed in d54521d4)
+## START HERE (2026-11-05 02:40: the PLAYTEST BUILD is ready; overnight round 7 on the towns runs next)
+**For the user (morning):** the build `Builds\Playtest6-11-05_0158\Windows\AI_Looter_Shooter.exe` (commit 9052a9dc, smoke PASS,
+1.79 GB, full cook) and the what-changed page https://claude.ai/artifact/CCLjmC72XB8wg7wGfDE41k (scratchpad `changes_page/`: Phase 3's
+12 feel changes, before/after sliders from `Saved/ArtPreviews/Step1/before` vs clean shots of 02:32, the frame table, the honest list).
+Ask them: the 12 of 16 new buildings with no site (LEVEL: the town core is full; they need new ground, e.g. a back street on a pad).
+**Round 6 results:** f3bd38c7 (6a) and 9052a9dc (6b). Warm 53-view tour 01:24 measured in the WRONG state (the warm pass ran
+BargeDeck_Landfall's exec, nothing undid it: Day light, Main 6 state, a second barge in view): Farm 8.50, PointOverValley 8.33 over,
+51 of 53 under. PERF2's quiet traces in a new game's Smog state: every view under (Aerial 8.1, Farm 8.1, POV 8.0, MainStreet 7.7);
+the round-5 game-thread rise was machine contention (a repack + a stray `find /` from the LIGHTS lane), not code. Deck row 7.9,
+horde 7.9 (this morning 7.4). Barge 11/12: Fight's starboard walk blocked at (1590, 750) in Hull.
+**Stashed for round 7 (`git stash list`: "round 7 source"; also `Docs/Work/2026-11-04-Art/round7_source.patch`):** PERF2's
+`CreatureBase.cpp` bDeferKinematicBoneUpdate (-0.3..-0.4 ms in fights), `LamplighterRules` LoadLineSet, `AbelCorruption` preloads his
+line sets (a 16 ms hitch), and the tour fix (`ViewTour.cpp`: the warm pass skips views with exec but no after). The package was
+restarted once: PERF2 edited AbelCorruption.h mid-compile (lesson: no source edits while a package or build runs).
+**Round 7 inputs:** `town_next.json` (DRESSING step 4: 299 pieces, 18 new types; `make_town.py --out`), LEVEL's
+`towns_buildings.patch.json` (smithyTown, bathhouse, homeL, privyB + fires; heights unknown until a probe; `_O` swaps L for O),
+`Intermediate\ArtExport_Buildings2` (16 models, BUILDINGS.md), REWORK's fixed hull (FOOT_MEDIAN, route check) rebuilt with the walls
+set by REPACK into `ArtExport_BargeWalls`. Second package only if every view <= 8.3 and the tests pass (the user's rule).
+
+## Earlier: art round 6 (2026-11-04 23:00)
 **The user's calls at bedtime (23:15):** a view a bit over 8.3 ms does NOT hold the playtest build: package anyway, the page lists
 which views are over and by how much, perf fixes continue after; after the package, KEEP GOING overnight on the towns (DRESSING,
 BUILDINGS; a second build only if it measures under 8.3 ms and passes tests; the first build stays untouched); Home B goes BY THE

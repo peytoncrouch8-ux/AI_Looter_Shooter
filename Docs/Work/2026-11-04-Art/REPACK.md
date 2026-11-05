@@ -180,7 +180,14 @@ The house's and casing's walls (the faces `looter_tripo_barge_paint.walls` picks
   keeps the PaintWorn chips off the rust as designed, so the rust zones read softer than the old chips-everywhere look.
   That is a look call for REBAKE and MATERIAL (a grain-only detail on rust, VALUE_KEEP lower at this density).
 - Repeatability: a second build (the preview run's after state, maps into a scratch folder) wrote the three main-atlas
-  maps byte-identical to the export's; the three walls-set maps differed. REPEAT_WALLS
+  maps byte-identical to the export's; the three walls-set maps differed. The difference is 0.13% of the colour's texels (5,452,
+  2,038 by more than 2/255, the chip alpha among them), 0.04% of ORM's (metal up to 203/255) and N's (up to 25/255), in a
+  band at the square's top (rows 0-240: a few islands). The own set itself repeats exactly: own_set run twice on one
+  rework gave 0 differing texels in all three 4096 maps. So the variation enters in REBAKE's paint step on the set
+  (`looter_tripo_barge_paint` / `looter_tripo_zones`; its Cycles bakes are the likely source). Flagged to Main for
+  REBAKE.
+- Also for REBAKE (seen in `casing_3m_*_paintdetail.png`): with the chip mask, the casing's red panel shows no chips. If
+  that panel is PaintOxide (a paint zone), its chip weight should not be 0.
 - Measured on the round-4 mesh (a dry run in memory; no barge map written): 19,936 faces, 2,508 m2, 881 Tripo islands;
   Tripo's atlas gives them 15.4 px/m (big surfaces 13.6).
 
