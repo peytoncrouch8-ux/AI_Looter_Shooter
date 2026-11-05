@@ -2776,9 +2776,12 @@
       "dugout": { "lamp": [2,9], "reach": 300, "gloomGlow": 4 },
       "sheriff": { "lamp": [1.5,6.0], "reach": 300, "gloomGlow": 6 },
       "homeI": { "dark": true },
-      "homeB": { "lamp": [3,16], "reach": 400, "gloomGlow": 4 }
+      "homeB": { "lamp": [3,16], "reach": 400, "gloomGlow": 4 },
+      "smithyTown": { "dark": true },
+      "bathhouse": { "dark": true },
+      "homeL": { "dark": true }
     },
-    "smoke": ["farmhouse","store","undertaker","cottageNorth","cottageNorthEast","dugout","depot","locomotive","workshop","homeB"],
+    "smoke": ["farmhouse","store","undertaker","cottageNorth","cottageNorthEast","dugout","depot","locomotive","workshop","homeB","smithyTown","bathhouse"],
     "cliffs": {
       "varied": ["boundaryFoot","eastRidge","hogback","larkspurEast","escarpment","bluffPath","ransomsPoint","coffinRock","theSink","sinkRamp","theNose","millGorge"],
       "top": [0.72,1.12],
@@ -2988,6 +2991,28 @@
         "location": [-1750,50],
         "yaw": 0,
         "note": "the dogtrot (lived in), the towns plan's step 2: the open ground behind the south side's west end, on the Rest's stock-pen side (plan lot 6, not lot 3: lot 3 has no room, Docs/Work/2026-11-04-Towns/HOMES.md), its front to the north, its back to the farm road; pivot = its front door"
+      },
+      {
+        "id": "smithyTown",
+        "kind": "RR_Smithy_Town",
+        "location": [-875,9775],
+        "yaw": 345,
+        "note": "Smith & Wheelwright (open front, forge): the yard road's west end, its front 9 m from yardRoad, 2.3 m from the coal stage; shut (dark), the forge burns (D3); lift 10: the ground climbs 27 cm to its back wall",
+        "lift": 10
+      },
+      {
+        "id": "bathhouse",
+        "kind": "RR_Bathhouse",
+        "location": [-5275,6275],
+        "yaw": 270,
+        "note": "Baths & Laundry: south of the workshop, facing west over the field wall (2.5 m) to fieldsPath 10 m ahead; shut (dark), the boiler burns (D3)"
+      },
+      {
+        "id": "homeL",
+        "kind": "RR_Home_L",
+        "location": [-4225,6425],
+        "yaw": 270,
+        "note": "the shotgun house (empty): south of the workshop yard, facing west over the field wall to fieldsPath 9 m ahead, like the bathhouse"
       }
     ],
     "environment": {
@@ -3114,7 +3139,11 @@
       "stains": { "cap": 70, "perPiece": 3, "gap": 120, "every": 120, "fadeScreenSize": 0.02, "sortOrder": -1 },
       "keepOff": { "road": 150, "ramp": 200, "obstacle": 150, "building": 150, "gameplay": 400, "placement": 300 }
     },
-    "town": "town.json"
+    "town": "town.json",
+    "fires": [
+      { "house": "smithyTown", "socket": "Fire", "byDay": true },
+      { "house": "bathhouse", "socket": "Fire", "byDay": true }
+    ]
   },
   "gameplay": {
     "about": "No director: the story's encounters (Docs/Areas/RansomsRest.md, \"Encounters stay on one level of ground\") are placed with their missions by build_area_story.py and its build_area_<place>.py scripts, and what happens between them is encounters below (build_area_camps.py). The story's first arrival (spawnLanding) is a player start of its own beside the level's start by Ellis's grave; the depot's station carries Landing_Depot (build_area_travel.py).",

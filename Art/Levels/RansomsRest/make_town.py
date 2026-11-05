@@ -51,8 +51,16 @@ What stands on a walk, a wagon's bed or another piece names it (hangFrom), so it
 it. The street lamps (and the porch lanterns, once approved) carry SOCKET_Light: town.json's lights list them, lit only
 at dusk (no light by day), for the build to put a light at each.
 
+The towns round (2026-11-04, Docs/Work/2026-11-04-Towns/PLAN.md 4.3-4.4): town_rules.py beside this fills round the
+hand-made town by rule (building types, zones and menus, the wall feet's weeds, the street's events and crossings, the
+walks' and lamps' variants, the fights' and posts' spots read from the scripts that place them); the hand-made pieces of
+the town as built (town.json, what the level's dressing was last built from) stand where they stood (pin()).
+
 Run with Blender's bundled Python (the standard library only; Blender itself isn't needed):
-    "C:\\Program Files\\Blender Foundation\\Blender 4.4\\4.4\\python\\bin\\python.exe" Art/Levels/RansomsRest/make_town.py
+    "C:\\Program Files\\Blender Foundation\\Blender 4.4\\4.4\\python\\bin\\python.exe" Art/Levels/RansomsRest/make_town.py [--out town_next.json] [--skip Mesh,Mesh]
+--out writes another file beside it (the build reads town.json only: Main swaps it in after measuring); --skip leaves
+new types out (the perf lever: town_rules.LEAN is the first payback). The report ends with the rules' pieces, Main
+Street's density per 10 m bin per side and the new types' draws per view.
 The same inputs always give the same town.json (no randomness; ids follow the design's order; the output is sorted).
 """
 import ast
@@ -64,8 +72,17 @@ from collections import Counter, defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.normpath(os.path.join(HERE, '..', '..', '..'))
+sys.path.insert(0, HERE)
+sys.dont_write_bytecode = True      # no __pycache__ beside the layout
+import town_rules  # noqa: E402  (the rules' types, menus, street events and extra spots: town_rules.py beside this)
 LAYOUT_PATH = os.path.join(HERE, 'layout.json')
-OUT_PATH = os.path.join(HERE, 'town.json')
+BUILD_PATH = os.path.join(HERE, 'town.json')
+# Where it writes: town.json (what build_area.py's dressing reads) unless --out names another file beside it (the towns
+# round works in town_next.json; Main swaps it in after measuring it, 2026-11-04).
+OUT_PATH = BUILD_PATH
+# The town as built (what the level's dressing was last built from): its hand-made pieces keep their spots (pin()), and the
+# density's "before" row is its.
+BEFORE_PATH = BUILD_PATH
 BOUNDS_PATH = os.path.join(REPO, 'Saved', 'MeshBounds.json')
 PROBE_PATH = os.path.join(REPO, 'Saved', 'RRTownProbe.json')
 SHAPE_PATH = os.path.join(REPO, 'Art', 'Levels', 'area_shape.py')
@@ -75,6 +92,9 @@ APPROVED = ('BottleCrate', 'BroomBucket', 'Buckboard', 'Bunting', 'ChickenCoop',
             'HandPump', 'Horseshoe', 'KitchenGarden', 'MilkCans', 'PorchChair', 'PorchLantern', 'RockingChair',
             'RockingChair_Shawl', 'SignBoard_Barber', 'SignBoard_Hotel', 'SignBoard_Pruitts', 'SignBracket', 'Spittoon',
             'Washtub')  # all of look sheet 42, the user's yes (2026-10-14)
+# The towns round's new pieces (town_rules.CHOSEN) go straight into pieces (the user judges in playtests); taking one out
+# of town_rules.CHOSEN (or --skip Name) is the rollback.
+SKIP = set()
 
 # ---------------------------------------------------------------------------
 # The kit
@@ -107,6 +127,8 @@ NEW_KIT = {
     'SignBoard_Hotel': ((-44.0, 44.0, -2.0, 2.0), 48.0, False, 'air'),
     'Bunting': ((-2.0, 3.0, -300.0, 300.0), 60.0, False, 'air'),
 }
+# The towns round's kit (town_rules.KIT: TownClutter.py, TownGround.py, FarmYard.py and the variants), measured the same way.
+NEW_KIT.update(town_rules.new_kit())
 BUCKBOARD_BED = (-93.0, 80.0)     # the bed's middle along its X and its boards' top (cm): the report line's 0.93 m
 SIGN_SOCKET = (55.0, -5.35)       # SignBracket's SOCKET_Sign: out along its arm, under the arm (cm)
 
@@ -119,7 +141,7 @@ GROUND_BOX = {
 }
 # The existing kit's way of standing (the dressing's town_kind() gives the rest).
 UPRIGHT = ('Boardwalk_4m', 'Boardwalk_2m', 'Boardwalk_Steps', 'Awning_4m', 'Awning_Post', 'LampPost', 'HitchRail',
-           'FirewoodStack', 'LaundryLine')
+           'FirewoodStack', 'LaundryLine') + tuple(town_rules.WALK_VARIANTS)
 # The kit's existing meshes the dressing has no size for yet (build_area_dressing.PIECES: Main adds them).
 NEEDS_PIECES = ('Boardwalk_4m', 'Boardwalk_2m', 'Boardwalk_Steps', 'Awning_4m', 'Awning_Post')
 WALK_TOP = 38.0                   # the boardwalk's top (looter_town.DECK_TOP), the false fronts' floors
@@ -132,6 +154,11 @@ PLATFORM_TOP = 40.0               # the depot platform's top (DepotPlatform_4m)
 LIGHTS = {
     'LampPost': dict(offset=(64.0, 0.0, 221.0), day=0.0, dusk=8.0, gloom=3.0, reach=650.0),
     'PorchLantern': dict(offset=(29.0, 0.0, -18.0), day=0.0, dusk=4.0, gloom=2.0, reach=350.0),
+    # The variants (VillageProps.py): the corner lamp's glass 0.55 m out along both its X and Y and 0.37 m under its
+    # pivot (it hangs 3 m up); the crossing lamp's one light at its post's top between its two lanterns (0.7 m either
+    # side), so a swapped street lamp is still one light.
+    'LampPost_B': dict(offset=(55.0, 55.0, -37.0), day=0.0, dusk=8.0, gloom=3.0, reach=650.0),
+    'LampPost_C': dict(offset=(0.0, 0.0, 252.0), day=0.0, dusk=8.0, gloom=3.0, reach=650.0),
 }
 
 # What build_area_dressing.PIECES needs for the existing kit's meshes this town brings into the level (its size as it
@@ -145,6 +172,8 @@ DRESSING_PIECES = {
     'Awning_4m': ((20, 20, 360), 'FENCE_CULL', 162.0, 0.0),        # its post on the ground; the roof is overhead
     'Awning_Post': ((20, 20, 277), 'FENCE_CULL', 162.0, 0.0),
 }
+for _variant, _original in town_rules.WALK_VARIANTS.items():
+    DRESSING_PIECES[_variant] = DRESSING_PIECES[_original]
 UPRIGHT_SINK = 40.0      # build_area_dressing's: how far an upright piece may sink to its lowest side
 WALK_SINK_MOST = 30.0    # a walk raised or sunk more than this to meet its building's floor is warned of
 
@@ -242,6 +271,8 @@ KIT = {
     'NoticeBoard': dict(walls=[(-50.0, 50.0, -110.0, 110.0)],
                         spots=[("the notice board's front", (50.0, 200.0, -110.0, 110.0))]),
 }
+# The dogtrot and the L house (towns plan step 2: homeB, homeI) and the frames of the towns round's new buildings.
+KIT.update(town_rules.FRAMES)
 # Placements that aren't solid buildings: spots (handled with the gameplay spots) or nothing to keep off.
 NOT_BUILDINGS = ('PlayerStart', 'Landing', 'Track_Straight_12m', 'Track_Straight_6m', 'TownGate')
 
@@ -261,7 +292,8 @@ TRAIL_CLEAR = 100.0      # off a worn trail's line (solid ground pieces)
 GAP = 8.0                # between two solid pieces, and from a building's walls
 # A road's surface, by what stands near it: how far a piece's box must keep from the road's edge (negative: it may
 # stand that far onto it; on Main Street and the yard road only, the street's furniture at its very edge).
-ROAD_MARGIN = {'walk': 40.0, 'verge': 10.0, 'street': 40.0, 'big': 60.0, 'small': 40.0}
+ROAD_MARGIN = {'walk': 40.0, 'verge': 10.0, 'street': 40.0, 'big': 60.0, 'small': 40.0, 'event': 60.0, 'weed': 20.0,
+               'flat': 0.0}
 STREET_EDGE = {'walk': -35.0, 'verge': -35.0, 'street': -60.0}
 STREET_ROADS = ('mainStreet', 'yardRoad')
 # Layout obstacles by kind: how far a piece keeps from the polygon or path (props: the dressing's groups stand about
@@ -271,12 +303,21 @@ OBSTACLE_CLEAR = {'fence': 40.0, 'wall': 80.0, 'props': 250.0, 'boulders': 60.0,
 PROPS_CLEAR_PROBED = 60.0
 KEEP_OUT_ZONES = ('orchard', 'sink')
 # Walkable ground (with the probe's heights): the most the ground may rise and fall under a piece (cm).
-GROUND_RANGE = {'walk': 30.0, 'verge': 40.0, 'street': 25.0, 'big': 25.0, 'small': 18.0, 'flat': 15.0}
-# How far a piece may be nudged (cm), by class; fixed ones ('walk', 'wall', 'air') never move.
-REACH = {'walk': 0.0, 'wall': 0.0, 'air': 0.0, 'porch': 60.0, 'verge': 150.0, 'street': 150.0, 'big': 250.0,
-         'small': 150.0}
+# A walk takes 35 (2026-11-04, was 30): the assay office's third section and Bright & Daughter's walk (31-34 cm under
+# them, dropped since 2026-10-14) stand again, sunk or raised to their floors by align_walks.
+GROUND_RANGE = {'walk': 35.0, 'verge': 40.0, 'street': 25.0, 'big': 25.0, 'small': 18.0, 'flat': 15.0, 'event': 25.0,
+                'weed': 25.0}
+# How far a piece may be nudged (cm), by class; fixed ones ('walk', 'wall', 'air') never move. The rules' classes: event
+# (a street event: a wagon, a cart, a stack in the street's strip beside the walks), flat (ground cover with no
+# collision: plank crossings, straw, fallen boards), weed (the wall feet's strips, nudged along their wall only).
+REACH = {'walk': 0.0, 'wall': 0.0, 'air': 0.0, 'porch': 60.0, 'verge': 150.0, 'street': 150.0, 'event': 150.0,
+         'big': 250.0, 'small': 150.0, 'flat': 100.0, 'weed': 40.0}
 STEP = 10.0
-CLASSES = ['walk', 'wall', 'air', 'porch', 'verge', 'street', 'big', 'small']
+CLASSES = ['walk', 'wall', 'air', 'porch', 'verge', 'street', 'event', 'big', 'small', 'flat', 'weed']
+SOFT = ('flat', 'weed')
+# The rules' own spots (town_rules.rule_spots: the layout's encounters, build_area_main3's checkpoint, the loudspeaker
+# posts): only the rules' pieces keep off them; the hand-made pieces stand where the fights were designed round them.
+RULE_KINDS = ('rspawn', 'rspot', 'speaker')
 
 # The story's spots these scripts place by rule, for when the probe hasn't run (cm): Main 3's gate fight
 # (build_area_story.GATE_SPOTS, from the gate's middle), Pruitt's hatch (build_area_vendors: 0.95 m out from the
@@ -292,7 +333,8 @@ STORY_RULES = [('store', (810.0, 0.0), "Pruitt's hatch (Vendor_Pruitt)", 200.0),
 NOT_STORY = ('SafeGround', 'PlayableArea', 'StoryLighting', 'LightingState', 'AmbientEmitter', 'HouseLights',
              'StaticMeshActor', 'InstancedProps', 'InstancedScenery', 'NoTrees', 'TriggerBox', 'TriggerVolume')
 SPAWNERS = ('EncounterSpawner', 'AmbushSpawner', 'PatrolSpawner')
-PASSABLE = ('Bush_', 'Reeds_', 'LilyPads_', 'Flowers_', 'Web_', 'Cocoon_', 'EggSac_', 'Grave_MoundSunken')
+PASSABLE = ('Bush_', 'Reeds_', 'LilyPads_', 'Flowers_', 'Web_', 'Cocoon_', 'EggSac_', 'Grave_MoundSunken', 'WeedFringe_',
+            'PlankCrossing_', 'StrawLitter_', 'FallenBoards_', 'Handbills_')
 BREAKABLE = ('Crate_A', 'Crate_B', 'Barrel_A')   # build_area_loot.BREAKABLE_MESHES
 
 
@@ -479,6 +521,10 @@ class Meshes:
         if probe:
             for k, v in probe.get('meshes', {}).items():
                 self.bounds[k] = v
+        # The walks' variants stand in their original's bounds until they're imported and measured.
+        for variant, original in town_rules.WALK_VARIANTS.items():
+            if variant not in self.bounds and original in self.bounds:
+                self.bounds[variant] = self.bounds[original]
         self.sockets = {k: v.get('sockets', {}) for k, v in self.bounds.items()}
 
     def has(self, mesh):
@@ -546,6 +592,9 @@ class Building:
     def at(self, lx, ly):
         return to_world(self.x, self.y, self.yaw, lx, ly)
 
+    def local_xy(self, px, py):
+        return to_local(self.x, self.y, self.yaw, px, py)
+
     def box(self, x0, x1, y0, y1):
         return Box.frame(self.x, self.y, self.yaw, x0, x1, y0, y1)
 
@@ -601,6 +650,7 @@ class World:
             elif 'path' in o:
                 self.obstacles.append((o['id'], kind, [tuple(q[:2]) for q in o['path']], False, clear))
         self.spots = []             # (name, Box or point, clearance, kind)
+        self.routes = []            # (name, [(x, y), ...]) the encounters' patrol routes (the rules keep off them)
         self.roosts = []            # (name, (x, y))
         self.instances = []         # (mesh, Box) the dressing's solid pieces already in the level
         self.gameplay_spots()
@@ -733,13 +783,27 @@ class World:
             if cls in NOT_STORY:
                 continue
             if cls == 'RespawnMarker':
-                self.roosts.append((f'the roost {label}', (x, y)))
+                # The roosts are the layout's (gameplay.roosts, build_area_roosts.py): one in the probe that the layout
+                # no longer has is a probe from before it moved (Roost_MainStreet, cut 2026-10-23).
+                if not any(math.dist((x, y), at) < 400.0 for _, at in self.roosts):
+                    self.notes.append(f'the probe\'s {label} at ({x:.0f}, {y:.0f}) is no layout roost (gone since the '
+                                      f'probe): not kept clear')
+                else:
+                    self.roosts.append((f'the roost {label}', (x, y)))    # where it stands, beside the layout's spot
                 continue
-            if cls in ('WantedPoster', 'MissionArtifact') and a['at'][2] - (self.probe.ground(x, y) or 0.0) > 120.0:
-                # On a wall, over head height: only what would stand in front of it and hide it.
+            if cls == 'WindowShutter':
+                # A shutter swings on its window, head high: only what stands tall in front of it is in its way.
+                self.spots.append((f'{label} ({cls})', (x, y), 40.0, 'tall'))
+                continue
+            high = a['at'][2] - (self.probe.ground(x, y) or 0.0) > 120.0
+            if cls in ('WantedPoster', 'MissionArtifact', 'ReadableProp', 'CompanySign') and high:
+                # On a wall, over head height (a poster, a letter, the Company's chalk on a door): only what would
+                # stand in front of it and hide it.
                 self.spots.append((f'{label} ({cls}, keep it readable)', (x, y), 80.0, 'tall'))
                 continue
-            clear = 200.0 if cls == 'Vendor' else 100.0 if cls == 'HobBird' else SPOT_CLEAR
+            # A loudspeaker post (CompanyLoudspeaker: a post with horns) is kept off as a post is.
+            clear = 200.0 if cls == 'Vendor' else 100.0 if cls == 'HobBird' else 60.0 if cls == 'CompanyLoudspeaker' \
+                else SPOT_CLEAR
             self.spots.append((f'{label} ({cls})', (x, y), clear, 'spot'))
         for mesh, rows in self.probe.data.get('instances', {}).items():
             if mesh.startswith(PASSABLE) or not self.meshes.has(mesh):
@@ -752,14 +816,31 @@ class World:
         self.notes.append(f'probe {self.probe.data.get("written", "?")}: {len(self.probe.actors)} actors, '
                           f'{len(self.instances)} dressing instances, {len(self.probe.grids)} height grids')
 
-    def forget_own(self, previous):
-        """The dressing's instances that are this town's own pieces from a build before (same mesh, same spot)."""
+    def forget_own(self, previous, lines=(), design=()):
+        """The dressing's instances that are this town's own pieces from a build before: at a piece's spot in the last
+        town.json or the town before the towns round (any mesh, so a walk or lamp swapped for its variant since is still
+        its own), at a spot this design puts the same mesh, any of the towns round's own meshes (nothing else places
+        them), and the picket sections along this town's lines."""
         own = defaultdict(list)
         for p in previous:
             own[p['mesh']].append(tuple(p['at'][:2]))
+        spots = [tuple(p['at'][:2]) for p in previous]
+        mine_now = defaultdict(list)
+        for p in design:
+            mine_now[p.mesh].append((p.x, p.y))
+        town_only = set(town_rules.KIT) | set(town_rules.WALK_VARIANTS)
+        fence_lines = [[tuple(q) for q in line.get('points', [])] + ([tuple(line['points'][0])] if line.get('closed')
+                                                                    else []) for line in lines if line.get('points')]
+
+        def is_own(m, b):
+            if m in town_only:
+                return True
+            if m.startswith('Fence_Picket') and any(box_line_dist(b, pts) < 60.0 for pts in fence_lines):
+                return True
+            # A walk's middle is 2 m off its pivot: look 4.5 m round.
+            return any(math.dist((b.cx, b.cy), q) < 450.0 and self.near_pivot(m, b, q) for q in spots + mine_now[m])
         before = len(self.instances)
-        self.instances = [(m, b) for m, b in self.instances
-                          if not any(math.dist((b.cx, b.cy), q) < 200.0 and self.near_pivot(m, b, q) for q in own[m])]
+        self.instances = [(m, b) for m, b in self.instances if not is_own(m, b)]
         if before != len(self.instances):
             self.notes.append(f'{before - len(self.instances)} of the dressing\'s instances are this town\'s own from '
                               f'the last build: not obstacles')
@@ -892,7 +973,7 @@ def walk_run(d, side, start, lengths, group, steps=(True, True)):
 def section_under(sections, x, y):
     best = None
     for s in sections:
-        x0, x1, y0, y1 = (-150.0, 153.0, -400.0 if s.mesh == 'Boardwalk_4m' else -200.0, 0.0)
+        x0, x1, y0, y1 = (-150.0, 153.0, -400.0 if s.mesh.startswith('Boardwalk_4m') else -200.0, 0.0)
         lx, ly = to_local(s.x, s.y, s.yaw, x, y)
         if x0 <= lx <= x1 and y0 <= ly <= y1:
             best = s
@@ -922,12 +1003,13 @@ def main_street(d):
 
     # Lamps: at the walks' ends and in the gaps, both sides, the lantern hanging out over the street.
     for x, y in ((LAMP_X, -480.0), (LAMP_X, 2830.0), (LAMP_X, 5100.0), (LAMP_X + 18.0, 6300.0)):
-        d.add('LampPost', x, y, 180.0, g, 'verge')
+        street_lamp(d, x, y, 180.0, g)
     for y in (-330.0, 720.0, 1760.0, 4660.0, 6480.0):
-        d.add('LampPost', -LAMP_X, y, 0.0, g, 'verge')
+        street_lamp(d, -LAMP_X, y, 0.0, g)
     # Hitch rails at the street's edge in front of the walks, troughs in the gaps.
     # (Not in front of a door; south of Pruitt's the fields path leaves the street at 44 m, so its rail stands west of
     # the store, past Pen Lane's mouth.)
+    # (The sheriff's rail stands 1.5 m from the town roost, placed beside it on 2026-10-23: as built, pinned.)
     for x, y in ((RAIL_X, 950.0), (RAIL_X, 3120.0), (-RAIL_X, 1300.0), (-RAIL_X, 2380.0)):
         d.add('HitchRail', x, y, 0.0, g, 'street')
     d.add('WaterTrough', 680.0, 5100.0, 0.0, g, 'street')
@@ -961,8 +1043,24 @@ def main_street(d):
     # player talks to her, kept clear), a barrel at the walk's east end.
     on_walk(d, s2, 'Bench', -FACADE_X + 40.0, 5810.0, 0.0, 'undertaker')
     on_walk(d, s2, 'BroomBucket', -FACADE_X + 12.0, 5670.0, 0.0, 'undertaker', against='undertaker')
-    on_walk(d, s2, 'Barrel_A', -FACADE_X + 55.0, 6355.0, 20.0, 'undertaker')
+    # (Barrel_B since 2026-11-04: this walk stood nowhere until then, and a new wooden barrel would be one more of the
+    # lootable world's breakables, build_area_loot's Barrel_A.)
+    on_walk(d, s2, 'Barrel_B', -FACADE_X + 55.0, 6355.0, 20.0, 'undertaker')
     return n1, n2, s1, s2
+
+
+def street_lamp(d, x, y, yaw, group):
+    """A street lamp at (x, y), or the variant town_rules.LAMP_SWAPS puts there: a corner lamp hung 3 m up on the nearest
+    building's front corner (a wall piece), or a crossing lamp on the same foot."""
+    swap = town_rules.lamp_swap(sys.modules[__name__], d, x, y)
+    if swap is None:
+        return d.add('LampPost', x, y, yaw, group, 'verge')
+    mesh, wall = swap
+    if wall is None:
+        return d.add(mesh, x, y, yaw, group, 'verge')
+    wx, wy, wyaw, host, lift = wall
+    return d.add(mesh, wx, wy, wyaw, group, 'wall', mount='wall', host=host, lift=lift,
+                 why=f'the street lamp at ({x:.0f}, {y:.0f}) on the corner of {host}')
 
 
 def sign_board(d, bracket, mesh, group):
@@ -981,7 +1079,9 @@ def pruitts(d):
     between it and the porch."""
     g = 'store'
     d.local('store', 'FlourSacks', 790.0, 330.0, 0.0, g, 'porch', mount='porch', lift=WALK_TOP)
-    d.local('store', 'Barrel_A', 700.0, -420.0, 0.0, g, 'porch', mount='porch', lift=WALK_TOP)
+    # (At 7.0 m out and 4.2 m west until 2026-11-04: the Company's loudspeaker post stands 0.5 m from that spot since
+    # 2026-10-31.)
+    d.local('store', 'Barrel_A', 690.0, -300.0, 0.0, g, 'porch', mount='porch', lift=WALK_TOP)
     d.local('store', 'Bench', 690.0, -265.0, 0.0, g, 'porch', mount='porch', lift=WALK_TOP)
     # The east post (FalseFronts.py: posts 0.22 m in from the porch's ends, 2.82 m out from the facade): the bracket on
     # its east face, the arm east along the street, the board's faces to the street (2.42-2.89 m up).
@@ -1203,6 +1303,8 @@ def design(world):
     workshop(d)
     depot(d)
     farm(d)
+    # The rules fill round the hand-made town (town_rules.py): the types' menus, the wall feet's weeds, the street's events.
+    d.rules = town_rules.dress(sys.modules[__name__], d, SKIP)
     return d
 
 
@@ -1218,7 +1320,8 @@ class Placer:
         self.meshes = world.meshes
         self.grid = defaultdict(list)
         self.placed = []
-        self.nudged, self.dropped = [], []
+        self.nudged, self.dropped, self.moved = [], [], []
+        self.soft_dropped = Counter()
         self.unmeasured = set()
         self.line_segments = []
         for line in design.lines:
@@ -1267,6 +1370,8 @@ class Placer:
         w = self.world
         box = self.footprint(piece, x, y)
         mount, cls = piece.mount, piece.cls
+        rule = getattr(piece, 'rule', False)
+        soft = cls in SOFT
         if mount in ('wall', 'air'):
             if piece.host not in w.buildings and piece.host not in w.places:
                 return f'its building {piece.host} isn\'t placed', None
@@ -1276,6 +1381,8 @@ class Placer:
                         sat_gap(box, rec.box) < 2.0 and \
                         abs(o.lift - piece.lift) < 0.5 * (self.meshes.height(o.mesh) + self.meshes.height(piece.mesh)):
                     return f'{o.id} ({o.mesh}) on the same wall', (x - o.x, y - o.y)
+            if rule:
+                return self.wall_problem(piece, box, x, y)
             return None
         on_piece = piece.on is not None
 
@@ -1294,7 +1401,8 @@ class Placer:
             if any(h is None for h in heights):
                 self.unmeasured.add(piece.id)
                 heights = [h for h in heights if h is not None] or [0.0]
-            limit = GROUND_RANGE['flat' if piece.kind == 'flat' else cls if cls in GROUND_RANGE else 'small']
+            limit = GROUND_RANGE[cls if cls in ('weed', 'event') else 'flat' if piece.kind == 'flat' else
+                                 cls if cls in GROUND_RANGE else 'small']
             if max(heights) - min(heights) > limit:
                 return f'uneven ground ({max(heights) - min(heights):.0f} cm under it)', None
 
@@ -1307,6 +1415,23 @@ class Placer:
             home = mount == 'porch' and not on_piece and piece.host == b.id
             on_walk = on_piece and piece.on.mount == 'walk'
             against = piece.against == b.id
+            if soft:
+                # Ground cover: up to any building's walls and porches (weeds grow at their feet), never into them,
+                # their steps, posts or own dressing, nor over the ways to their doors.
+                for wall in b.walls:
+                    if sat_gap(box, wall) < -2.0:
+                        return f'{b.id}\'s walls', (x - wall.cx, y - wall.cy)
+                for part in b.posts + b.rails + b.builtin + b.steps:
+                    if sat_gap(box, part) < 0.0:
+                        return f'{b.id}\'s posts, steps or own dressing', (x - part.cx, y - part.cy)
+                if not home:
+                    for deck, _ in b.decks:
+                        if sat_gap(box, deck) < -2.0:
+                            return f'{b.id}\'s porch', (x - deck.cx, y - deck.cy)
+                for way in b.ways if not getattr(piece, 'on_road', False) else ():
+                    if sat_gap(box, way) < 0.0:
+                        return f'the way to {b.id}\'s door', (x - way.cx, y - way.cy)
+                continue
             if mount == 'walk':
                 for wall in b.walls:
                     if sat_gap(box, wall) < -35.0:
@@ -1338,6 +1463,15 @@ class Placer:
 
         # Gameplay spots.
         for name, spot, clear, kind in w.spots:
+            if kind in RULE_KINDS and not rule:
+                continue        # the rules' spots: the hand-made town stands as the fights were designed round it
+            if kind in ('spawn', 'loot') and getattr(piece, 'pinned', False):
+                continue        # the fights' points and the lootable world were laid out round the town as built
+            if soft:
+                # Ground cover keeps off nothing but the rise spots (no planks or boards where the dead come up) and
+                # the posts; the player and the creatures walk over it.
+                if cls == 'weed' or kind not in ('spawn', 'rspawn', 'speaker'):
+                    continue
             if kind == 'tall' and self.meshes.height(piece.mesh) + piece.lift < 150.0:
                 continue
             if mount == 'walk' and kind not in ('spawn', 'loot'):
@@ -1347,23 +1481,39 @@ class Placer:
             need = clear
             if kind == 'spawn' and mount == 'walk':
                 need = WALK_SPAWN_CLEAR
+            elif kind in ('spawn', 'rspawn') and rule:
+                need = max(clear, getattr(piece, 'spawn_clear', clear))
             if isinstance(spot, Box):
                 if sat_gap(box, spot) < need:
                     return name, (x - spot.cx, y - spot.cy)
             elif point_box_dist(box, *spot) < need:
                 return name, (x - spot[0], y - spot[1])
         height = self.meshes.height(piece.mesh)
-        for name, (rx, ry) in w.roosts:
+        for name, (rx, ry) in (w.roosts if mount != 'walk' and not soft and not getattr(piece, 'pinned', False)
+                               else ()):
             d = point_box_dist(box, rx, ry)
             if d < ROOST_CLEAR:
                 return f'{name} ({ROOST_CLEAR / 100.0:.1f} m)', (x - rx, y - ry)
             if d < ROOST_FIND and piece.solid and height > ROOST_TALL and 2.0 * min(box.hx, box.hy) > ROOST_WIDE:
                 return f'{name}\'s find circle (a tall piece in the line to its mast)', (x - rx, y - ry)
 
+        if rule and cls != 'weed':
+            for name, pts in w.routes:
+                if box_line_dist(box, pts) < getattr(piece, 'spawn_clear', SPAWN_CLEAR):
+                    return name, None
+
         # Roads and trails.
         if mount != 'porch':
             for rid, pts, half, rkind in w.roads:
                 if rkind == 'rail' and mount == 'walk':
+                    continue
+                if getattr(piece, 'on_road', False):
+                    continue        # a plank crossing lies on the road
+                if cls == 'event' and rid in town_rules.EVENT_ROADS:
+                    # The street's events stand in its bed beside the walks, never in its middle lane.
+                    if box_line_dist(box, pts) < town_rules.LANE_HALF:
+                        q, _ = min((seg_point(a, b, (x, y)) for a, b in zip(pts, pts[1:])), key=lambda t: t[1])
+                        return f'the middle lane of {rid}', (x - q[0], y - q[1])
                     continue
                 margin = ROAD_MARGIN.get(cls, 40.0)
                 if rid in STREET_ROADS and cls in STREET_EDGE:
@@ -1372,14 +1522,16 @@ class Placer:
                 if box_line_dist(box, pts) < need:
                     q, _ = min((seg_point(a, b, (x, y)) for a, b in zip(pts, pts[1:])), key=lambda t: t[1])
                     return f'the road {rid}', (x - q[0], y - q[1])
-            if piece.solid and mount == 'ground':
+            if (piece.solid or soft) and mount == 'ground':
                 for tid, pts in w.trails:
-                    if box_line_dist(box, pts) < TRAIL_CLEAR:
+                    if box_line_dist(box, pts) < (TRAIL_CLEAR if piece.solid else 40.0):
                         q, _ = seg_point(pts[0], pts[1], (x, y))
                         return f'the {tid}', (x - q[0], y - q[1])
 
             # Layout obstacles and zones kept out of.
             for oid, kind, pts, closed, clear in w.obstacles:
+                if soft:
+                    clear = min(clear, 20.0)
                 xs, ys = [p[0] for p in pts], [p[1] for p in pts]
                 if min(xs) > bx1 + clear or max(xs) < bx0 - clear or min(ys) > by1 + clear or max(ys) < by0 - clear:
                     continue
@@ -1405,13 +1557,14 @@ class Placer:
                             box_line_dist(box, pts) < 30.0:
                         return f'its yard\'s fence {lid}', None
                     continue
-                if box_line_dist(box, pts) < 20.0 or inside(pts[:-1], x, y):
+                if box_line_dist(box, pts) < (5.0 if soft else 20.0) or (inside(pts[:-1], x, y) and not soft):
                     return f'the fence {lid}', None
 
         # Everything placed already: a walk's pieces join one another and the awnings stand over them; what stands on a
         # walk or a porch keeps off the other pieces there and the awnings' posts; a piece and what rests on it touch.
+        ring = getattr(piece, 'ring_of', None)
         for o in self.near(box, 300.0):
-            if o is piece or o.mount in ('wall', 'air') or piece.on is o or o.on is piece:
+            if o is piece or o.mount in ('wall', 'air') or piece.on is o or o.on is piece or o is ring:
                 continue
             if mount == 'walk' and o.mount == 'walk':
                 continue
@@ -1432,10 +1585,24 @@ class Placer:
         if piece.on is not None and not piece.on.placed:
             self.dropped.append(f'{piece.id} ({piece.mesh}): what it stands on, {piece.on.id}, was dropped')
             return False
+        follow = getattr(piece, 'follow', None)
+        if follow is not None:
+            host, ox, oy = follow
+            if not host.placed:
+                return self.drop(piece, f'its post {host.id} was dropped')
+            piece.x, piece.y = to_world(host.x, host.y, host.yaw, ox, oy)
         hit = self.problem(piece, piece.x, piece.y)
         if hit is None:
             return self.accept(piece, piece.x, piece.y)
         reason, push = hit
+        # The rules' other spots for it, in their order, before any nudge.
+        first_yaw = piece.yaw
+        for ax, ay, ayaw in getattr(piece, 'alts', ()):
+            piece.yaw = ayaw % 360.0
+            if self.problem(piece, ax, ay) is None:
+                self.moved.append(f'{piece.id} ({piece.mesh}) to its next spot, off {reason}')
+                return self.accept(piece, ax, ay)
+        piece.yaw = first_yaw
         reach = REACH.get(piece.mount if piece.mount in ('walk', 'wall', 'air', 'porch') else piece.cls, 150.0)
         if piece.on is not None and piece.on.mount != 'walk':
             reach = 0.0
@@ -1466,10 +1633,36 @@ class Placer:
                 if self.problem(piece, tx, ty) is None:
                     self.nudged.append(f'{piece.id} ({piece.mesh}) {r:.0f} cm off {reason}')
                     return self.accept(piece, tx, ty)
-        self.dropped.append(f'{piece.id} ({piece.mesh}) at ({piece.x:.0f}, {piece.y:.0f}): {reason}'
-                            + (f', no free spot within {reach / 100.0:.1f} m' if reach > 0.0 else ' (it stays put or '
-                               'goes)'))
+        return self.drop(piece, reason + (f', no free spot within {reach / 100.0:.1f} m' if reach > 0.0 else
+                                          ' (it stays put or goes)'))
+
+    def drop(self, piece, reason):
+        """Drop the piece: printed in full, or, for the rules' ground cover (a weed strip, a ring, boards), counted by
+        mesh and why."""
+        if piece.cls in SOFT and getattr(piece, 'rule', False):
+            self.soft_dropped[(piece.mesh, reason.split(',')[0].split(' (')[0])] += 1
+        else:
+            self.dropped.append(f'{piece.id} ({piece.mesh}) at ({piece.x:.0f}, {piece.y:.0f}): {reason}')
         return False
+
+    def wall_problem(self, piece, box, x, y):
+        """A rule's wall piece (bills, a corner lamp): off its building's doors (their ways, grown 30 cm), its lit
+        windows (the probe's Window_ sockets) and the posters on its walls (WantedPoster, MissionArtifact)."""
+        w = self.world
+        b = w.buildings.get(piece.host)
+        if b is not None:
+            for way in b.ways:
+                if sat_gap(box, way.grown(30.0)) < 0.0 and piece.lift < 260.0:
+                    return f'the way to {b.id}\'s door', None
+            for name, sock in self.meshes.sockets.get(b.model, {}).items():
+                if name.startswith('Window'):
+                    wx, wy = b.at(sock[0], sock[1])
+                    if point_box_dist(box, wx, wy) < 90.0 and abs(piece.lift - sock[2]) < 150.0:
+                        return f'{b.id}\'s window {name}', None
+        for name, spot, clear, kind in w.spots:
+            if kind == 'tall' and not isinstance(spot, Box) and point_box_dist(box, *spot) < 80.0:
+                return name, None
+        return None
 
     def accept(self, piece, x, y):
         dx, dy = x - piece.x, y - piece.y
@@ -1491,11 +1684,49 @@ class Placer:
 # The build
 # ---------------------------------------------------------------------------
 
+# A variant counts with its original, so swapping one keeps the others' ids (mainStreet_lamp_post_03 is still the third
+# street lamp along the street when the second is a corner lamp).
+ID_BASE = {'LampPost_B': 'LampPost', 'LampPost_C': 'LampPost'}
+
+
 def name_pieces(d):
     counters = Counter()
     for p in d.pieces:
-        counters[(p.group, p.mesh)] += 1
-        p.id = f'{p.group}_{snake(p.mesh)}_{counters[(p.group, p.mesh)]:02d}'
+        base = ID_BASE.get(p.mesh, p.mesh)
+        counters[(p.group, base)] += 1
+        p.id = f'{p.group}_{snake(p.mesh)}_{counters[(p.group, base)]:02d}'
+
+
+def pin(d, path):
+    """The hand-made pieces of the town as it was built before the towns round (BEFORE_PATH: the same id and mesh, or
+    the same mesh at the same spot) keep their spots against the fights' spawn points that came in since (the probe's
+    spawners, the layout's encounters): the fights were laid out round them. Everything else is checked as ever."""
+    if not os.path.exists(path):
+        return
+    try:
+        old = load(path).get('pieces', [])
+    except ValueError:
+        return
+    ids = {(p['id'], p['mesh']): p for p in old}
+    at = defaultdict(list)
+    for p in old:
+        at[p['mesh']].append(tuple(p['at'][:2]))
+    for p in d.pieces:
+        if getattr(p, 'rule', False):
+            continue
+        was = ids.get((p.id, p.mesh))
+        if was is not None and math.dist(tuple(was['at'][:2]), (p.x, p.y)) > 300.0:
+            was = None          # the same id for another piece (a design that moved on): not this one
+        if was is not None:
+            p.pinned = True
+            # It's tried where it stood first (its design spot after the nudges of the build before), then at its design
+            # spot, then nudged: the town as built doesn't drift with each run.
+            wx, wy = was['at'][:2]
+            if math.dist((wx, wy), (p.x, p.y)) > 1.0 and not p.children:
+                p.alts = [(p.x, p.y, p.yaw)] + list(getattr(p, 'alts', ()))
+                p.x, p.y = float(wx), float(wy)
+        elif any(math.dist((p.x, p.y), q) < 1.0 for q in at[p.mesh]):
+            p.pinned = True
 
 
 def defer(d, approved):
@@ -1730,7 +1961,7 @@ def check_lines(d, world):
                     if min(seg_point(r0, r1, q)[1] for r0, r1 in zip(rpts, rpts[1:])) < half + 40.0:
                         problem = f'the road {rid}'
         for name, spot, clear, kind in world.spots:
-            if kind in ('tall',):
+            if kind in ('tall',) + RULE_KINDS:
                 continue
             if isinstance(spot, Box):
                 if box_line_dist(spot, closed) < clear:
@@ -1800,10 +2031,16 @@ def report(d, world, placer, warnings, pieces, later, lights, spots, lines):
 
 
 def main():
-    approved = set(APPROVED)
+    global OUT_PATH
+    approved = set(APPROVED) | (set(town_rules.CHOSEN) & set(NEW_KIT))
     for k, arg in enumerate(sys.argv[1:]):
         if arg == '--approve' and k + 2 <= len(sys.argv[1:]):
             approved |= {a.strip() for a in sys.argv[k + 2].split(',') if a.strip()}
+        if arg == '--out' and k + 2 <= len(sys.argv[1:]):
+            OUT_PATH = os.path.join(HERE, os.path.basename(sys.argv[k + 2]))
+        if arg == '--skip' and k + 2 <= len(sys.argv[1:]):
+            # Leave these new types out (the perf lever: what a view over its line pays back with).
+            SKIP.update(a.strip() for a in sys.argv[k + 2].split(',') if a.strip())
     unknown = approved - set(NEW_KIT)
     if unknown:
         raise SystemExit(f'--approve: no such new piece: {", ".join(sorted(unknown))}')
@@ -1813,12 +2050,15 @@ def main():
     probe = Probe(load(PROBE_PATH) if os.path.exists(PROBE_PATH) else None)
     meshes = Meshes(load(BOUNDS_PATH), probe.data)
     world = World(layout, meshes, probe)
-    if os.path.exists(OUT_PATH):
-        try:
-            old = load(OUT_PATH)
-            world.forget_own(old.get('pieces', []) + old.get('deferredPieces', []))
-        except ValueError:
-            pass
+    previous, old_lines = [], []
+    for path in sorted({OUT_PATH, BUILD_PATH, BEFORE_PATH}):
+        if os.path.exists(path):
+            try:
+                old = load(path)
+                previous += old.get('pieces', []) + old.get('deferredPieces', [])
+                old_lines += old.get('lines', [])
+            except ValueError:
+                pass
     missing = sorted({m for m in ('Boardwalk_4m', 'Boardwalk_2m', 'Boardwalk_Steps', 'Awning_4m', 'Awning_Post',
                                   'LampPost', 'Bench', 'HitchRail', 'WaterTrough', 'Barrel_A', 'Barrel_B', 'Crate_A',
                                   'Crate_B', 'LaundryLine', 'FirewoodStack', 'Wheelbarrow', 'Cart', 'HayBale_Square')
@@ -1827,6 +2067,9 @@ def main():
         raise SystemExit(f'no bounds for {", ".join(missing)} in {BOUNDS_PATH}')
     d = design(world)
     name_pieces(d)
+    town_rules.walk_variants(d, SKIP)
+    world.forget_own(previous, old_lines + d.lines, d.pieces)
+    pin(d, BEFORE_PATH)
     defer(d, approved)
     check_lines(d, world)
     d.pieces = [p for p in d.pieces if p.cls != 'dropped']
@@ -1836,6 +2079,83 @@ def main():
     warnings = world.warnings + align_walks(d, world) + verify(d, world, placer)
     pieces, later, lights, spots, lines = write(d, world, approved)
     report(d, world, placer, warnings, pieces, later, lights, spots, lines)
+    rules_report(d, world, placer, pieces)
+
+
+def rules_report(d, world, placer, pieces):
+    """What the rules made: by mesh, the new types against the cap, the ground cover dropped (counted), Main Street's
+    density per 10 m bin per side, and the draws the new types add in the town's views."""
+    r = getattr(d, 'rules', None)
+    if r is None:
+        return
+    previous = {}
+    if os.path.exists(BEFORE_PATH):
+        try:
+            previous = {(p['mesh'], tuple(p['at'])) for p in load(BEFORE_PATH).get('pieces', [])}
+        except ValueError:
+            previous = {}
+    made = [p for p in r.made if p.placed and not p.deferred]
+    print(f'rules: {len(made)} of {len(r.made)} pieces placed: '
+          + ', '.join(f'{m} {n}' for m, n in sorted(Counter(p.mesh for p in made).items())))
+    if r.refused:
+        print('rules: not chosen or breakable, left out: ' + ', '.join(f'{m} {n}' for m, n in
+                                                                      sorted(Counter(r.refused).items())))
+    new_types = sorted({p['mesh'] for p in pieces} & (set(town_rules.KIT) | set(town_rules.WALK_VARIANTS)))
+    print(f'rules: {len(new_types)} new mesh types in the town (cap {town_rules.TYPE_CAP}): ' + ', '.join(new_types))
+    print(f'rules: moved to their next spot {len(placer.moved)}; ground cover dropped: '
+          + ', '.join(f'{m} {n} ({why})' for (m, why), n in sorted(placer.soft_dropped.items())))
+    for line in placer.moved:
+        print('  ' + line)
+    table = town_rules.density(pieces)
+    ms = town_rules.MAIN_STREET
+    print(f'density: Main Street clutter per 10 m bin per side, gate (Y {ms["y0"]:.0f}) to east; all = in the zone, '
+          f'front = within 3 m of the facades, props = a vignette or stack counted by what it shows (target 5-9 at the '
+          f'front, cap 14):')
+    for side in ('north', 'south'):
+        for k in ('all', 'front', 'props'):
+            row = table[side][k]
+            print(f'  {side:5s} {k:5s} ' + ' '.join(f'{n:3d}' for n in row)
+                  + f'   mean {sum(row) / len(row):.1f}')
+    if previous:
+        before = town_rules.density([{'mesh': m, 'at': list(at)} for m, at in previous])
+        for side in ('north', 'south'):
+            row = before[side]['all']
+            print(f'  {side:5s} before ' + ' '.join(f'{n:3d}' for n in row) + f'   mean {sum(row) / len(row):.1f}')
+
+    def cull_of(mesh):
+        if mesh in town_rules.KIT:
+            return town_rules.CULLS[town_rules.KIT[mesh][6]]
+        return town_rules.CULLS[town_rules.EXISTING_CULL.get(mesh, 'SMALL_CULL')]
+
+    def slots_of(mesh):
+        if mesh in town_rules.KIT:
+            return town_rules.KIT[mesh][4]
+        return town_rules.WALK_SLOTS.get(mesh, town_rules.EXISTING_SLOTS.get(mesh, 1))
+
+    def shadow_of(mesh):
+        if mesh in town_rules.KIT:
+            return town_rules.KIT[mesh][7]
+        return not mesh.startswith('Boardwalk_')
+    print('zones: each dressed building\'s clutter (its nearest) in front / beside / behind it (the plan: a story in front '
+          'of every one, lived homes 3+, empty ones 2+):')
+    for bid, z in town_rules.zones_table(r.frames, pieces).items():
+        total = z['front'] + z['side'] + z['back']
+        need = 3 if z['kind'] == 'homeLived' else 2 if z['kind'] == 'homeEmpty' else 1
+        flag = '' if total >= need and (z['front'] or z['kind'] not in ('shopOpen', 'shopShut', 'office')) else '   <- short'
+        print(f'  {bid:17s} {z["kind"]:9s} front {z["front"]:2d}  side {z["side"]:2d}  back {z["back"]:2d}{flag}')
+    marked = [dict(p, _new=(p['mesh'], tuple(p['at'])) not in previous) for p in pieces]
+    print('draws (Medium: drawn to 60% of the cull; low = a batch a slot + one shadow cascade a slot where it casts '
+          'within 60 m; high = up to three LODs and two cascades; saved = the walks, benches, troughs and washtubs made '
+          'shadowless):')
+    for name, types, low, high, saved_low, saved_high, inst in town_rules.draws(
+            marked, cull_of, slots_of, shadow_of, set(new_types), town_rules.NOW_SHADOWLESS):
+        print(f'  {name:15s} +{low:3d}..{high:3d} draws from {len(types):2d} new types, -{saved_low}..{saved_high} '
+              f'shadow draws saved, +{inst} instances drawn: ' + ', '.join(types))
+    lean = [p for p in marked if p['mesh'] not in town_rules.LEAN]
+    print(f'draws with --skip {",".join(town_rules.LEAN)} (the first payback):')
+    for name, types, low, high, saved_low, saved_high, inst in town_rules.draws(
+            lean, cull_of, slots_of, shadow_of, set(new_types) - set(town_rules.LEAN), town_rules.NOW_SHADOWLESS):
+        print(f'  {name:15s} +{low:3d}..{high:3d} draws from {len(types):2d} new types, -{saved_low}..{saved_high} saved')
 
 
 if __name__ == '__main__':
