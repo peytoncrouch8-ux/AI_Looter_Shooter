@@ -20,6 +20,7 @@ import looter_textures as lt
 import looter_tripo_barge as barge
 import looter_tripo_barge_collision as bc
 import looter_tripo_barge_floors as floors
+import looter_tripo_barge_route as stern_route
 from looter_tripo_barge_previews import preview  # noqa: F401 (Wardens.py -Preview calls barge_check.preview)
 from looter_tripo_rework import B, D, U
 
@@ -103,6 +104,7 @@ def measure(obj):
            f'{sum(len(p.vertices) - 2 for p in obj.data.polygons)}.', '']
     well = _well(r, bm, out)
     _walks(r, bm, out, well)
+    _route(out)
     bm.free()
     _cross(r, out)
     _gap(r, out)
@@ -265,6 +267,19 @@ def _walks(r, bm, out, well):
                        + f' A capsule (radius {CAPSULE[0]:.0f}, half-height {CAPSULE[1]:.0f}) along its middle: ' + (
                            '; '.join(f'stopped by {h} at x {min(xs):.0f}..{max(xs):.0f}' for h, xs in sorted(blocked.items()))
                            if blocked else 'no collision hull in its way') + '.')
+    out.append('')
+
+
+def _route(out):
+    """The stern push's way up each side walk to the well deck, as Looter.World.Barge.Fight walks it (its cells, its
+    Dredger, on the UCX hulls): the script fails where it is shut."""
+    out += ["## The stern push's way (as Looter.World.Barge.Fight walks it: looter_tripo_barge_route)", '']
+    for side in (-1, 1):
+        ok, far, why = stern_route.route(_hulls(), side)
+        name = '+Y' if side > 0 else '-Y'
+        out.append(f'- {name}: ' + ('open to the well deck' if ok else f'shut: it gets to x {far:.0f}, then {why}') + '.')
+        if not ok:
+            FAILS.append(f'{name} stern route shut past x {far:.0f}: {why}')
     out.append('')
 
 

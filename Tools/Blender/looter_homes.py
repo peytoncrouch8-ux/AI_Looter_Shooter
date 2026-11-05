@@ -18,7 +18,11 @@ doors, windows, crepe) and adds what a valley of different houses needs:
     attic under it); a porch roof sagging at a lost post (Droop);
   - chimneys (fieldstone stacks inside and outside a wall, stovepipes), porch parts (posts plain or turned, railings,
     steps) and dressing (woodpiles, rain barrels, benches);
-  - the previews: each house in Ransom's Rest's golden late afternoon, the kit in a row, and the look sheet.
+  - the walls' shared steps (wall_spaces, clad, hewn_wall...: Homestead.py's, moved here) and the home kits (the towns
+    round, 2026-11-04, at the end): roof kits (cover(): R1 shakes, R2 patched, R3 boards, R3T tarred, R4 tar paper, G
+    galvanized sheet for outbuildings), porch kits (stoop, porch P2/P3, portico), chimney kits and a lived house's
+    porch lantern, for Homestead.py's K to P, TownBuildings.py and Outbuildings.py;
+  - the previews: each house in Ransom's Rest's golden late afternoon, the kit in a row, and the look sheet; lineup().
 
 Pivots. A home's pivot is its front door at ground level: the middle of the doorway, on the front wall's outer face,
 with z = 0 the ground there (the floor and the threshold stand above it on the foundation, which goes 0.35 m below it,
@@ -60,6 +64,15 @@ EXTRA = {
     'dirt': lambda: lt.material('GroundDirt'),
     # The train's canvas (looter_train.py's CANVAS_TINTS): one instance, MI_Canvas.
     'canvas': lambda: lt.material('Polymer', name='Canvas', tint=0xd6c9a8),
+    # The home kits' (below): Boardwalk.py's new boards (MI_WoodHoney, made exactly as there) for a roof's replaced
+    # shakes, and the outbuildings' galvanized sheet: the worn metal set at the windpump's grey (MI_MetalWorn_Windmill's
+    # 0xb8b5ac) under a name of its own, since the level build makes that instance from MI_IronBlack; weathered dull
+    # (RoughnessOffset), so it doesn't mirror the sky as new tin would.
+    'honey': lambda: lt.material('WoodPlanks', name='WoodHoney', tint=0xf2d6a4),
+    'galv': lambda: lt.material('MetalWorn', name='GalvanizedSheet', tint=0xb8b5ac, RoughnessOffset=0.36),
+    # Rolled tar paper: the soft mottled set (Polymer) near black, matte and dull (M_World's RoughnessOffset and
+    # Specular, as the biscuits' and the Hob's feathers): PaintBlack's satin read as blue-black plastic under the sky.
+    'tarpaper': lambda: lt.material('Polymer', name='TarPaper', tint=0x403c38, RoughnessOffset=0.3, Specular=0.25),
 }
 REPORTS = {}                 # each finished home's numbers, by name (for the previews and the look sheet)
 
@@ -1157,6 +1170,32 @@ def _ground_material():
     return mat
 
 
+def _preview_master_scalars(mat):
+    """For the renders only: M_World's RoughnessOffset (added to the map's roughness) and Specular (0.5 = 4%), which
+    Unreal applies from a material's custom properties and Blender's node tree knows nothing of (a dull tar paper read
+    as glossy plastic in the previews). Done once per material."""
+    if not mat.use_nodes or mat.get('_PreviewScalars') or not (mat.get('RoughnessOffset') or mat.get('Specular')):
+        return
+    bsdf = next((n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED'), None)
+    if bsdf is None:
+        return
+    mat['_PreviewScalars'] = 1
+    offset = float(mat.get('RoughnessOffset', 0.0))
+    rough = bsdf.inputs['Roughness']
+    if offset:
+        if rough.links:
+            add = mat.node_tree.nodes.new('ShaderNodeMath')
+            add.operation = 'ADD'
+            add.use_clamp = True
+            mat.node_tree.links.new(rough.links[0].from_socket, add.inputs[0])
+            add.inputs[1].default_value = offset
+            mat.node_tree.links.new(add.outputs['Value'], rough)
+        else:
+            rough.default_value = min(1.0, rough.default_value + offset)
+    if mat.get('Specular') is not None and 'Specular IOR Level' in bsdf.inputs:
+        bsdf.inputs['Specular IOR Level'].default_value = float(mat['Specular'])
+
+
 def stage(samples=64):
     """The renders' set: Eevee as the posters render (ray-traced screen-space light, AgX), the street's dirt
     underfoot, the hulls hidden, glowing glass glowing. Returns the scene and its sun."""
@@ -1185,6 +1224,7 @@ def stage(samples=64):
             bsdf = next(n for n in mat.node_tree.nodes if n.type == 'BSDF_PRINCIPLED')
             bsdf.inputs['Emission Color'].default_value = bsdf.inputs['Base Color'].default_value
             bsdf.inputs['Emission Strength'].default_value = float(mat['Glow'])
+        _preview_master_scalars(mat)
     mesh = bpy.data.meshes.new('_Ground')
     mesh.from_pydata([(-400.0, -400.0, 0.0), (400.0, -400.0, 0.0), (400.0, 400.0, 0.0), (-400.0, 400.0, 0.0)], [],
                      [(0, 1, 2, 3)])
@@ -1306,14 +1346,19 @@ def _bounds(obj, local=False):
             Vector((max(c.x for c in cos), max(c.y for c in cos), max(c.z for c in cos))))
 
 
-def previews(models, captions, sheet=True, exposure=-0.15, shots_by_name=None, rows=None):
+def previews(models, captions, sheet=True, exposure=-0.15, shots_by_name=None, rows=None, out_dir=None):
     """Each home in Ransom's Rest's golden late afternoon from the front three-quarter, with a 1.8 m figure beside it
-    (Saved/ArtPreviews/RansomsRest/Homes/<name>.png); with sheet, the kit at one scale (rows: lists of names, back row
-    first) and the look sheet too. shots_by_name: per home, a dict of view (toward the camera), sun (azimuth,
-    elevation), figure ('left' or 'right' of the front) and exposure, over the defaults."""
+    (Saved/ArtPreviews/RansomsRest/Homes/<name>.png, or out_dir); with sheet, the kit at one scale (rows: lists of
+    names, back row first) and the look sheet too. shots_by_name: per home, a dict of view (toward the camera), sun
+    (azimuth, elevation), figure ('left' or 'right' of the front) and exposure, over the defaults. out_dir: a folder,
+    or a dict of folders by name. Called again in the same run, it reuses the set (a second stage() would add a second
+    sun, a second figure() a second figure)."""
     shots_by_name = shots_by_name or {}
-    scene, sun = stage()
-    human = figure()
+    if '_Sun' in bpy.data.objects:
+        scene, sun = bpy.context.scene, bpy.data.objects['_Sun']
+    else:
+        scene, sun = stage()
+    human = bpy.data.objects.get('_Human') or figure()
     bpy.context.view_layer.update()          # the mounted parts' places in the world, for framing
     for o in models:
         show(o, False)
@@ -1331,7 +1376,8 @@ def previews(models, captions, sheet=True, exposure=-0.15, shots_by_name=None, r
         lens = opts.get('lens', 35.0)
         eye, target = frame_shot(mounted(obj) + [human], opts.get('view', VIEW), SHOT, lens,
                                  margin=opts.get('margin', 1.04), height_bias=opts.get('height_bias', 0.42))
-        shots.append(shoot(scene, os.path.join(PREVIEW_DIR, obj.name + '.png'), eye, target, lens, SHOT,
+        folder = out_dir.get(obj.name, PREVIEW_DIR) if isinstance(out_dir, dict) else (out_dir or PREVIEW_DIR)
+        shots.append(shoot(scene, os.path.join(folder, obj.name + '.png'), eye, target, lens, SHOT,
                            opts.get('exposure', exposure)))
         show(obj, False)
     if not sheet:
@@ -1523,3 +1569,774 @@ def look_sheet(out_jpg, title, subtitle, banner, tiles, width=2000, columns=2, g
     bpy.ops.render.render(write_still=True, scene=scene.name)
     lt._log(f'homes: look sheet {out_jpg} ({width} x {height})')
     return out_jpg
+
+
+# --- The walls' shared steps (Homestead.py's, moved here unchanged for the kits, TownBuildings.py and Outbuildings.py) ---
+
+LAP = 0.026          # how far clapboards stand out of the wall's face (casings sit on them)
+
+
+def wall_spaces(x0, x1, y0, y1, base):
+    """The four walls of a rectangle, counterclockwise from above (front, right, back, left): (space, length)."""
+    walls = [((x0, y0), (x1, y0)), ((x1, y0), (x1, y1)), ((x1, y1), (x0, y1)), ((x0, y1), (x0, y0))]
+    return [(kit.wall_space(p0, p1, base), (Vector(p1) - Vector(p0)).length) for p0, p1 in walls]
+
+
+def polygon_spaces(points, base):
+    """Walls round a polygon given counterclockwise from above: (space, length) for each edge."""
+    out = []
+    for p0, p1 in zip(points, points[1:] + points[:1]):
+        out.append((kit.wall_space(p0, p1, base), (Vector(p1) - Vector(p0)).length))
+    return out
+
+
+def rect(length, height):
+    return [(0.0, 0.0), (length, 0.0), (length, height), (0.0, height)]
+
+
+def gable_outline(length, height, rise, apex=None):
+    """A gable wall's outline: eaves at height, the apex rise over them at apex along it (the middle by default)."""
+    return [(0.0, 0.0), (length, 0.0), (length, height), (length * 0.5 if apex is None else apex, height + rise),
+            (0.0, height)]
+
+
+def notch(outline, items):
+    """An outline (starting (0, 0), (length, 0)) notched for the doors standing on its foot, in order along it."""
+    doors = sorted((o for o in items if o.kind == 'door' and o.z <= 1e-4), key=lambda o: o.x)
+    points = [outline[0]]
+    for o in doors:
+        points += [(o.x, 0.0), (o.x, o.h), (o.x + o.w, o.h), (o.x + o.w, 0.0)]
+    return points + list(outline[1:])
+
+
+def clad(m, space, length, outline, items, thick=0.16, cladding='laps', look='band_G', trim='C', wrap=False,
+         frieze=False, table=True, corner_w=0.15, corner=True, backing=None, openings_for=None):
+    """One wall of a closed house: its shell (the outline, notched for doors and holed for windows), its cladding
+    ('laps': clapboards in look; 'batten': upright boards in look with a batten on every joint), its openings, corner
+    boards (wrap on the walls whose boards cover the next wall's edge), a water table along its foot and, on an eave
+    wall, a frieze board under the eaves. backing: (uv spec, material key) for the face behind clapboards instead of
+    lap_backing's (a wall with no steps under a rake shows it only in its openings' reveals: no extra slot needed).
+    openings_for: the openings to build (default all of items): a door up a wall (a loft's, an upper storey's) is cut as
+    a window-kind opening in items and built by the caller in a raised space, as door() builds from the floor."""
+    rng = m.rng
+    top0, top1 = outline[-1][1], outline[2][1]
+    edges = [(-0.1, corner_w + 0.01, -1.0, 30.0), (length - corner_w - 0.01, length + 0.1, -1.0, 30.0)] if corner else []
+    if cladding == 'laps':
+        uv, mat = lap_backing(look, rng) if backing is None else backing
+        shell(m, notch(outline, items), kit.holes(items), thick, uv, space, slices=0, mat=mat)
+        laps(m, space, outline, 0.2 if table else 0.0, max(z for x, z in outline), keep_out(items) + edges,
+             look=look, out=LAP)
+        out = LAP
+    else:
+        if look in town.WOODS:
+            uv, mat = Boards(rotate=True), look
+        else:
+            uv, mat = Trim(look, world=True, rotate=True, u=rng.uniform(0.0, kit.U_REPEAT)), 'trim'
+        shell(m, notch(outline, items), kit.holes(items), thick, uv, space, around=items, mat=mat)
+        battens(m, space, outline, 0.0, length, keep_out(items) + edges, look=look, z0=0.2 if table else 0.0)
+        out = 0.0
+    openings(m, space, items if openings_for is None else openings_for, thick, out=out)
+    if corner:
+        corners(m, space, length, top0 - 0.02, top1 - 0.02, look=trim, out=out, width=corner_w, wrap=wrap)
+    if table:
+        band(m, space, door_spans(items, length), 0.1, 0.2, look=trim, out=out)
+    if frieze:
+        band(m, space, [(0.12, length - 0.12)], min(top0, top1) - 0.14, 0.24, look=trim, out=out)
+
+
+def raised_cut(o, casing=0.14):
+    """A door up a wall (o.z, its sill, over the floor) as clad() cuts it: a window-kind opening (a hole, the
+    clapboards stopping round it) with the door's casing width."""
+    return Opening('window', o.x, o.z, o.w, o.h, casing_w=o.opts.get('casing_w', casing))
+
+
+def raised_door(m, space, o, depth, out=0.0):
+    """A door up a wall built in a space raised to its sill (door() builds from the floor)."""
+    door(m, Space(space.matrix @ Matrix.Translation((0.0, 0.0, o.z))), Opening('door', o.x, 0.0, o.w, o.h, **o.opts),
+         depth, out)
+
+
+def skip_round(slope, boxes):
+    """A shakes skip: the parts of a slope over any of the world boxes (cx, cy, half x, half y): chimneys through it."""
+    def skip(x, y):
+        w = slope.world((x, y, 0.0))
+        return any(abs(w.x - cx) < hx and abs(w.y - cy) < hy for cx, cy, hx, hy in boxes)
+    return skip
+
+
+def roof_z(eave_z, wall_y, y, pitch):
+    """The deck top's height over a point y on a slope rising from a wall at wall_y (either side)."""
+    return eave_z + abs(y - wall_y) * math.tan(math.radians(pitch))
+
+
+def hewn_wall(m, space, length, top, items, parity, course=0.3, log_h=0.25, depth=0.22, ext=0.13):
+    """A wall of hewn logs: square-hewn timbers (the trim sheet's hewn faces) laid in courses with cream chinking
+    showing between them (the plaster strip, set back), running past the corners (half a course up on every other wall,
+    as notched corners stack), cut round the openings with squared jambs."""
+    rng = m.rng
+    chink = Space(space.matrix @ Matrix.Translation((0.0, 0.05, 0.0)))
+    shell(m, notch(rect(length, top), items), kit.holes(items), 0.12, Trim('G', world=True, u=rng.uniform(4.2, 5.2)),
+          chink, slices=0)
+    z = course * 0.5 if parity else 0.0
+    while z + log_h <= top + 0.02:
+        pieces = [(-ext + rng.uniform(-0.02, 0.02), length + ext + rng.uniform(-0.02, 0.02))]
+        for o in items:
+            if z < o.z + o.h + 0.02 and z + log_h > o.z - 0.02:
+                pieces = town.subtract(pieces, (o.x - 0.06, o.x + o.w + 0.06))
+        for a, b in pieces:
+            h = log_h + rng.uniform(-0.02, 0.01)
+            m.box((b - a, depth, h), at=((a + b) * 0.5, depth * 0.5 - 0.01 + rng.uniform(-0.008, 0.008), z + log_h * 0.5),
+                  rot=(0.0, rng.uniform(-0.3, 0.3), 0.0), uv=Trim('C', width=h), space=space, drop=('+y',),
+                  cuts=int((b - a) / 2.4))
+        z += course
+    for o in items:
+        for x in (o.x - 0.06, o.x + o.w + 0.06):
+            m.board((x, 0.11, o.z - (0.03 if o.z > 0 else 0.0)), (x, 0.11, o.z + o.h + 0.1), 0.12, 0.24,
+                    uv=Trim('C', lane='each'), space=space)
+        m.board((o.x - 0.14, 0.1, o.z + o.h + 0.07), (o.x + o.w + 0.14, 0.1, o.z + o.h + 0.07), 0.14, 0.24,
+                uv=Trim('C', lane='each'), space=space)
+
+
+# --- Home kits (the towns round, 2026-11-04: Docs/Work/2026-11-04-Towns/PLAN.md 4.2 items 3-5) ---
+# A home is a body (clad walls on a plinth or piers) + a roof kit on each slope + a porch kit + a chimney kit + its paint,
+# each kit a builder on the parts above, so a new home is a combination, never a copy. Every kit is on the town's own
+# materials: the trim sheet for nearly everything (so the level's TrimRecolor tints a roof's strip E and a wall's strip A
+# per house), WoodPlanks for decks, WindowGlow for a lived house's panes and porch lantern, IronBlack for stovepipes, and
+# three for the roofs only: WoodHoney (R2's replaced shakes), TarPaper (R4), GalvanizedSheet (G: outbuildings only).
+# Nothing above changes, so the homes A to J export exactly as before.
+
+ROOF_KITS = ('R1', 'R2', 'R3', 'R3T', 'R4', 'G')
+
+
+def _plank(m, p0, p1, width, thick, look, space=None, face=(0.0, 0.0, 1.0), drop=('+y',), ao_floor=0.0, cuts=None):
+    """A board from p0 to p1 (its middle line) like looter_town's board(), with an AO floor (roofs): look a trim strip
+    ('A', 'C') or a Wood* paint, a 'board_<key>' mapping it across one plank of WoodPlanks under that material."""
+    length = (Vector(p1) - Vector(p0)).length
+    cuts = int(length / 2.5) if cuts is None else cuts
+    matrix = kit.toward(p0, p1, face) @ Matrix.Translation((length * 0.5, 0.0, 0.0))
+    spec, key = town.finish(look, width=max(width, thick), board=True) if isinstance(look, str) else (look, 'trim')
+    m.emit(kit._box((length, thick, width), 0.0, cuts, drop), spec, key, matrix, space, ao_floor=ao_floor)
+
+
+def _spans_clear(a, b, ys, skip, step=0.05):
+    """The parts of [a, b] along a row that skip(x, y) leaves alone at every y in ys."""
+    spans = [(a, b)]
+    if skip is None:
+        return spans
+    for y in ys:
+        spans = town.intersect(spans, town._outside(a, b, y, skip, step))
+    return spans
+
+
+def cover(m, slope, kind, skip=None, top=None, **options):
+    """Lays a roof kit on a slope whose deck is laid: 'R1' silver shakes (the trim's strip E: today's roofs), 'R2' the
+    same with 2-4 patches of replaced shakes (patches: a count or (x0, x1, first course, courses) boxes), 'R3' boards
+    down the slope battened over the joints (the trim's weathered boards), 'R3T' the same tarred (WoodBlack), 'R4'
+    rolled tar paper (TarPaper) in lapped rows with lath battens and a torn corner or two (tears), 'G' corrugated
+    galvanized sheet (GalvanizedSheet; outbuildings only, the user's call D4). skip(x, y) leaves a place bare (a
+    chimney through it); top ends the covering short of the slope's top. Other options go to the kit's builder
+    (piece, missing for shakes; every, gone for boards)."""
+    if kind == 'R1':
+        town.shakes(m, slope, piece=options.get('piece', (2.2, 3.8)), top=top, missing=options.get('missing', 0.02),
+                    skip=skip)
+    elif kind == 'R2':
+        patched_shakes(m, slope, patches=options.get('patches', 2), piece=options.get('piece', (2.2, 3.8)), top=top,
+                       missing=options.get('missing', 0.02), skip=skip)
+    elif kind in ('R3', 'R3T'):
+        batten_roof(m, slope, every=options.get('every', 0.3), look='woodblack' if kind == 'R3T' else 'A',
+                    gone=options.get('gone', ()), top=top, skip=skip)
+    elif kind == 'R4':
+        tar_paper(m, slope, top=top, tears=options.get('tears', 1), skip=skip)
+    elif kind == 'G':
+        corrugated(m, slope, top=top, skip=skip, loose=options.get('loose', 0.12), gone=options.get('gone', 0.0))
+    else:
+        raise ValueError(f'no roof kit {kind!r} (one of {", ".join(ROOF_KITS)})')
+
+
+def ridge(m, front, back, kind, width=None):
+    """The ridge where two slopes of a roof kit meet: a beam-strip cap board over shakes and boards, a strip of tar paper
+    folded over R4, a galvanized ridge roll over G."""
+    if kind == 'R4' or kind == 'G':
+        mat, uv = ('tarpaper', Tiled('Polymer', 320)) if kind == 'R4' else ('galv', Tile('MetalWorn'))
+        w = width or (0.26 if kind == 'R4' else 0.22)
+        thick, z = (0.006, 0.024) if kind == 'R4' else (0.004, 0.034)
+        for slope in (front, back):
+            m.box((slope.width + 0.02, w, thick),
+                  matrix=place((slope.width * 0.5, slope.length - w * 0.5 + 0.02, z + thick * 0.5), (-2.0, 0.0, 0.0)),
+                  uv=uv, mat=mat, space=slope, cuts=max(1, int(slope.width / 3.0)), drop=('-z',))
+        return
+    town.ridge_cap(m, front, back, uv='C', width=width or (0.18 if kind in ('R3', 'R3T') else 0.16), thick=0.05)
+
+
+def patched_shakes(m, slope, patches=2, course=0.2, butt=0.03, piece=(2.2, 3.8), start=-0.08, top=None, missing=0.02,
+                   skip=None):
+    """R2: shakes (looter_town's) with patches where shakes were replaced: those courses cut round each patch and the
+    patch laid in single new shakes, 10-26 cm wide, on WoodHoney (one plank of it each, the grain down the roof): new
+    wood, lighter and warmer than the weathered strip, a hair proud. patches: how many (placed at random, clear of skip)
+    or boxes (x0, x1, first course, courses) in the slope's frame."""
+    rng = m.rng
+    top_y = slope.length + 0.02 if top is None else top
+    exposure = course - 0.02
+    courses = max(4, int((top_y - 0.04 - start) / exposure) + 1)
+    if isinstance(patches, int):
+        boxes = []
+        tries = 0
+        while len(boxes) < patches and tries < 40:
+            tries += 1
+            w = rng.uniform(0.7, 1.7)
+            x0 = rng.uniform(0.35, max(0.36, slope.width - w - 0.35))
+            k0 = rng.randrange(2, max(3, courses - 4))
+            n = rng.randint(2, 4)
+            corners_ = [(x0, start + k0 * exposure), (x0 + w, start + (k0 + n) * exposure)]
+            if skip is not None and any(skip(x, y) for x in (x0, x0 + w) for y in (corners_[0][1], corners_[1][1])):
+                continue
+            if any(not (x0 + w < b0 - 0.3 or x0 > b1 + 0.3) and not (k0 + n < c0 or k0 > c0 + cn) for b0, b1, c0, cn
+                   in boxes):
+                continue
+            boxes.append((x0, x0 + w, k0, n))
+    else:
+        boxes = list(patches)
+
+    def course_of(y):
+        return int(round((y - start - course * 0.5) / exposure))
+    # Each course of a patch stops at its own place (the repair follows the shakes that split, not a rectangle): the
+    # middle courses widest, the first and last narrower.
+    spans = {}
+    for b, (b0, b1, c0, cn) in enumerate(boxes):
+        for j in range(cn):
+            edge = 0.0 if 0 < j < cn - 1 else rng.uniform(0.15, 0.3)
+            spans[(b, c0 + j)] = (b0 + edge + rng.uniform(-0.14, 0.14), b1 - edge + rng.uniform(-0.14, 0.14))
+
+    def in_patch(x, y):
+        k = course_of(y)
+        return any(a < x < z for (b, kk), (a, z) in spans.items() if kk == k)
+    town.shakes(m, slope, course=course, butt=butt, piece=piece, start=start, top=top, missing=missing,
+                skip=(lambda x, y: in_patch(x, y) or skip(x, y)) if skip is not None else in_patch)
+    for (b, k), (a, z) in spans.items():
+        y = start + k * exposure
+        x = a - 0.02
+        while x < z + 0.02 - 0.04:
+            w = min(rng.uniform(0.1, 0.26), z + 0.02 - x)
+            lift = 0.004 * (k % 2) + 0.003
+            z0 = butt * 0.82 + lift
+            z1 = lift + 0.004
+            cx = x + w * 0.5
+            # Down the roof (its grain), the butt standing proud at the low end; most are new wood (WoodHoney), some
+            # sound old shakes laid back (the strip's).
+            look = 'board_honey' if rng.random() < 0.7 else Trim('E', lane=k % 4, rotate=True)
+            _plank(m, (cx, y + rng.uniform(-0.006, 0.006), z0 - butt * 0.3), (cx, y + course, z1), w - 0.008,
+                   butt * 0.6, look, space=slope, drop=('+y',), ao_floor=kit.ROOF_AO + 0.08)
+            x += w
+    return boxes
+
+
+def batten_roof(m, slope, every=0.3, look='A', gone=(), battens=True, top=None, skip=None):
+    """R3: boards running down the slope, each a little crooked, a batten over every joint (looter_homes' board_roof,
+    the claim cabin's), in look: the trim's weathered boards ('A') or a Wood* paint ('woodblack': tarred). gone lists
+    boards (by number) missing; skip(x, y) stops boards and battens at a chimney."""
+    rng = m.rng
+    top = slope.length + 0.03 if top is None else top
+    count = int(slope.width / every) + 1
+    w = slope.width / count
+    batten_look = 'C' if look not in town.WOODS else look
+    for k in range(count):
+        x = w * (k + 0.5)
+        y0 = -0.04 + rng.uniform(-0.02, 0.02)
+        dx = rng.uniform(-0.012, 0.012)
+        lift = rng.uniform(0.0, 0.004)
+        if k not in gone:
+            for a, b in _runs(y0, top, x, skip):
+                _plank(m, (x, a, 0.0125 + lift), (x + dx * (b - a) / max(top - y0, 1e-6), b, 0.0125 + lift), w - 0.012,
+                       0.025, look, space=slope, drop=('+y',), ao_floor=kit.ROOF_AO)
+        if battens and k < count - 1:
+            xb = w * (k + 1)
+            for a, b in _runs(0.0, top - 0.02, xb, skip):
+                _plank(m, (xb, a, 0.037), (xb, b, 0.037), 0.07, 0.025, batten_look, space=slope, drop=('+y',),
+                       ao_floor=kit.ROOF_AO)
+
+
+def _runs(a, b, x, skip, step=0.06):
+    """The parts of [a, b] up a slope at x that skip(x, y) leaves alone."""
+    if skip is None:
+        return [(a, b)]
+    return town._outside(a, b, x, lambda y, xx: skip(xx, y), step)
+
+
+_TURN_FLAT = Matrix(((1.0, 0.0, 0.0, 0.0), (0.0, 0.0, 1.0, 0.0), (0.0, -1.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0)))
+
+
+def _flat(m, outline, thick, z, uv, mat, space, ao_floor=0.0, matrix=None, slices=1.0):
+    """A flat piece lying on a slope: outline [(x, y), ...] counterclockwise from above in the slope's frame, thick
+    deep, its top at z (the prism's front turned to face +z, as hip_deck does), cut every slices meters along x so it
+    bends with the roof's sag (uncut, a 4 m row stands clear of a sagging deck and its laths sink under it)."""
+    place_m = Matrix.Translation((0.0, 0.0, z)) @ _TURN_FLAT
+    if matrix is not None:
+        place_m = matrix @ place_m
+    tb = kit._prism([list(outline)], thick)
+    if slices:
+        xs = [p[0] for p in outline]
+        kit._slice(tb, 0, kit.frange(min(xs) + slices, max(xs) - 0.1, slices))
+    m.emit(tb, uv, mat, place_m, space, ao_floor=ao_floor)
+
+
+def tar_paper(m, slope, row=0.9, lap=0.08, thick=0.006, start=-0.03, top=None, tears=1, battens=True, skip=None):
+    """R4: rolled tar paper (TarPaper: the soft mottled set near black, matte, at the walls' 320 px/m) in rows along the
+    eave from the eave up, each row lapping the one below, a lath (the trim's weathered board, 3.5 cm) nailed along
+    every lap, the lowest row folded down over the deck's edge, and tears torn corners: a corner of a row gone (the
+    deck's boards show) and the torn piece curling up beside it."""
+    rng = m.rng
+    top = slope.length + 0.03 if top is None else top
+    span = top - start
+    rows = max(1, math.ceil((span - lap) / (row - lap) - 1e-6))
+    h = (span + (rows - 1) * lap) / rows
+    x0, x1 = -0.03, slope.width + 0.03
+    spots = [(r, e) for r in range(rows) for e in (0, 1)]
+    torn = set(rng.sample(spots, min(tears, len(spots)))) if tears else set()
+    paper = Tiled('Polymer', 320)
+    for r in range(rows):
+        y0 = start + r * (h - lap)
+        y1 = y0 + h
+        z = thick + 0.0015 * (r % 2) + 0.001 * r
+        for a, b in _spans_clear(x0, x1, (y0 + 0.1, (y0 + y1) * 0.5, y1 - 0.1), skip):
+            outline = [(a, y0), (b, y0), (b, y1), (a, y1)]
+            for end in (0, 1):
+                if (r, end) not in torn or b - a < 1.2:
+                    continue
+                ta, tb = rng.uniform(0.3, 0.6), rng.uniform(0.2, max(0.21, min(0.45, h - lap - 0.12)))
+                if end == 1 and abs(b - x1) < 1e-6:
+                    k = outline.index((b, y0))
+                    outline[k:k + 1] = [(b - ta, y0), (b, y0 + tb)]
+                    hinge = (Vector((b - ta, y0, z)), Vector((b, y0 + tb, z)))
+                    flap = [(b - ta, y0), (b, y0), (b, y0 + tb)]
+                elif end == 0 and abs(a - x0) < 1e-6:
+                    k = outline.index((a, y0))
+                    outline[k:k + 1] = [(a, y0 + tb), (a + ta, y0)]
+                    hinge = (Vector((a, y0 + tb, z)), Vector((a + ta, y0, z)))
+                    flap = [(a, y0 + tb), (a, y0), (a + ta, y0)]
+                else:
+                    continue
+                # The torn corner, still hanging on along the tear, curled up off the roof (a negative turn about the
+                # tear, as it runs, lifts the corner).
+                axis = (hinge[1] - hinge[0]).normalized()
+                curl = (Matrix.Translation(hinge[0]) @ Matrix.Rotation(math.radians(-rng.uniform(25.0, 40.0)), 4, axis)
+                        @ Matrix.Translation(-hinge[0]))
+                _flat(m, flap, thick, z, paper, 'tarpaper', slope, matrix=curl, slices=0)
+            _flat(m, outline, thick, z, paper, 'tarpaper', slope, ao_floor=kit.ROOF_AO)
+        if battens:
+            zb = z + 0.006
+            ends = [x0 + 0.02, x1 - 0.02]
+            for (rr, end) in torn:
+                if rr == r:
+                    ends[end] = ends[end] + (0.7 if end == 0 else -0.7)
+            for a, b in _spans_clear(ends[0], ends[1], (y0 + 0.04,), skip):
+                _plank(m, (a, y0 + 0.035, zb), (b, y0 + 0.035, zb), 0.035, 0.012, 'A', space=slope, drop=('+y',),
+                       ao_floor=kit.ROOF_AO, cuts=max(1, int((b - a) / 1.0)))
+    # The lowest row folded down over the deck's edge.
+    deck = getattr(slope, 'deck', 0.07)
+    m.box((x1 - x0, 0.006, deck + thick + 0.012), at=((x0 + x1) * 0.5, start - 0.003, (thick - deck - 0.012) * 0.5),
+          uv=paper, mat='tarpaper', space=slope, cuts=max(1, int((x1 - x0) / 1.0)), drop=('+y',))
+
+
+def _corrugated(width, length, pitch, depth, along=1.2):
+    """A corrugated sheet in its own frame: x across it (0 to width; the corrugations run along y), y from 0 to
+    length, z up with its troughs at 0 and crests at depth; one-sided, its top up, four facets a wave (smooth shaded)."""
+    tb = kit._new_bmesh()
+    waves = max(1, int(round(width / pitch)))
+    p = width / waves
+    xs = [p * i / 4.0 for i in range(waves * 4 + 1)]
+    n = max(1, int(math.ceil(length / along)))
+    ys = [length * j / n for j in range(n + 1)]
+    grid = [[tb.verts.new((x, y, depth * 0.5 * (1.0 - math.cos(2.0 * math.pi * x / p)))) for x in xs] for y in ys]
+    for j in range(n):
+        for i in range(len(xs) - 1):
+            tb.faces.new((grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]))
+    return tb
+
+
+def corrugated(m, slope, sheet=0.8, length=2.4, pitch=0.1, depth=0.018, lap=0.15, start=-0.06, top=None, skip=None,
+               loose=0.12, gone=0.0):
+    """G: corrugated galvanized sheet (GalvanizedSheet: the worn metal set at the windpump's grey) in rows from the eave
+    up, each row lapping the one below by lap, each sheet lapping its neighbour by one corrugation, a hair crooked; now
+    and then one sits loose (lifted and turned off true) or (gone, a share) is missing, the deck showing. Corrugations are
+    modelled, so the roof reads as metal at any distance without a texture of its own."""
+    rng = m.rng
+    top = slope.length + 0.04 if top is None else top
+    span = top - start
+    rows = max(1, math.ceil((span - lap) / (length - lap) - 1e-6))
+    h = (span + (rows - 1) * lap) / rows
+    waves = int(round(sheet / pitch))
+    p = sheet / waves
+    metal = Tile('MetalWorn')
+    for r in range(rows):
+        y = start + r * (h - lap)
+        x = -0.05 - rng.uniform(0.0, p)
+        k = 0
+        while x < slope.width + 0.05 - 1e-3:
+            # A whole number of waves, at least two (each sheet laps the last by one, so one would never advance).
+            n = min(waves, max(2, int(math.ceil((slope.width + 0.05 - x) / p - 1e-6)) + 1))
+            w = n * p
+            cx, cy = x + w * 0.5, y + h * 0.5
+            keep = (skip is None or not skip(cx, cy)) and (gone <= 0.0 or (r, k) == (0, 0) or rng.random() >= gone)
+            if keep:
+                lift = 0.0025 * (k % 2) + 0.004 * r + 0.001
+                roll, yaw = rng.uniform(-0.25, 0.25), rng.uniform(-0.3, 0.3)
+                if rng.random() < loose:
+                    roll += rng.choice((-1.0, 1.0)) * rng.uniform(1.0, 2.2)
+                    yaw += rng.uniform(-1.2, 1.2)
+                    lift += 0.008
+                matrix = place((x, y + rng.uniform(-0.012, 0.012), lift), (0.0, roll, yaw))
+                m.emit(_corrugated(w, h, p, depth), metal, 'galv', matrix, slope, smooth=True, ao_floor=kit.ROOF_AO)
+            x += w - p
+            k += 1
+
+
+# --- Porch kits ---
+
+def porch_deck(m, x0, x1, y0, y1, top, posts=(), front=True, back=False, sill=True, ends=(), gone=(), joists=3):
+    """looter_town's plank deck (planks every 20 cm across it from y0, the front, to y1; joists, rim boards, posts
+    and a sill under the front) with the planks in gone left out: an empty house's porch, the joists and the dark
+    under it showing."""
+    rng = m.rng
+    count = int(round((x1 - x0) / town.PLANK))
+    for k in range(count):
+        x = x0 + town.PLANK * (k + 0.5)
+        dz = rng.uniform(-0.004, 0.003)
+        yaw = rng.uniform(-0.25, 0.25)
+        y_front = y0 - 0.02 + rng.uniform(-0.01, 0.01)
+        if k in gone:
+            continue
+        p0, p1 = Vector((x, y_front, top - 0.025 + dz)), Vector((x, y1, top - 0.025 + dz))
+        length = (p1 - p0).length
+        matrix = (Matrix.Translation(Vector((x, (y_front + y1) * 0.5, 0.0))) @ Matrix.Rotation(math.radians(yaw), 4, 'Z')
+                  @ Matrix.Translation(Vector((-x, -(y_front + y1) * 0.5, 0.0))) @ kit.toward(p0, p1, (0.0, 0.0, 1.0))
+                  @ Matrix.Translation((length * 0.5, 0.0, 0.0)))
+        m.emit(kit._box((length, 0.05, town.PLANK - 0.012 - rng.uniform(0.0, 0.006)), 0.0, 0, ('+y',)),
+               town.PlankRow(), 'planks', matrix)
+    width = y1 - y0
+    for j in range(joists):
+        y = y0 + 0.12 + (width - 0.24) * j / max(joists - 1, 1)
+        town.box(m, (x1 - x0, 0.08, 0.16), at=((x0 + x1) * 0.5, y, top - 0.05 - 0.08), look='C', drop=('-z',))
+    rim_h = 0.2
+    for side, on in ((y0, front), (y1, back)):
+        if on:
+            face = (0.0, -1.0, 0.0) if side == y0 else (0.0, 1.0, 0.0)
+            town.board(m, (x0, side, top - 0.05 - rim_h * 0.5), (x1, side, top - 0.05 - rim_h * 0.5), rim_h, 0.045,
+                       look='A', face=face, lift=-0.0225, drop=('+y',))
+    for x in posts:
+        for y in (y0 + 0.1, y1 - 0.1):
+            town.box(m, (0.14, 0.14, top - 0.21 + 0.12), at=(x + rng.uniform(-0.03, 0.03), y, (top - 0.21 - 0.12) * 0.5),
+                     rot=(0.0, 0.0, rng.uniform(-6.0, 6.0)), look='C', drop=('-z',))
+    if sill:
+        town.box(m, (x1 - x0, 0.16, 0.14), at=((x0 + x1) * 0.5, y0 + 0.1, -0.05), look='C', drop=('-z',))
+    for x in ends:
+        face = (-1.0, 0.0, 0.0) if abs(x - x0) < 1e-6 else (1.0, 0.0, 0.0)
+        town.board(m, (x, y0, top - 0.05 - rim_h * 0.5), (x, y1, top - 0.05 - rim_h * 0.5), rim_h, 0.045, look='A',
+                   face=face, lift=-0.0225, drop=('+y',))
+    m.hull((x1 - x0, y1 - y0, top), at=((x0 + x1) * 0.5, (y0 + y1) * 0.5, top * 0.5))
+
+
+def step_count(top):
+    """How many treads homes' steps() needs below a deck top (each rise at most 20 cm)."""
+    return max(1, int(math.ceil(top / 0.2 - 1e-6)) - 1)
+
+
+def seat(m, cx, y_back, z, length=1.1, height=0.44, deep=0.32, facing=-1.0):
+    """A plank bench against a wall (its back edge at y_back, facing -y or +y) standing on a floor at z."""
+    rng = m.rng
+    cy = y_back + facing * deep * 0.5
+    for dy in (-0.075, 0.075):
+        town.board(m, (cx - length * 0.5, cy + dy, z + height - 0.025),
+                   (cx + length * 0.5, cy + dy + rng.uniform(-0.004, 0.004), z + height - 0.025), 0.15, 0.045, look='A',
+                   face=(0.0, 0.0, 1.0))
+    for x in (cx - length * 0.5 + 0.14, cx + length * 0.5 - 0.14):
+        m.box((0.05, deep - 0.04, height - 0.05), at=(x, cy, z + (height - 0.05) * 0.5), uv=Trim('C', lane='each'))
+    m.hull((length, deep, height), at=(cx, cy, z + height * 0.5))
+
+
+def post_brackets(m, x, y, z, size=0.15, reach=0.34, drop_h=0.34, look='C', sides=(-1.0, 1.0)):
+    """Scroll brackets in the beam's plane either side of a porch post's top (x, y; z the beam's underside)."""
+    for side in sides:
+        face_x = x + side * size * 0.5
+        p0, p1 = ((face_x, y - 0.5), (face_x, y + 0.5)) if side > 0 else ((face_x, y + 0.5), (face_x, y - 0.5))
+        town.bracket(m, kit.wall_space(p0, p1, 0.0), 0.5, z, reach=reach, drop_h=drop_h, thick=0.05, look=look)
+
+
+def porch(m, x0, x1, y_wall, depth, deck, beam, roof_top, kind='P2', roof='R1', posts=None, steps=None, steps_w=1.4,
+          slack=None, gone=(), post_look='C', rail_look='C', roof_options=None, sides=(True, True)):
+    """A porch across a front wall (at y_wall, facing -Y) from x0 to x1, depth deep: P2 a shed porch (hewn square posts,
+    a plank deck, no rail) or P3 a turned porch (turned posts in post_look, a picket rail in rail_look round its open
+    sides, scroll brackets under the beam), its deck top at deck, its beam's top at beam and its shed roof running up to
+    roof_top at the wall, covered in the roof kit roof. posts: the posts' x (default: the ends and every ~2.4 m between);
+    steps: the steps' middle x (None the middle, False none). slack 'left' or 'right' makes an empty house's porch: that
+    corner's post lies on the deck and the beam and roof hang slack there; gone: deck planks missing. sides: rails on the
+    left and right ends (P3). Returns the roof's Slope."""
+    rng = m.rng
+    py = y_wall - depth
+    if posts is None:
+        bays = max(1, int(round((x1 - x0 - 0.24) / 2.4)))
+        posts = [x0 + 0.12 + (x1 - x0 - 0.24) * k / bays for k in range(bays + 1)]
+    posts = list(posts)
+    porch_deck(m, x0, x1, py, y_wall, deck, posts=posts, sill=True, ends=(x0, x1), gone=gone)
+    if steps is not False:
+        sx = (x0 + x1) * 0.5 if steps is None else steps
+        steps_(m, sx, steps_w, py, deck, step_count(deck))
+    ppy = py + 0.12
+    turned = kind == 'P3'
+    size = 0.15 if turned else 0.14
+    slack_drop = 0.38 if slack else 0.0
+    standing = list(posts)
+    if slack == 'left':
+        standing = posts[1:]
+    elif slack == 'right':
+        standing = posts[:-1]
+    for x in standing:
+        post(m, x, ppy, deck, beam - 0.08, size=size, look=post_look, turned=turned)
+        m.hull((size + 0.02, size + 0.02, beam - deck), at=(x, ppy, (beam + deck) * 0.5))
+    if slack:
+        # The lost post across the deck, its stub where it stood.
+        gone_x = posts[0] if slack == 'left' else posts[-1]
+        inward = 1.0 if slack == 'left' else -1.0
+        m.board((gone_x + inward * 0.25, py + 0.45, deck + 0.07), (gone_x + inward * 1.75, py + 1.15, deck + 0.07), 0.13,
+                0.13, face=(0.0, 0.0, 1.0), uv=Trim('C', lane='each'))
+        m.box((0.19, 0.19, 0.05), at=(gone_x, ppy, deck + 0.025), uv='C')
+    za, zb = beam, beam
+    if slack == 'left':
+        za -= slack_drop
+    elif slack == 'right':
+        zb -= slack_drop
+    m.board((x0 - 0.15, ppy, za), (x1 + 0.15, ppy, zb), 0.18, 0.12, uv=Trim('C', lane='each'))
+    if turned:
+        for x in standing:
+            first, last = x == posts[0], x == posts[-1]
+            post_brackets(m, x, ppy, beam - 0.09, size=size, look=post_look,
+                          sides=tuple(s for s in (-1.0, 1.0) if not (first and s < 0) and not (last and s > 0)))
+        gap = None
+        if steps is not False:
+            sx = (x0 + x1) * 0.5 if steps is None else steps
+            gap = (sx - steps_w * 0.5 - 0.04, sx + steps_w * 0.5 + 0.04)
+        rail = dict(height=0.88, every=0.19, look=rail_look, picket=rail_look)
+        for a, b in zip(posts, posts[1:]):
+            runs = [(a + size * 0.5 + 0.02, b - size * 0.5 - 0.02)]
+            if gap is not None:
+                runs = town.subtract(runs, gap, keep=0.25)
+            for ra, rb in runs:
+                if slack and ((slack == 'left' and a == posts[0]) or (slack == 'right' and b == posts[-1])):
+                    continue          # the rail went with the post
+                railing(m, (ra, ppy, deck), (rb, ppy, deck), **rail)
+        for k, (on, x) in enumerate(zip(sides, (x0 + 0.08, x1 - 0.08))):
+            if on and not (slack == 'left' and k == 0) and not (slack == 'right' and k == 1):
+                railing(m, (x, ppy + 0.1, deck), (x, y_wall - 0.08, deck), **rail)
+    options = dict(corner=slack_drop, side=slack) if slack else {}
+    slope = shed_roof(m, x0 - 0.1, x1 + 0.1, ppy, beam + 0.09, y_wall + 0.05, roof_top, overhang=0.3, rake=(0.15, 0.15),
+                      deck=0.07, sag=0.04, cls=Droop if slack else kit.Slope, **options)
+    cover(m, slope, roof, top=slope.length - 0.02, **(roof_options or {}))
+    slope_hull(m, slope, thick=0.18)
+    return slope
+
+
+def steps_(m, cx, width, y_edge, top, count, toward=-1.0, run=0.28, look='A'):
+    """steps() under another name for the kits (porch() has a parameter called steps)."""
+    steps(m, cx, width, y_edge, top, count, toward=toward, run=run, look=look)
+
+
+def stoop(m, front, mx, door, y_wall, base, roof='R4', hood='shed', stone=True, slack=False, bracket_look='C', out=LAP):
+    """P1, a stoop at a door (door: its Opening in the front wall's space, front; mx its middle's world x; the wall's
+    face at y_wall, facing -Y): fieldstone steps (stone) or a little plank landing with steps, and a door hood on two
+    scroll brackets: hood 'shed' (a small shed roof in the roof kit roof) or 'gable' (Home_A's little pediment, shakes).
+    slack: an empty house's: one bracket gone, the hood hanging off true at that side, a landing plank missing."""
+    rng = m.rng
+    head = door.h + 0.42                         # the hood's foot over the door, from the floor
+    reach = 0.62
+    hw = door.w * 0.5 + 0.38
+    mid = door.x + door.w * 0.5
+    sides = (-1.0, 1.0) if not slack else (1.0,)
+    for side in sides:
+        town.bracket(m, front, mid + side * (hw - 0.14), head - 0.02, reach=reach - 0.06, drop_h=0.5, thick=0.08,
+                     look=bracket_look, out=out)
+    if hood == 'gable':
+        hood_frame = front.matrix @ Matrix.Translation((mid, 0.0, 0.0)) @ Matrix.Rotation(math.radians(-90.0), 4, 'Z')
+        h_front, h_back = kit.gable(m, 0.0, reach, -hw, hw, head + 0.06, 32.0, overhang=0.08, rake=0.1, deck=0.05,
+                                    frame=hood_frame, ends=(False, True))
+        town.shakes(m, h_front, piece=(0.7, 1.0))
+        town.shakes(m, h_back, piece=(0.7, 1.0))
+        town.ridge_cap(m, h_front, h_back, uv='C', width=0.1, thick=0.04)
+        m.hull((hw * 2.0, reach + 0.1, 0.45), at=(mx, y_wall - reach * 0.5, base + head + 0.2))
+    else:
+        z_high, z_low = base + head + 0.34, base + head + 0.06
+        options = dict(corner=0.14, side='left') if slack else {}
+        slope = shed_roof(m, mx - hw, mx + hw, y_wall - reach, z_low, y_wall + 0.02, z_high, overhang=0.06,
+                          rake=(0.04, 0.04), deck=0.045, sag=0.01, cls=Droop if slack else kit.Slope, **options)
+        cover(m, slope, roof, top=slope.length - 0.01, tears=0, piece=(0.6, 1.0), patches=0)
+        slope_hull(m, slope, thick=0.12)
+    if stone:
+        stone_steps(m, mx, 1.4, y_wall - 0.04, base, max(1, step_count(base)))
+    else:
+        porch_deck(m, mx - 0.85, mx + 0.85, y_wall - 1.1, y_wall, base, posts=(mx - 0.75, mx + 0.75), sill=True,
+                   ends=(mx - 0.85, mx + 0.85), gone=(2,) if slack else ())
+        steps_(m, mx, 1.2, y_wall - 1.1, base, step_count(base))
+
+
+def portico(m, mx, y_wall, base, width=3.0, depth=1.7, eave=None, pitch=40.0, roof='R3T', post_look='C', slack=False,
+            bench=True, pediment='A', door_w=1.0, roof_back=None):
+    """P4, a gable portico over a door in a front wall (at y_wall, facing -Y; mx the door's middle, door_w its width): a
+    plank deck on the floor's height with steps, two hewn posts and their plates carrying a little gable roof that faces
+    the street (its pediment boarded in the trim's weathered boards or a Wood* paint), a bench against the wall beside
+    the door. roof_back: where its roof ends (past the wall, where its ridge dies into the house's own roof, as the L
+    house's wing does; default the wall). slack: an empty house's: one post knocked off its foot and leaning, deck
+    planks gone, no bench. Returns the two slopes."""
+    rng = m.rng
+    hw = width * 0.5
+    eave = base + 2.5 if eave is None else eave
+    yf = y_wall - depth
+    porch_deck(m, mx - hw, mx + hw, yf, y_wall, base, posts=(mx - hw + 0.1, mx + hw - 0.1), sill=True,
+               ends=(mx - hw, mx + hw), gone=(3, 9) if slack else ())
+    steps_(m, mx, 1.3, yf, base, step_count(base))
+    pyf = yf + 0.12
+    for k, sx in enumerate((-1.0, 1.0)):
+        x = mx + sx * (hw - 0.1)
+        if slack and k == 0:
+            foot = (x - 0.32, pyf - 0.2, base)
+            m.board(foot, (x, pyf, eave - 0.14), 0.15, 0.15, uv=Trim('C', lane='each'))
+            m.hull_points([(foot[0] + dx, foot[1] + dy, base) for dx in (-0.08, 0.08) for dy in (-0.08, 0.08)] +
+                          [(x + dx, pyf + dy, eave - 0.14) for dx in (-0.08, 0.08) for dy in (-0.08, 0.08)])
+        else:
+            post(m, x, pyf, base, eave - 0.14, size=0.15, look=post_look)
+            m.hull((0.17, 0.17, eave - 0.14 - base), at=(x, pyf, (eave - 0.14 + base) * 0.5))
+        # The plate along the side, from the post to the wall.
+        m.board((x, yf - 0.08, eave - 0.07), (x, y_wall, eave - 0.07), 0.14, 0.12, face=(sx, 0.0, 0.0),
+                uv=Trim('C', lane='each'))
+    m.board((mx - hw - 0.02, pyf, eave - 0.2), (mx + hw + 0.02, pyf, eave - 0.2), 0.16, 0.12, uv=Trim('C', lane='each'))
+    frame = Matrix.Rotation(math.radians(90.0), 4, 'Z')
+    run = hw
+    rise = run * math.tan(math.radians(pitch))
+    back = y_wall + 0.02 if roof_back is None else roof_back
+    right = plane(m, yf, back, -(mx + hw), eave, pitch, run, 1.0, overhang=0.22, rake=(0.18, 0.0), deck=0.06,
+                  sag=0.02, frame=frame, rake_boards=(True, False))
+    left = plane(m, yf, back, -(mx - hw), eave, pitch, run, -1.0, overhang=0.22, rake=(0.18, 0.0), deck=0.06,
+                 sag=0.02, frame=frame, rake_boards=(True, False))
+    for slope in (right, left):
+        cover(m, slope, roof, top=slope.length - 0.01, piece=(0.9, 1.6), tears=0, patches=0)
+    ridge(m, right, left, roof, width=0.14)
+    # The pediment: boards filling the gable over the front beam.
+    ped = kit.wall_space((mx - hw, yf - 0.02), (mx + hw, yf - 0.02), eave - 0.12)
+    look_uv = (Boards(rotate=True), pediment) if pediment in town.WOODS else (
+        Trim(pediment, world=True, rotate=True, u=rng.uniform(0.0, kit.U_REPEAT)), 'trim')
+    shell(m, [(0.0, 0.0), (width, 0.0), (hw, rise + 0.1)], (), 0.04, look_uv[0], ped, slices=0, mat=look_uv[1])
+    town.trim_board(m, ped, (0.0, 0.0, 0.05), (width, 0.0, 0.05), 0.12, 'C', thick=0.05)
+    room = hw - 0.2 - (door_w * 0.5 + 0.2)          # between the post's plate and the door's casing
+    if bench and not slack and room > 0.5:
+        length = min(0.9, room)
+        seat(m, mx - hw + 0.2 + length * 0.5, y_wall, base, length=length)
+    m.hull_points([(mx + sx * (hw + 0.22), y, eave - 0.22 * math.tan(math.radians(pitch)) + 0.1) for sx in (-1.0, 1.0)
+                   for y in (yf - 0.18, y_wall)] + [(mx, y, eave + rise + 0.15) for y in (yf - 0.18, y_wall)])
+    return right, left
+
+
+# --- Chimney kits ---
+
+def chimney_stone(m, x, y, z_from, top, size=(0.66, 0.78), socket='Smoke'):
+    """C1 through a roof: a fieldstone stack with its cap (stack())."""
+    stack(m, x, y, z_from, top, size=size, socket=socket)
+
+
+def chimney_clay(m, x, y, z_from, top, size=(0.6, 0.7), socket='Smoke'):
+    """C3: a stack plastered in clay (the trim's cream plaster strip G, stained and cracked), a fieldstone cap."""
+    kit.stone_stack(m, (x, y, z_from), size, top - z_from, taper=0.04, bevel=0.02, uv='G')
+    # A band of the stone showing where the plaster fell from round the top.
+    kit.stone_stack(m, (x, y, top - 0.32), (size[0] * 0.96 + 0.02, size[1] * 0.96 + 0.02), 0.22, taper=0.0, bevel=0.01)
+    flue_cap(m, x, y, top, (size[0] * 0.96, size[1] * 0.96), socket)
+    m.hull((size[0] + 0.02, size[1] + 0.02, top - z_from + 0.3), at=(x, y, (z_from + top + 0.3) * 0.5))
+
+
+def chimney_pipe(m, x_wall, y, z_out, top, outward=-1.0, reach=0.45, radius=0.08, socket='Smoke', brace=True):
+    """C2: a stovepipe out through a side wall (its face at x_wall, outward -1 or +1 along X) at z_out, an elbow and up
+    past the eave to top, with a strap holding it to the wall (Home_J's)."""
+    iron = Tile('MetalWorn')
+    px = x_wall + outward * reach
+    m.cylinder((x_wall - outward * 0.05, y, z_out), (px + outward * 0.06, y, z_out), radius, sides=8, uv=iron, mat='iron',
+               caps=(False, False))
+    m.box((radius * 2.5, radius * 2.5, radius * 2.5), at=(px, y, z_out), uv=iron, mat='iron', bevel=0.03)
+    stovepipe(m, px, y, z_out + 0.08, top, radius=radius, socket=socket)
+    if brace:
+        for z in (z_out + 0.9, top - 0.9):
+            if z > z_out + 0.3:
+                m.board((x_wall - outward * 0.02, y, z), (px, y, z), 0.03, 0.01, face=(0.0, -1.0, 0.0), uv=iron,
+                        mat='iron')
+    m.hull((radius * 2.6, radius * 2.6, top - z_out), at=(px, y, (top + z_out) * 0.5))
+
+
+def chimney_pipe_roof(m, x, y, z_from, top, slope=None, at=None, radius=0.09, lean=(0.0, 0.0), socket='Smoke'):
+    """C2 through a roof: a stovepipe with a rain cap and a flashing plate where it goes through slope (at: the place
+    in the slope's frame)."""
+    stovepipe(m, x, y, z_from, top, radius=radius, lean=lean, socket=socket,
+              flashing=(slope, at[0], at[1]) if slope is not None and at is not None else None)
+    m.hull((radius * 2.4, radius * 2.4, top - z_from), at=(x + lean[0] * 0.5, y + lean[1] * 0.5, (top + z_from) * 0.5))
+
+
+# --- A lived house's porch lantern ---
+
+def porch_lantern(m, x, y_face, z, socket='Light_Porch'):
+    """A lantern on an iron bracket beside a lived house's door (Farmhouse.py's, on the house's own materials): its
+    glass on WindowGlow (the level raises it at dusk with the windows), its iron on the trim's strap strip (H3) and
+    SOCKET_Light_Porch in its glass for the porch lamp. y_face: the wall's face (clapboards' face) it hangs from; z the
+    lantern's foot."""
+    iron = Trim('H3', fit=True)
+    m.box((0.1, 0.025, 0.3), at=(x, y_face - 0.0125, z + 0.34), uv=iron)
+    m.box((0.025, 0.34, 0.025), at=(x, y_face - 0.17, z + 0.46), uv=iron)
+    m.board((x, y_face - 0.02, z + 0.24), (x, y_face - 0.26, z + 0.44), 0.02, 0.02, face=(1.0, 0.0, 0.0), uv=iron)
+    lx, ly = x, y_face - 0.3
+    m.box((0.02, 0.02, 0.07), at=(lx, ly, z + 0.415), uv=iron)
+    m.box((0.19, 0.19, 0.035), at=(lx, ly, z + 0.36), uv=iron, bevel=0.008)
+    m.box((0.1, 0.1, 0.03), at=(lx, ly, z + 0.39), uv=iron)
+    m.box((0.13, 0.13, 0.24), at=(lx, ly, z + 0.21), uv=Trim('H4', fit=True), mat='windowglow')
+    for sx in (-1.0, 1.0):
+        for sy in (-1.0, 1.0):
+            m.box((0.018, 0.018, 0.26), at=(lx + sx * 0.066, ly + sy * 0.066, z + 0.21), uv=iron)
+    m.box((0.17, 0.17, 0.05), at=(lx, ly, z + 0.065), uv=iron)
+    m.socket(socket, (lx, ly, z + 0.21))
+    m.hull((0.2, 0.2, 0.4), at=(lx, ly, z + 0.2))
+
+
+# --- Previews of the new buildings (Saved/ArtPreviews/Buildings2) ---
+
+def lineup(models, path, rows=None, gap=2.2, exposure=-0.15, view=(-0.18, -1.0, 0.62), lens=40.0, size=ROW_SHOT):
+    """The models at one scale in rows (lists of names, back row first), fronts on a line, a 1.8 m figure at the end,
+    in the golden late-afternoon light, rendered to path (no per-model shots, no look sheet). After previews() in the
+    same run it reuses that set (a second stage() would add a second sun)."""
+    if '_Sun' in bpy.data.objects:
+        scene, sun = bpy.context.scene, bpy.data.objects['_Sun']
+    else:
+        scene, sun = stage()
+    human = bpy.data.objects.get('_Human') or figure()
+    light(scene, sun, golden_sun(*SUN))
+    by_name = {o.name: o for o in models}
+    rows = rows or [[o.name for o in models]]
+    for o in models:
+        show(o, False)
+    placed = []
+    depth = 0.0
+    x = 0.0
+    for k, row in enumerate(rows):
+        objs = [by_name[n] for n in row if n in by_name]
+        if not objs:
+            continue
+        boxes = [_bounds(o, local=True) for o in objs]
+        if placed:
+            depth = (min(o.location.y + _bounds(o, local=True)[0].y for o in placed) - max(hi.y for lo, hi in boxes)
+                     - 4.0)
+        x = -(sum(hi.x - lo.x for lo, hi in boxes) + gap * (len(objs) - 1)) * 0.5
+        for obj, (lo, hi) in zip(objs, boxes):
+            obj.location = (x - lo.x, depth, 0.0)
+            x += hi.x - lo.x + gap
+            show(obj, True)
+            placed.append(obj)
+    human.location = (x - 1.0, depth - 1.0, 0.0)
+    bpy.context.view_layer.update()
+    framed = [part for obj in placed for part in mounted(obj)] + [human]
+    eye, target = frame_shot(framed, view, size, lens, margin=1.02, height_bias=0.3)
+    out = shoot(scene, path, eye, target, lens, size, exposure)
+    for obj in models:
+        obj.location = (0.0, 0.0, 0.0)
+        show(obj, False)
+    human.hide_render = True
+    return out

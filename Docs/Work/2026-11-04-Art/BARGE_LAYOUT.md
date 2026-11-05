@@ -1,7 +1,7 @@
 # Dredge barge layout (measured)
 
 SM_DredgeBarge after the round-5 rework (Tools/Blender/looter_tripo_barge.py), measured with rays by Tools/Blender/looter_tripo_barge_check.py. UE frame, cm: pivot bottom-centre, bow +X, berth side -Y, Z up.
-Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 148948.
+Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 148917.
 
 ## Well deck
 
@@ -26,6 +26,11 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 - -Y casing walk, x -3325..-675 (107 stations): floor z 2254..2268, from the wall's foot |y| 351..840 to the bulwark's inner face |y| 708..941; clear width (z +20..+180) 126 at least (x -725; by height +20: 126, +100: 144, +180: 144), median 185; headroom 222 at least, under 220 at 0 stations. Nowhere under 120. Measured on their neighbours' floor (none found under a low cut stub): x -2250. A capsule (radius 34, half-height 88) along its middle: no collision hull in its way.
 - -Y house walk, x -100..2125 (90 stations): floor z 2253..2262, from the wall's foot |y| 558..718 to the bulwark's inner face |y| 792..940; clear width (z +20..+180) 170 at least (x 1375; by height +20: 170, +100: 224, +180: 223), median 244; headroom 382 at least, under 220 at 0 stations. Nowhere under 150. A capsule (radius 34, half-height 88) along its middle: no collision hull in its way.
 
+## The stern push's way (as Looter.World.Barge.Fight walks it: looter_tripo_barge_route)
+
+- -Y: open to the well deck.
+- +Y: open to the well deck.
+
 ## Cross walk and hatch
 
 - Cross walk: x -671 (the casing's fore face at z +120, y 0) .. -294 (the house's aft face), deck z 2251..2256.
@@ -46,7 +51,7 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 
 ## Material slots
 
-- TripoDredgeBarge_Hull 48744, TripoDredgeBarge_Deck 15158, TripoDredgeBarge_Super 65124, TripoDredgeBarge_Walls 19832.
+- TripoDredgeBarge_Hull 48705, TripoDredgeBarge_Deck 15158, TripoDredgeBarge_Super 65131, TripoDredgeBarge_Walls 19832.
 - well deck: TripoDredgeBarge_Deck
 - forecastle floor: TripoDredgeBarge_Deck
 - cross walk: TripoDredgeBarge_Deck
@@ -101,7 +106,7 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 - casing 14 low: x -1223..-1110, y -727..751, z 2314..2697
 - casing 15 low: x -1110..-967, y -726..751, z 2317..2690
 - casing 16 low: x -942..-810, y -726..754, z 2327..2696
-- casing 17 low: x -808..-669, y -785..784, z 2266..2700
+- casing 17 low: x -808..-669, y -753..755, z 2266..2700
 - casing 2 cabin: x -1556..-843, y -236..264, z 3204..3412
 - casing 2 high: x -1557..-671, y -616..638, z 2700..3198
 - casing 2 low: x -3059..-2911, y -603..629, z 2305..2699
@@ -109,28 +114,28 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 - casing 4 low: x -2758..-2611, y -719..717, z 2271..2697
 - casing 5 low: x -2608..-2461, y -709..736, z 2326..2700
 - casing 6 low: x -2459..-2312, y -745..750, z 2343..2678
-- casing 7 low: x -2308..-2178, y -819..756, z 2259..2698
-- casing 9 low: x -2009..-1860, y -756..784, z 2264..2697
+- casing 7 low: x -2308..-2178, y -777..756, z 2259..2698
+- casing 9 low: x -2009..-1860, y -756..757, z 2264..2697
 - cradle: x -1788..-10, y -524..1032, z 0..950
 - house 0 high: x -358..506, y -852..876, z 2700..3199
 - house 0 low: x -315..-219, y -555..581, z 2257..2695
 - house 1 high: x 508..1371, y -858..884, z 2701..3198
 - house 1 low: x -183..-76, y -587..607, z 2261..2682
-- house 11 low: x 1290..1436, y -682..736, z 2265..2695
+- house 11 low: x 1290..1436, y -643..670, z 2317..2695
 - house 12 low: x 1463..1583, y -635..662, z 2261..2631
 - house 13 low: x 1605..1734, y -610..595, z 2260..2319
-- house 14 low: x 1743..1857, y -611..642, z 2260..2666
+- house 14 low: x 1743..1857, y -611..638, z 2260..2666
 - house 15 low: x 1908..2032, y -594..622, z 2261..2698
 - house 16 low: x 2076..2160, y -578..598, z 2265..2696
 - house 2 high: x 1382..2238, y -826..853, z 2701..3200
 - house 2 low: x -57..90, y -681..709, z 2261..2692
-- house 3 low: x 90..240, y -715..742, z 2300..2699
+- house 3 low: x 90..240, y -711..742, z 2300..2699
 - house 4 low: x 243..387, y -671..749, z 2290..2671
 - house 5 low: x 409..538, y -674..700, z 2316..2634
 - house 6 low: x 540..687, y -679..704, z 2261..2700
 - house 7 low: x 693..836, y -682..706, z 2261..2699
 - house 8 low: x 841..986, y -679..704, z 2333..2692
-- house 9 low: x 990..1134, y -681..734, z 2386..2689
+- house 9 low: x 992..1134, y -681..700, z 2386..2689
 - scoop bow: x 5090..5520, y -668..700, z 2373..3129
 - scoop wall +Y 0: x 4155..4416, y 566..664, z 2377..2564
 - scoop wall +Y 1: x 4420..4718, y 516..682, z 2377..2780
@@ -228,7 +233,7 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 - casing 14 low: centre (-1167, 12, 2506), size 113 x 1479 x 383
 - casing 15 low: centre (-1038, 13, 2503), size 143 x 1478 x 373
 - casing 16 low: centre (-876, 14, 2512), size 132 x 1480 x 369
-- casing 17 low: centre (-738, -1, 2483), size 139 x 1569 x 434
+- casing 17 low: centre (-738, 1, 2483), size 139 x 1508 x 434
 - casing 2 cabin: centre (-1199, 14, 3308), size 713 x 500 x 208
 - casing 2 high: centre (-1114, 11, 2949), size 886 x 1254 x 498
 - casing 2 low: centre (-2985, 13, 2502), size 148 x 1232 x 394
@@ -236,28 +241,28 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 - casing 4 low: centre (-2684, -1, 2484), size 147 x 1436 x 426
 - casing 5 low: centre (-2534, 14, 2513), size 148 x 1446 x 374
 - casing 6 low: centre (-2386, 2, 2510), size 147 x 1495 x 334
-- casing 7 low: centre (-2243, -31, 2479), size 130 x 1575 x 438
-- casing 9 low: centre (-1935, 14, 2480), size 149 x 1539 x 433
+- casing 7 low: centre (-2243, -10, 2479), size 130 x 1533 x 438
+- casing 9 low: centre (-1935, 1, 2480), size 149 x 1513 x 433
 - cradle: centre (-899, 254, 475), size 1778 x 1556 x 950
 - house 0 high: centre (74, 12, 2950), size 864 x 1728 x 499
 - house 0 low: centre (-267, 13, 2476), size 96 x 1135 x 438
 - house 1 high: centre (940, 13, 2950), size 863 x 1742 x 497
 - house 1 low: centre (-129, 10, 2471), size 107 x 1194 x 421
-- house 11 low: centre (1363, 27, 2480), size 145 x 1418 x 430
+- house 11 low: centre (1363, 13, 2506), size 145 x 1313 x 378
 - house 12 low: centre (1523, 14, 2446), size 120 x 1296 x 370
 - house 13 low: centre (1670, -8, 2290), size 130 x 1205 x 60
-- house 14 low: centre (1800, 15, 2463), size 114 x 1252 x 405
+- house 14 low: centre (1800, 14, 2463), size 114 x 1248 x 405
 - house 15 low: centre (1970, 14, 2479), size 123 x 1216 x 437
 - house 16 low: centre (2118, 10, 2481), size 84 x 1177 x 431
 - house 2 high: centre (1810, 14, 2950), size 856 x 1679 x 498
 - house 2 low: centre (16, 14, 2477), size 147 x 1390 x 431
-- house 3 low: centre (165, 13, 2499), size 149 x 1457 x 399
+- house 3 low: centre (165, 15, 2499), size 149 x 1453 x 399
 - house 4 low: centre (315, 39, 2480), size 144 x 1419 x 382
 - house 5 low: centre (474, 13, 2475), size 129 x 1374 x 317
 - house 6 low: centre (613, 12, 2480), size 146 x 1383 x 439
 - house 7 low: centre (764, 12, 2480), size 143 x 1388 x 438
 - house 8 low: centre (913, 13, 2513), size 145 x 1383 x 359
-- house 9 low: centre (1062, 26, 2538), size 144 x 1415 x 303
+- house 9 low: centre (1063, 10, 2538), size 141 x 1382 x 303
 - hull 0: centre (-3576, 17, 1686), size 349 x 1670 x 1077
 - hull 1: centre (-3100, 15, 1617), size 599 x 2171 x 1216
 - hull 10: centre (2300, 23, 1563), size 599 x 1936 x 1324

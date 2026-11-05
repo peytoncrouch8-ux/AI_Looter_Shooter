@@ -13,6 +13,7 @@
 #include "Creatures/DredgerLook.h"
 #include "Creatures/UnpaidCreature.h"
 #include "Story/CaptionSubsystem.h"
+#include "Story/StoryLineSet.h"
 #include "Weapons/WeaponFX.h"
 #include "World/KeeperLanternPost.h"
 #include "World/LamplighterRules.h"
@@ -97,6 +98,8 @@ void UAbelCorruptionComponent::BeginPlay()
 		Health->OnDamaged.AddDynamic(this, &UAbelCorruptionComponent::HandleDamaged);
 	}
 	MakeParts();
+	// His words now, while the level loads, not at his first line in the fight.
+	HoldLines();
 	Drunk.Init(false, BoardsDead.Num());
 }
 
@@ -367,10 +370,33 @@ void UAbelCorruptionComponent::HandleDamaged(float Damage, bool bCritical, FVect
 // His words
 // ---------------------------------------------------------------------------
 
-void UAbelCorruptionComponent::Say(FName SetName, const TArray<FStoryLine>& Fallback, int32 LineIndex, bool bInterrupt) const
+void UAbelCorruptionComponent::HoldLines()
 {
-	// The writer's set when it's made (create_story_lines.py), the code's draft until then.
-	TArray<FStoryLine> Said = LandfallRules::LoadLines(SetName);
+	// Every set Say is asked for in AbelCorruption*.cpp. One left off this list still plays: loaded at its first line, a
+	// hitch once, then held like these.
+	static const FName Sets[] = {
+		TEXT("DA_Lines_AbelMutter"), TEXT("DA_Lines_AbelCallHint"), TEXT("DA_Lines_AbelCallBack1"), TEXT("DA_Lines_AbelCallBack2"),
+		TEXT("DA_Lines_AbelFinal"), TEXT("DA_Lines_AbelDrink"), TEXT("DA_Lines_AbelSurge"),
+	};
+	for (const FName& Set : Sets)
+	{
+		if (UStoryLineSet* Loaded = LandfallRules::LoadLineSet(Set))
+		{
+			HeldLines.AddUnique(Loaded);
+		}
+	}
+}
+
+void UAbelCorruptionComponent::Say(FName SetName, const TArray<FStoryLine>& Fallback, int32 LineIndex, bool bInterrupt)
+{
+	// The writer's set when it's made (create_story_lines.py), the code's draft until then. Held once loaded (HeldLines).
+	const TObjectPtr<UStoryLineSet>* Held = HeldLines.FindByPredicate([SetName](const TObjectPtr<UStoryLineSet>& Set) { return Set && Set->GetFName() == SetName; });
+	UStoryLineSet* Set = Held ? Held->Get() : LandfallRules::LoadLineSet(SetName);
+	if (Set && !Held)
+	{
+		HeldLines.Add(Set);
+	}
+	TArray<FStoryLine> Said = Set ? Set->Lines : LandfallRules::LoadLines(SetName);
 	if (Said.IsEmpty())
 	{
 		Said = Fallback;

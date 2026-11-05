@@ -210,6 +210,11 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 - `Tools\runtests.ps1` runs one batch per test group, with `obj gc` between batches (all in one batch let test worlds' GPU buffers
   pile up until the driver removed the device).
+- It still happens on a big filter: `-Filter Looter.Creatures` (212 tests) removed the RX 580's device twice on 2026-11-05 at
+  ~196 tests (DXGI_ERROR_DRIVER_INTERNAL_ERROR in a different test each time: Unpaid.Shriek.SlowRing, Unpaid.HeadCrit). Run
+  its subgroups (`Looter.Creatures.Unpaid`, `.Spider`, `.Hits`...), never the whole group. The error is a MODAL dialog: it froze
+  a chain for four hours. Chains run tests under a watchdog (Start-Job + Wait-Job -Timeout 900, then `Tools\editorwindows.ps1`
+  to see an "Error" window); the editor is dead after it: end the process and relaunch.
 - One `-Filter` per run; `Looter.Creatures.Anim` after any fight-tuning change (2026-11-03: the ring at 300 moved the Unpaid's failed-lunge
   shriek and its armpit fold grew 4.0 -> 5.3 cm; the limit is 5.5 now). A test that bakes in a tuning number (the melee jab's 0.12 s)
   breaks silently when the number moves: read the rule's constant instead (`FMeleeRules::ContactSeconds`).

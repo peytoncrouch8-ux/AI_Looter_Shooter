@@ -61,12 +61,20 @@ void UViewTourSubsystem::Tick(float DeltaTime)
 	const float Settle = Current == 0 ? FirstSettleSeconds : SettleSeconds;
 	if (bWarming)
 	{
-		// The warm pass: every view once, unmeasured and unshot, then the real pass from the first.
+		// The warm pass: every view once, unmeasured and unshot, then the real pass from the first. A view that changes the
+		// world and never puts it back (exec without after: Landfall's barge views, last in the list by design) is left out:
+		// its state stayed for the real pass, so every view was measured and shot mid-story (2026-11-05: a second barge in
+		// SpyglassBarge, Main 3's sign in MainStreet).
 		if (Clock > (Current == 0 ? FirstSettleSeconds : WarmSeconds))
 		{
-			if (Current + 1 < Stops.Num())
+			int32 Next = Current + 1;
+			while (Stops.IsValidIndex(Next) && !Stops[Next].Exec.IsEmpty() && Stops[Next].After.IsEmpty())
 			{
-				Visit(Current + 1);
+				++Next;
+			}
+			if (Next < Stops.Num())
+			{
+				Visit(Next);
 			}
 			else
 			{

@@ -26,6 +26,7 @@ HOUSE_SPLIT_Z = 2700.0       # the house's and casing's hulls split here (over h
 HOUSE_BINS, CABIN_BINS, CASING_BIN = 3, 2, 900.0
 LOW_BIN = 150.0              # cm: the low hulls' lengths (a hull of 9 m filled the walls' feet's bends: it stood up to 1.6
                              # m into the walks where a foot runs inboard, the capsule test stopped there)
+FOOT_MEDIAN = 2              # stations each side a wall's foot is the median over
 CABIN_Z, STACK_HEAD_Z, CRADLE_TOP = 3200.0, 4450.0, 950.0
 HOUSE_X, CASING_FORE = (-600.0, 2000.0), -640.0  # Tripo's x (final_x() moves them)
 HOUSE_Y = 1100.0             # |y| within: the house's and casing's widest (the cabin's walk)
@@ -49,7 +50,11 @@ CROSS_X = (-700.0, -540.0)   # Tripo's x: the cross walk's boxes, overlapping th
 
 def pieces(bm, tag):
     """The points of each piece the collision is fitted to (final coordinates, cm), and the floors measured."""
-    walk = trenches(bm)
+    # The walls' feet as the median of their stations' (a corridor's cap or a door's step at one station read as the
+    # foot stepping out there: the low hull reaching from it stood in the walk).
+    raw = trenches(bm)
+    walk = {(s, k): (float(np.median([raw[(s, k + d)][0] for d in range(-FOOT_MEDIAN, FOOT_MEDIAN + 1)
+                                      if (s, k + d) in raw])), hi, top) for (s, k), (lo, hi, top) in raw.items()}
     scoop_x = barge.terrace_aft(bm)
     # The forecastle's floor to the scoop's walls: its outermost faces (a post's foot breaks the run from the middle),
     # the widest of the stations near (a station where a bar's foot sits reads narrow).

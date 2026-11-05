@@ -120,15 +120,31 @@ namespace LandfallRules
 		return Campaign.ActiveMission == Main && !Campaign.HasCompleted(Main) ? Campaign.ActiveMissionStep : INDEX_NONE;
 	}
 
+	UStoryLineSet* LoadLineSet(FName SetName)
+	{
+		if (SetName.IsNone())
+		{
+			return nullptr;
+		}
+		const FString Package = FString(LineSetFolder) + SetName.ToString();
+		const FString ObjectPath = Package + TEXT(".") + SetName.ToString();
+		// Loaded already (held by whoever speaks it): no look at the disk. The package check costs a file lookup each call.
+		// (Not one the garbage collector has already let go and is about to destroy.)
+		UStoryLineSet* Loaded = FindObject<UStoryLineSet>(nullptr, *ObjectPath);
+		if (IsValid(Loaded) && !Loaded->IsUnreachable())
+		{
+			return Loaded;
+		}
+		return FPackageName::DoesPackageExist(Package) ? LoadObject<UStoryLineSet>(nullptr, *ObjectPath) : nullptr;
+	}
+
 	TArray<FStoryLine> LoadLines(FName SetName)
 	{
 		if (SetName.IsNone())
 		{
 			return TArray<FStoryLine>();
 		}
-		const FString Package = FString(LineSetFolder) + SetName.ToString();
-		const UStoryLineSet* Set = FPackageName::DoesPackageExist(Package)
-			? LoadObject<UStoryLineSet>(nullptr, *(Package + TEXT(".") + SetName.ToString())) : nullptr;
+		const UStoryLineSet* Set = LoadLineSet(SetName);
 		if (!Set)
 		{
 			if (!WarnedSets().Contains(SetName))

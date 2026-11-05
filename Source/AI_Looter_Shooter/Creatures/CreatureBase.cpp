@@ -77,6 +77,16 @@ void ACreatureBase::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// The hit zones (the mesh's physics asset bodies) are moved to the pose once a frame, batched as physics starts, not
+	// each time the capsule moves and again after the pose: 2-3 moves a frame per creature cost Abel's fight with ten adds
+	// 0.63 ms of the game thread (Insights, 2026-11-05). A shot meets the zones as this frame's physics began, at most a
+	// frame's pose behind (about a centimetre at a walk). Played worlds only: a test world that never steps physics would
+	// keep its zones where they were made.
+	if (const UWorld* World = GetWorld(); World && World->IsGameWorld())
+	{
+		GetMesh()->bDeferKinematicBoneUpdate = true;
+	}
+
 	// Creatures are authored at their real size and always stand upright, whatever the placement tool did. Their area
 	// then gives them their level and may promote them for this arrival, and their rank sets their stats, loot and size
 	// (BodyScale times the rank's), before they settle on the ground.

@@ -20,6 +20,7 @@ class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class USphereComponent;
 class UStaticMeshComponent;
+class UStoryLineSet;
 
 /**
  * What the furnace did to Abel (Main 7 "Given to the Wind", MAINS_2_7.md section 11): his smog, the call-backs that burn it
@@ -158,7 +159,9 @@ private:
 	/** Smog streaming off him (pooled puffs off his bones), as much as is left on him. */
 	void EmitSmog(float DeltaSeconds);
 	/** Says a set's lines (Fallback when the set isn't made); one of them only with LineIndex 0+. */
-	void Say(FName SetName, const TArray<FStoryLine>& Fallback, int32 LineIndex = INDEX_NONE, bool bInterrupt = false) const;
+	void Say(FName SetName, const TArray<FStoryLine>& Fallback, int32 LineIndex = INDEX_NONE, bool bInterrupt = false);
+	/** Loads the line sets Say is asked for as the level begins, and holds them (HeldLines). */
+	void HoldLines();
 	/** Where the shots and lines on him are drawn: the effects' and the hit spheres' components, made once. */
 	void MakeParts();
 
@@ -291,4 +294,11 @@ private:
 	TObjectPtr<UCapsuleComponent> CollarHit;
 	UPROPERTY(Transient)
 	TObjectPtr<USphereComponent> LanternHit;
+
+	/**
+	 * His line sets, loaded as the level begins and held for the play: loaded at his first line, one cost the fight a 7 ms
+	 * load (the frame 16 ms, Insights 2026-11-05), and again after each garbage collection let it go.
+	 */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UStoryLineSet>> HeldLines;
 };

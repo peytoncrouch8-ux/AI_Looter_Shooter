@@ -4,6 +4,7 @@
 #include "Story/StoryLine.h"
 
 class UObject;
+class UStoryLineSet;
 struct FCampaignRecord;
 
 /** How the Lamplighter begins as Ransom's Rest opens (LandfallRules::StartFor). */
@@ -109,6 +110,12 @@ namespace LandfallRules
 
 	/** A line set's lines (empty, warned once, while STORY's script hasn't made it). */
 	AI_LOOTER_SHOOTER_API TArray<FStoryLine> LoadLines(FName SetName);
+
+	/**
+	 * The line set itself, from memory when it's loaded, else from disk (a hitch mid-play: hold it from begin play, as
+	 * UAbelCorruptionComponent does); null while it isn't made. Nothing holds it: it may be collected once unused.
+	 */
+	AI_LOOTER_SHOOTER_API UStoryLineSet* LoadLineSet(FName SetName);
 
 	/** Plays a line set as captions after whatever is being said (bInterrupt: now). The conversation, or INDEX_NONE. */
 	AI_LOOTER_SHOOTER_API int32 Say(const UObject* Context, FName SetName, bool bInterrupt = false);

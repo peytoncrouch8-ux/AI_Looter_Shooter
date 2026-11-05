@@ -112,3 +112,72 @@ Build first with this lane's change (and the working tree's LIGHTS round 2 / war
 After the window (no window needed): headless Insights exports (`UnrealInsights.exe -OpenTraceFile=… -AutoQuit -NoUI
 -ExecOnAnalysisCompleteCmd="TimingInsights.ExportTimingEvents <csv> -columns=ThreadName,TimerName,StartTime,EndTime,Duration,Depth
 -threads=GameThread -timers=*"`, then `gtagg.js`), the fixes for what they show, and this file.
+
+## 8. The window (2026-11-05 01:24-01:41, round 6's build: capsule switch, far-tree LODs, Smog shadows 60 m)
+Run A = Main's warm tour (`Saved/ArtPreviews/Step1/tour_round6_warm.csv`, 53 views, log `Saved/Perf/perf2_runA_tour.log`, CPU
+`Saved/Perf/perf2_cpu_runA.log`). Run B = `Saved/Perf/Perf2Trace.json` with stat namedevents (log `perf2_runB_tour.log`, CPU
+`perf2_cpu_runB.log`, traces `Perf2_Aerial.utrace`, `Perf2_Deck.utrace`). The hunt trace was lost: `Trace.File` in the same
+frame as the previous stop's `Trace.Stop` is refused ("Unable to start trace, already tracing"); leave a stop between.
+
+### The contention check: confirmed
+- Insights, Aerial, the same stop 19:57 (312cb821) vs 01:39 (round 6): every game-thread timer within +-0.02 ms per frame
+  (world tick 2.25 -> 2.23, Slate tick 0.81 -> 0.83, Slate draw 0.68 -> 0.69, the interaction component 0.18 -> 0.18, tickables
+  0.28 -> 0.28); work 4.18 -> 4.19 ms. The frame 8.63 -> 8.10: only the wait on the GPU shrank (4.44 -> 3.92).
+- Run B (namedevents on, ~+0.3 game): Aerial 4.4, Grave 4.4, Farm 4.1, POV 4.5, PointWest 4.0, MainStreet 4.1, Depot 4.1,
+  Chapel 4.3, MainStreet_Dusk 4.1, MineStope 3.8 (22:00: 5.5-8.2); the deck fight 7.4-7.9 (22:00: 11.4; 19:55: 7.2). Machine
+  41% busy (the game), no Blender or repack; the rest: Wallpaper Engine (wallpaper32) ~7% of a core, claude ~1.5%.
+- So the 22:00 rise was the repack + the stray find. No code regression.
+
+### The hitches: not reproduced
+No 200 ms frame in either quiet run (Run A's worst 33 ms, Run B's 17.6). The 22:05-22:18 stalls (TimerManager 245 ms, audio
+130-160 ms) were most likely the loaded machine (4.5 GB free then: "AssetCompile memory estimate is greater than available";
+paging); not proven (the hunt trace was lost). One real one found in the deck trace: Abel's first mutter loads
+DA_Lines_AbelMutter in his tick (`LoadObject` -> `FlushAsyncLoading` 7.2 ms, the frame 16.2 ms; `LandfallRules::LoadLines` also
+asks the disk on every call, and nothing holds a set, so it reloads after each GC). Fixed (below).
+
+### Run A is not the game's state (Main's warm pass)
+The warm pass runs every view's exec; BargeDeck_Landfall/_Stay (`Looter.Landfall 4`, `Looter.Barge.Show 3 aboard`,
+`Looter.Pilot.State Grappled`) have no after, so the whole measured pass ran in Main 6's state with the sortie live (the crew's
+"She's sliding! Crank that anchor winch", Hob's lines, the barge hanging over the town) and in Day light (100 m shadows), not
+the new game's Smog. DeckFight_Dusk's fight started over by itself 3.6 s in (06:35:53; AbelKeeper_0 "Max iterations 8"
+warnings): its 5.67 isn't the fight. Patch for `Dev/ViewTour.cpp` (Main's): the warm pass moves the camera only. In
+`Visit()`: run `Stops[Current].After` only if that stop's exec ran (`bCurrentExecRan`, a new member in `ViewTour.h`), and set
+`bCurrentExecRan = !bWarming;` before `if (bCurrentExecRan) { RunCommands(Stop.Exec); }`. (Lighting and Beyond variants are
+the same places with the same materials: warmed by their base views.)
+
+### Every view vs 8.3 (Run A's CSV, Main 6 state + Day light)
+Over: Farm 8.50 (GPU 7.33), PointOverValley 8.33 (7.09). Under: Aerial 8.29, Aerial_Dusk 8.21, WatchtowerValley 8.07, Grave
+8.07, Grave_Dusk 8.06, MainStreetEast 7.98, Aerial_NoBeyond 7.98, LiftHeadBench 7.90, FarmBarge 7.85, MainStreetMid_Dusk 7.83,
+MainStreetMid_DuskSmog 7.81, ChapelOverTown 7.80, MainStreet 7.76, the other 38 views 5.10-7.74.
+In the new game's Smog state (Run B, quiet): Aerial 8.1 (traced 8.2), Farm 8.1, POV 8.0, Grave 7.9, MainStreet_Dusk 7.8,
+MainStreet 7.7, Chapel 7.5, Depot 6.8, PointWest 6.0, MineStope 5.1: all under. Run A's Farm/POV excess is the Main 6
+barge group + Day's 100 m shadows (a mix the game never shows: Main 6 runs DuskSmog, 60 m).
+
+### What the deck fight spends (Perf2_Deck.utrace, 1,159 frames, Abel and ten adds, game-bound, namedevents on)
+Frame 7.76 = game thread: world tick 4.90 (PrePhysics 1.68, PostPhysics 1.65, EndPhysics 0.53, DuringPhysics 0.42), Slate
+1.44 (prepass 0.41, 33 canvas panels a frame), character movement 1.12 (12 characters), animation 0.77, the hit zones'
+kinematic updates 0.63 (28 a frame: each Unpaid's bodies moved as its capsule moves in PrePhysics and again after its pose
+in PostPhysics), the Unpaid ticks 0.54 exclusive (54 us each, plain code, no scopes inside), scene queries 0.47 (34 a frame),
+Abel's tick 0.21 exclusive, floor finds 0.19, the interaction component 0.16, FX instanced-mesh recreates 0.09.
+Slate global invalidation (DeckFight_SlateInval): 7.9 vs 7.5 / 7.4 on either side: worse, rejected.
+
+## 9. Fixes made after the window (not built)
+- `Creatures/CreatureBase.cpp` `BeginPlay`: `GetMesh()->bDeferKinematicBoneUpdate = true` in game worlds: the hit zones move to
+  the pose once a frame, batched at StartPhysics (engine: `SkeletalMeshComponentPhysics.cpp` 1898-1931, `PhysAnim.cpp` 588,
+  `PhysScene_Chaos.cpp` 2004), instead of 2-3 times. A shot meets the zones as the frame's physics began: at most a frame's
+  pose behind (~1 cm at a walk). Est. -0.3..-0.4 ms in the deck fight (the 0.42 of the 0.63 on the PrePhysics and anim paths
+  becomes one parallel batch), more in bigger fights; not measured. Preview (test) worlds keep the old behaviour (they never
+  step physics). No test added: the rule is one engine flag gated on the world type (a test would need a Game-type world).
+- `World/LamplighterRules.cpp/.h`: `LandfallRules::LoadLineSet(Name)`: the set from memory when loaded (`FindObject`, not
+  unreachable), else the disk; `LoadLines` uses it (no disk check per call once loaded).
+- `Bosses/AbelCorruption.cpp/.h`: `HoldLines()` at BeginPlay loads his seven line sets into `HeldLines` (UPROPERTY): no load in
+  the fight and none after a GC; `Say` (now non-const) reads the held set, and holds any set it had to load.
+- Earlier, built in round 6: `r.CapsuleIndirectShadows` {0,0,1,1} (Looter.Settings 13/13 in round 6a).
+
+## 10. Left, with numbers
+- The interaction component: 0.16-0.18 ms every frame in every view (each registry interactable's virtual location/box asked
+  before the 4 m test, `InteractionComponentFocus.cpp` 70-145). A cached far-list (re-checked every ~0.25 s, cleared on a
+  teleport) would save ~0.13; only game-bound frames gain.
+- The HUD in a fight: Slate 1.44 ms (vs 0.81 in the aerial): the creature health bars and damage numbers on the canvas.
+- The Unpaid tick: 54 us each in plain code: needs trace scopes (pose, gait, arm guard) before a fix.
+- Next measure: the deck fight with the deferral (expect ~7.0-7.2 quiet), and Farm/POV in a real Main 6 state (DuskSmog).

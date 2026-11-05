@@ -10,7 +10,8 @@
         9775
       ],
       "yaw": 345,
-      "note": "Smith & Wheelwright (open front, forge): the yard road's west end, its front 8.5 m from the road, 2.5 m from the coal stage; shut (dark), the forge burns (D3)"
+      "note": "Smith & Wheelwright (open front, forge): the yard road's west end, its front 9 m from yardRoad, 2.3 m from the coal stage; shut (dark), the forge burns (D3); lift 10: the ground climbs 27 cm to its back wall",
+      "lift": 10
     }
   },
   {
@@ -21,10 +22,10 @@
       "kind": "RR_Bathhouse",
       "location": [
         -5275,
-        6375
+        6275
       ],
-      "yaw": 285,
-      "note": "Baths & Laundry: south of the workshop at the fields path's end, its front 10 m from the path; shut (dark), the boiler burns (D3)"
+      "yaw": 270,
+      "note": "Baths & Laundry: south of the workshop, facing west over the field wall (2.5 m) to fieldsPath 10 m ahead; shut (dark), the boiler burns (D3)"
     }
   },
   {
@@ -34,25 +35,11 @@
       "id": "homeL",
       "kind": "RR_Home_L",
       "location": [
-        -4075,
-        6375
+        -4225,
+        6425
       ],
       "yaw": 270,
-      "note": "the shotgun house (empty): south of the workshop yard, its front 9 m from the fields path, facing west like the bathhouse"
-    }
-  },
-  {
-    "path": "level.props",
-    "op": "append",
-    "value": {
-      "id": "privyB",
-      "kind": "RR_Privy_B",
-      "location": [
-        -5875,
-        6375
-      ],
-      "yaw": 30,
-      "note": "beside the bathhouse's south wall"
+      "note": "the shotgun house (empty): south of the workshop yard, facing west over the field wall to fieldsPath 9 m ahead, like the bathhouse"
     }
   },
   {

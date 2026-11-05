@@ -33,6 +33,25 @@ a hole in the roof); all of them are closed, solid and walkable round.
              awning of boards over the door on two poles (one knocked askew), the stovepipe out through the wall with an
              elbow, a chopping block and a rain barrel.
 
+The kit homes (the towns round, 2026-11-04; Docs/Work/2026-11-04-Towns/PLAN.md 4.2 item 3): each a body + a roof kit
+(R1 silver shakes, R2 with patches of new shakes, R3 boards and battens, R3T tarred, R4 tar paper) + a porch kit (P1
+stoop, P2 shed porch, P3 turned porch, P4 gable portico; slack on an empty house) + a chimney kit (C1 fieldstone, C2
+stovepipe, C3 clay-plastered) + paint, from looter_homes' kits, on 2-4 material slots; no dressing of their own (the
+DRESSING lane's lots carry it):
+
+  RR_Home_K  the storey-and-a-half (lived in): whitewash with oxide-red trim, eyebrow windows, R2, P3 the whole front,
+             C1 outside the left gable; SOCKET_Light_Porch at its porch lantern.
+  RR_Home_L  the shotgun of two rooms (empty): its gable to the street, weathered clapboards, a teal door nailed shut, R4,
+             a P1 stoop under a tar-paper hood (slack), a C2 stovepipe out the right wall.
+  RR_Home_M  the hall-and-parlor (lived in): bleached clapboards (WoodCream), teal trim, R1, a C3 clay chimney through the
+             ridge, a P2 shed porch; SOCKET_Light_Porch.
+  RR_Home_N  the board-and-batten cabin (empty): tarred boards, cream trim, a bare-board lean-to behind, R3T (the lean-to
+             R3), a P4 gable portico dying into the front slope (slack), a C2 stovepipe through the lean-to.
+  RR_Home_O  the narrow two-storey (lived in): its gable to the street, oxide-red below a belt course and cream above, R2,
+             two C1 stacks through the ridge, a P2 shed porch; SOCKET_Light_Porch.
+  RR_Home_P  the log pen with a frame addition (empty): chinked hewn logs and a lower clapboard addition, R1 on both, C1
+             outside the pen's gable, a short P3 at the pen's door fallen at its left post.
+
 And the Rest's own yard pieces, so none of Skyreach's stand here either:
 
   RR_Well         a sweep well: a crib of hewn timbers over the shaft, a forked post carrying the long sweep pole on an
@@ -64,11 +83,14 @@ z = 0 (foundations and piers reach 0.35 m below it). The front faces -Y (+X in U
 (HOMES: ...) gives its bounds and its walls' extent from the pivot, so the level can lay it on a lot.
 
   --preview   renders each home in the area's golden late-afternoon light into Saved/ArtPreviews/RansomsRest/Homes/,
-              the kit in a row, and the look sheet Saved/ArtPreviews/RansomsRest/LookSheets/35_Homes.jpg
+              the kit in a row, and the look sheet Saved/ArtPreviews/RansomsRest/LookSheets/35_Homes.jpg (homes A to J);
+              the kit homes K to P into Saved/ArtPreviews/Buildings2/; with --lineup instead, only the lineup of all
+              sixteen homes at one scale (Saved/ArtPreviews/Buildings2/Lineup_Homes.png)
   --only A,C  builds just those homes (while working on them; no look sheet); --no-ao skips the AO bake; --stats prints
               where the triangles go
 """
 import math
+import os
 
 import bmesh
 
@@ -85,87 +107,13 @@ if '--only' in ARGS:
         if arg.startswith('--'):
             break
         ONLY += [k.strip().upper() for k in arg.split(',') if k.strip()]
-LAP = 0.026          # how far clapboards stand out of the wall's face (casings sit on them)
+LAP = homes.LAP      # how far clapboards stand out of the wall's face (casings sit on them)
 
 
-# --- Shared steps ---
+# --- Shared steps (in looter_homes since 2026-11-04, unchanged, so TownBuildings.py and Outbuildings.py share them) ---
 
-def wall_spaces(x0, x1, y0, y1, base):
-    """The four walls of a rectangle, counterclockwise from above (front, right, back, left): (space, length)."""
-    walls = [((x0, y0), (x1, y0)), ((x1, y0), (x1, y1)), ((x1, y1), (x0, y1)), ((x0, y1), (x0, y0))]
-    return [(kit.wall_space(p0, p1, base), (Vector(p1) - Vector(p0)).length) for p0, p1 in walls]
-
-
-def polygon_spaces(points, base):
-    """Walls round a polygon given counterclockwise from above: (space, length) for each edge."""
-    out = []
-    for p0, p1 in zip(points, points[1:] + points[:1]):
-        out.append((kit.wall_space(p0, p1, base), (Vector(p1) - Vector(p0)).length))
-    return out
-
-
-def rect(length, height):
-    return [(0.0, 0.0), (length, 0.0), (length, height), (0.0, height)]
-
-
-def gable_outline(length, height, rise, apex=None):
-    """A gable wall's outline: eaves at height, the apex rise over them at apex along it (the middle by default)."""
-    return [(0.0, 0.0), (length, 0.0), (length, height), (length * 0.5 if apex is None else apex, height + rise),
-            (0.0, height)]
-
-
-def notch(outline, items):
-    """An outline (starting (0, 0), (length, 0)) notched for the doors standing on its foot, in order along it."""
-    doors = sorted((o for o in items if o.kind == 'door' and o.z <= 1e-4), key=lambda o: o.x)
-    points = [outline[0]]
-    for o in doors:
-        points += [(o.x, 0.0), (o.x, o.h), (o.x + o.w, o.h), (o.x + o.w, 0.0)]
-    return points + list(outline[1:])
-
-
-def clad(m, space, length, outline, items, thick=0.16, cladding='laps', look='band_G', trim='C', wrap=False,
-         frieze=False, table=True, corner_w=0.15, corner=True):
-    """One wall of a closed house: its shell (the outline, notched for doors and holed for windows), its cladding
-    ('laps': clapboards in look; 'batten': upright boards in look with a batten on every joint), its openings, corner
-    boards (wrap on the walls whose boards cover the next wall's edge), a water table along its foot and, on an eave
-    wall, a frieze board under the eaves."""
-    rng = m.rng
-    top0, top1 = outline[-1][1], outline[2][1]
-    edges = [(-0.1, corner_w + 0.01, -1.0, 30.0), (length - corner_w - 0.01, length + 0.1, -1.0, 30.0)] if corner else []
-    if cladding == 'laps':
-        uv, mat = homes.lap_backing(look, rng)
-        homes.shell(m, notch(outline, items), kit.holes(items), thick, uv, space, slices=0, mat=mat)
-        homes.laps(m, space, outline, 0.2 if table else 0.0, max(z for x, z in outline), homes.keep_out(items) + edges,
-                   look=look, out=LAP)
-        out = LAP
-    else:
-        if look in town.WOODS:
-            uv, mat = homes.Boards(rotate=True), look
-        else:
-            uv, mat = Trim(look, world=True, rotate=True, u=rng.uniform(0.0, kit.U_REPEAT)), 'trim'
-        homes.shell(m, notch(outline, items), kit.holes(items), thick, uv, space, around=items, mat=mat)
-        homes.battens(m, space, outline, 0.0, length, homes.keep_out(items) + edges, look=look, z0=0.2 if table else 0.0)
-        out = 0.0
-    homes.openings(m, space, items, thick, out=out)
-    if corner:
-        homes.corners(m, space, length, top0 - 0.02, top1 - 0.02, look=trim, out=out, width=corner_w, wrap=wrap)
-    if table:
-        homes.band(m, space, homes.door_spans(items, length), 0.1, 0.2, look=trim, out=out)
-    if frieze:
-        homes.band(m, space, [(0.12, length - 0.12)], min(top0, top1) - 0.14, 0.24, look=trim, out=out)
-
-
-def skip_round(slope, boxes):
-    """A shakes skip: the parts of a slope over any of the world boxes (cx, cy, half x, half y): chimneys through it."""
-    def skip(x, y):
-        w = slope.world((x, y, 0.0))
-        return any(abs(w.x - cx) < hx and abs(w.y - cy) < hy for cx, cy, hx, hy in boxes)
-    return skip
-
-
-def roof_z(eave_z, wall_y, y, pitch):
-    """The deck top's height over a point y on a slope rising from a wall at wall_y (either side)."""
-    return eave_z + abs(y - wall_y) * math.tan(math.radians(pitch))
+wall_spaces, polygon_spaces, rect, gable_outline = homes.wall_spaces, homes.polygon_spaces, homes.rect, homes.gable_outline
+notch, clad, skip_round, roof_z = homes.notch, homes.clad, homes.skip_round, homes.roof_z
 
 
 # --- RR_Home_A: the saltbox ---
@@ -261,32 +209,7 @@ def home_a():
 
 # --- RR_Home_B: the dogtrot ---
 
-def hewn_wall(m, space, length, top, items, parity, course=0.3, log_h=0.25, depth=0.22, ext=0.13):
-    """A wall of hewn logs: square-hewn timbers (the trim sheet's hewn faces) laid in courses with cream chinking
-    showing between them (the plaster strip, set back), running past the corners (half a course up on every other wall,
-    as notched corners stack), cut round the openings with squared jambs."""
-    rng = m.rng
-    chink = Space(space.matrix @ Matrix.Translation((0.0, 0.05, 0.0)))
-    homes.shell(m, notch(rect(length, top), items), kit.holes(items), 0.12, Trim('G', world=True, u=rng.uniform(4.2, 5.2)),
-                chink, slices=0)
-    z = course * 0.5 if parity else 0.0
-    while z + log_h <= top + 0.02:
-        pieces = [(-ext + rng.uniform(-0.02, 0.02), length + ext + rng.uniform(-0.02, 0.02))]
-        for o in items:
-            if z < o.z + o.h + 0.02 and z + log_h > o.z - 0.02:
-                pieces = town.subtract(pieces, (o.x - 0.06, o.x + o.w + 0.06))
-        for a, b in pieces:
-            h = log_h + rng.uniform(-0.02, 0.01)
-            m.box((b - a, depth, h), at=((a + b) * 0.5, depth * 0.5 - 0.01 + rng.uniform(-0.008, 0.008), z + log_h * 0.5),
-                  rot=(0.0, rng.uniform(-0.3, 0.3), 0.0), uv=Trim('C', width=h), space=space, drop=('+y',),
-                  cuts=int((b - a) / 2.4))
-        z += course
-    for o in items:
-        for x in (o.x - 0.06, o.x + o.w + 0.06):
-            m.board((x, 0.11, o.z - (0.03 if o.z > 0 else 0.0)), (x, 0.11, o.z + o.h + 0.1), 0.12, 0.24,
-                    uv=Trim('C', lane='each'), space=space)
-        m.board((o.x - 0.14, 0.1, o.z + o.h + 0.07), (o.x + o.w + 0.14, 0.1, o.z + o.h + 0.07), 0.14, 0.24,
-                uv=Trim('C', lane='each'), space=space)
+hewn_wall = homes.hewn_wall      # the dogtrot's hewn-log walls (in looter_homes since 2026-11-04, unchanged)
 
 
 def home_b():
@@ -1298,6 +1221,463 @@ def home_j():
     return m.finish(pivot=(X0 + DOOR.x + DOOR.w * 0.5, Y0), footprint=(X0, X1, Y0, Y1))
 
 
+# --- The kit homes K to P (the towns round, 2026-11-04): body + roof kit + porch kit + chimney kit + paint ---
+# Each is built from looter_homes' kits on the house's own few materials (2-4 slots): the trim sheet for walls, trim,
+# shakes and stone (so the level's TrimRecolor tints its roof strip E and siding strip A), WoodPlanks for porch decks,
+# WindowGlow on the lived ones (their panes and porch lantern), and one roof kit's own where it has one.
+
+def slim_frieze(m, space, length, wall, look):
+    """A frieze board under an eave on one of the trim's painted 20 cm strips (H1 teal, H2 oxide): 19 cm tall, so it
+    stays on its strip (clad()'s 24 cm frieze would run onto the next)."""
+    homes.band(m, space, [(0.12, length - 0.12)], wall - 0.115, 0.19, look=look, out=LAP)
+
+
+def home_k():
+    """RR_Home_K, the storey-and-a-half (lived in): whitewashed clapboards (the trim's cream strip) with oxide-red trim,
+    a row of low eyebrow windows lighting the half storey under the frieze, R2 honey shakes with replaced patches, a P3
+    turned porch the whole front, a C1 fieldstone chimney outside the left gable."""
+    m = homes.Home('RR_Home_K', seed=511, lived=True, window_sockets=True)
+    X0, X1, Y0, Y1 = -4.2, 4.2, -3.0, 3.0
+    BASE, WALL, PITCH = 0.5, 3.85, 40.0
+    EAVE = BASE + WALL
+    tan = math.tan(math.radians(PITCH))
+    RISE = (Y1 - Y0) * 0.5 * tan
+    RIDGE_Z = EAVE + RISE
+    homes.plinth(m, X0, X1, Y0, Y1, BASE)
+    m.section('foundation')
+
+    lit = dict(paint='H2', sash='H2', lit=True)
+    dark = dict(paint='H2', sash='H2')
+    eye_lit = dict(paint='H2', sash='H2', lit=True, panes=(3, 1), single=True, casing_w=0.09)
+    eye = dict(paint='H2', sash='H2', panes=(3, 1), single=True, casing_w=0.09)
+    W, H, Z = 0.82, 1.4, 0.85
+    EZ, EH = 3.0, 0.42                       # the eyebrow windows under the frieze
+    DOOR = Opening('door', 3.7, 0.0, 1.0, 2.25, style='panel', finish='planks', casing='H2', knob='H3', transom=0.3)
+    walls = [
+        [Opening('window', 0.75, Z, W, H, **lit), Opening('window', 2.15, Z, W, H, **lit), DOOR,
+         Opening('window', 5.43, Z, W, H, **dark), Opening('window', 6.83, Z, W, H, **dark),
+         Opening('window', 0.75, EZ, W, EH, **eye_lit), Opening('window', 2.15, EZ, W, EH, **eye),
+         Opening('window', 5.43, EZ, W, EH, **eye), Opening('window', 6.83, EZ, W, EH, **eye)],
+        [Opening('window', 1.0, Z, W, H, **lit), Opening('window', 4.18, Z, W, H, **dark),
+         Opening('window', 1.55, 3.3, 0.72, 1.05, **dark), Opening('window', 3.73, 3.3, 0.72, 1.05, **lit)],
+        [Opening('door', 5.7, 0.0, 0.95, 2.1, style='plank', finish='A', casing='H2', hinge='right'),
+         Opening('window', 1.0, Z, W, H, **dark), Opening('window', 3.1, Z, W, H, **dark),
+         Opening('window', 2.05, EZ, W, EH, **eye)],
+        [Opening('window', 0.9, Z, W, H, **dark), Opening('window', 4.55, Z, W, H, **dark),
+         Opening('window', 1.4, 3.3, 0.72, 1.05, **dark)],
+    ]
+    for k, ((space, length), items) in enumerate(zip(wall_spaces(X0, X1, Y0, Y1, BASE), walls)):
+        gable = k % 2 == 1
+        outline = gable_outline(length, WALL, RISE) if gable else rect(length, WALL)
+        clad(m, space, length, outline, items, look='band_G', trim='H2', wrap=not gable)
+        if not gable:
+            slim_frieze(m, space, length, WALL, 'H2')
+    m.section('walls')
+
+    # The roof: R2 shakes (honey by the level's recolour, a few patches of new shakes), the chimney's flue through the
+    # left rake.
+    CY = -0.4
+    front = homes.plane(m, X0, X1, Y0, EAVE, PITCH, (Y1 - Y0) * 0.5, 1.0, overhang=0.38, rake=(0.35, 0.35), deck=0.1,
+                        sag=0.05)
+    back = homes.plane(m, X0, X1, Y1, EAVE, PITCH, (Y1 - Y0) * 0.5, -1.0, overhang=0.38, rake=(0.35, 0.35), deck=0.1,
+                       sag=0.06)
+    for slope, patches in ((front, 2), (back, 1)):
+        homes.cover(m, slope, 'R2', skip=skip_round(slope, [(X0 - 0.4, CY, 0.5, 0.5)]), patches=patches)
+    homes.ridge(m, front, back, 'R2')
+    homes.outside_chimney(m, X0 - 0.02, CY, -1.0, RIDGE_Z + 0.8, BASE, width=1.3, deep=0.9)
+    m.section('roof, chimney')
+
+    # P3: the turned porch along the whole front, under the eyebrow windows.
+    homes.porch(m, X0, X1, Y0 - LAP, 1.9, BASE, BASE + 2.3, BASE + 2.78, kind='P3', roof='R2',
+                roof_options=dict(patches=1, piece=(2.0, 3.4)), post_look='band_G', rail_look='band_G')
+    homes.porch_lantern(m, 0.98, Y0 - LAP, BASE + 1.72)
+    m.section('porch')
+
+    m.hull((X1 - X0 + 0.1, Y1 - Y0 + 0.1, EAVE), at=(0.0, 0.0, EAVE * 0.5))
+    homes.gable_hull(m, X0, X1, Y0, Y1, EAVE, EAVE, 0.0, RIDGE_Z, overhang=0.38, rake=0.35, pitch_front=PITCH)
+    m.socket('Light', (-2.2, Y0 + 1.0, BASE + 1.5))
+    return m.finish(pivot=(0.0, Y0), footprint=(X0, X1, Y0, Y1))
+
+
+def home_l():
+    """RR_Home_L, the shotgun house of two rooms (empty): its gable to the street, weathered clapboards on a fieldstone
+    foundation, a teal plank door nailed shut, windows boarded and shuttered, an R4 tar-paper roof with torn corners, a
+    P1 stoop (a plank landing under a tar-paper hood on scroll brackets, one bracket gone), a C2 stovepipe out the side
+    wall with an elbow."""
+    m = homes.Home('RR_Home_L', seed=512)
+    X0, X1, Y0, Y1 = -2.2, 2.2, -3.7, 3.7
+    BASE, WALL, PITCH = 0.55, 3.1, 38.0
+    EAVE = BASE + WALL
+    tan = math.tan(math.radians(PITCH))
+    RISE = (X1 - X0) * 0.5 * tan
+    rz = EAVE + RISE
+    homes.plinth(m, X0, X1, Y0, Y1, BASE)
+    m.section('foundation')
+
+    shut = dict(paint='C', sash='A', shutter='A', casing_w=0.1)
+    DOOR = Opening('door', 2.6, 0.0, 0.92, 2.2, style='plank', finish='H1', casing='C', hinge='right', boarded=True)
+    walls = [
+        ([Opening('window', 0.6, 0.95, 0.82, 1.45, style='boarded', **shut), DOOR,
+          Opening('window', 1.85, WALL + 0.35, 0.7, 0.75, style='boarded', **shut)], True),
+        ([Opening('window', 1.2, 0.95, 0.8, 1.35, style='shut', **shut),
+          Opening('window', 5.5, 0.95, 0.8, 1.35, style='hanging', **shut)], False),
+        ([Opening('door', 1.1, 0.0, 0.85, 2.1, style='plank', finish='A', casing='C', boarded=True),
+          Opening('window', 2.6, 1.05, 0.7, 1.1, style='shut', **shut)], True),
+        ([Opening('window', 1.0, 0.95, 0.8, 1.35, style='boarded', **shut),
+          Opening('window', 3.4, 0.95, 0.8, 1.35, style='shut', **shut),
+          Opening('window', 5.9, 0.95, 0.8, 1.35, style='hanging', **shut)], False),
+    ]
+    for k, ((space, length), (items, gable)) in enumerate(zip(wall_spaces(X0, X1, Y0, Y1, BASE), walls)):
+        outline = gable_outline(length, WALL, RISE) if gable else rect(length, WALL)
+        clad(m, space, length, outline, items, look='A', trim='C', wrap=gable, frieze=not gable)
+    m.section('walls')
+
+    # The roof: tar paper over the boards, front to back, torn at a corner or two; its stovepipe out the right wall.
+    frame = Matrix.Rotation(math.radians(90.0), 4, 'Z')
+    right = homes.plane(m, Y0, Y1, -X1, EAVE, PITCH, (X1 - X0) * 0.5, 1.0, overhang=0.3, rake=(0.3, 0.3), deck=0.08,
+                        sag=0.1, frame=frame)
+    left = homes.plane(m, Y0, Y1, -X0, EAVE, PITCH, (X1 - X0) * 0.5, -1.0, overhang=0.3, rake=(0.3, 0.3), deck=0.08,
+                       sag=0.1, frame=frame)
+    homes.cover(m, right, 'R4', tears=2)
+    homes.cover(m, left, 'R4', tears=1)
+    homes.ridge(m, right, left, 'R4')
+    homes.chimney_pipe(m, X1 + LAP, 1.3, BASE + 1.75, EAVE + 0.95, outward=1.0, reach=0.48)
+    m.section('roof, stovepipe')
+
+    # P1: the stoop, a plank landing and steps under a tar-paper hood; one bracket gone, a plank missing.
+    front = kit.wall_space((X0, Y0), (X1, Y0), BASE)
+    homes.stoop(m, front, X0 + DOOR.x + DOOR.w * 0.5, DOOR, Y0 - LAP, BASE, roof='R4', hood='shed', stone=False,
+                slack=True)
+    m.section('stoop')
+
+    m.hull((X1 - X0 + 0.1, Y1 - Y0 + 0.1, EAVE), at=(0.0, 0.0, EAVE * 0.5))
+    m.hull_points([(x, y, EAVE - 0.3 * tan + 0.22) for x in (X0 - 0.3, X1 + 0.3) for y in (Y0 - 0.3, Y1 + 0.3)] +
+                  [(0.0, y, rz + 0.25) for y in (Y0 - 0.3, Y1 + 0.3)])
+    return m.finish(pivot=(X0 + DOOR.x + DOOR.w * 0.5, Y0), footprint=(X0, X1, Y0, Y1))
+
+
+def home_m():
+    """RR_Home_M, the hall-and-parlor (lived in): one storey of bleached clapboards (WoodCream) with teal trim, R1
+    silver shakes, a C3 clay-plastered chimney through the ridge between hall and parlor, a P2 shed porch on square
+    posts before the door."""
+    m = homes.Home('RR_Home_M', seed=513, lived=True, window_sockets=True)
+    X0, X1, Y0, Y1 = -4.6, 4.6, -2.8, 2.8
+    BASE, WALL, PITCH = 0.45, 2.95, 36.0
+    EAVE = BASE + WALL
+    tan = math.tan(math.radians(PITCH))
+    RISE = (Y1 - Y0) * 0.5 * tan
+    RIDGE_Z = EAVE + RISE
+    homes.plinth(m, X0, X1, Y0, Y1, BASE)
+    m.section('foundation')
+
+    lit = dict(paint='H1', sash='H1', lit=True, panes=(2, 2))
+    dark = dict(paint='H1', sash='H1', panes=(2, 2))
+    W, H, Z = 0.82, 1.42, 0.82
+    DOOR = Opening('door', 4.1, 0.0, 1.0, 2.2, style='panel', finish='planks', casing='H1', knob='H3', transom=0.28)
+    walls = [
+        [Opening('window', 0.95, Z, W, H, **lit), Opening('window', 2.45, Z, W, H, **lit), DOOR,
+         Opening('window', 6.0, Z, W, H, **lit), Opening('window', 7.75, Z, W, H, **dark)],
+        [Opening('window', 1.4, Z, W, H, **dark), Opening('window', 3.6, Z, W, H, **dark),
+         Opening('window', 2.45, WALL + 0.32, 0.62, 0.72, **dark)],
+        [Opening('door', 6.5, 0.0, 0.95, 2.1, style='plank', finish='A', casing='H1', hinge='right'),
+         Opening('window', 1.5, Z, W, H, **dark), Opening('window', 4.0, Z, W, H, **lit)],
+        [Opening('window', 1.6, Z, W, H, **dark), Opening('window', 3.4, Z, W, H, **dark),
+         Opening('window', 2.5, WALL + 0.32, 0.62, 0.72, **dark)],
+    ]
+    for k, ((space, length), items) in enumerate(zip(wall_spaces(X0, X1, Y0, Y1, BASE), walls)):
+        gable = k % 2 == 1
+        outline = gable_outline(length, WALL, RISE) if gable else rect(length, WALL)
+        clad(m, space, length, outline, items, look='woodcream', trim='H1', wrap=not gable)
+        if not gable:
+            slim_frieze(m, space, length, WALL, 'H1')
+    m.section('walls')
+
+    CH = (0.9, 0.0)
+    front = homes.plane(m, X0, X1, Y0, EAVE, PITCH, (Y1 - Y0) * 0.5, 1.0, overhang=0.36, rake=(0.32, 0.32), deck=0.1,
+                        sag=0.04)
+    back = homes.plane(m, X0, X1, Y1, EAVE, PITCH, (Y1 - Y0) * 0.5, -1.0, overhang=0.36, rake=(0.32, 0.32), deck=0.1,
+                       sag=0.05)
+    for slope in (front, back):
+        homes.cover(m, slope, 'R1', skip=skip_round(slope, [(CH[0], CH[1], 0.38, 0.44)]))
+    homes.ridge(m, front, back, 'R1')
+    homes.chimney_clay(m, CH[0], CH[1], RIDGE_Z - 1.0, RIDGE_Z + 0.85, size=(0.62, 0.72))
+    m.section('roof, chimney')
+
+    # P2: a shed porch on square posts before the door, its roof under the frieze.
+    homes.porch(m, -2.6, 2.6, Y0 - LAP, 1.9, BASE, BASE + 2.32, EAVE - 0.18, kind='P2', roof='R1',
+                posts=(-2.48, -0.95, 0.95, 2.48), steps=0.0)
+    homes.porch_lantern(m, -0.92, Y0 - LAP, BASE + 1.7)
+    m.section('porch')
+
+    m.hull((X1 - X0 + 0.1, Y1 - Y0 + 0.1, EAVE), at=(0.0, 0.0, EAVE * 0.5))
+    homes.gable_hull(m, X0, X1, Y0, Y1, EAVE, EAVE, 0.0, RIDGE_Z, overhang=0.36, rake=0.32, pitch_front=PITCH)
+    m.socket('Light', (-2.6, Y0 + 1.0, BASE + 1.5))
+    return m.finish(pivot=(X0 + DOOR.x + DOOR.w * 0.5, Y0), footprint=(X0, X1, Y0, Y1))
+
+
+def home_n():
+    """RR_Home_N, the board-and-batten cabin (empty): tarred boards (WoodBlack) with cream trim on stone piers, a lean-to
+    of bare boards along its back, R3T tarred boards battened down the roof, a P4 gable portico over the door (one
+    post knocked off its foot, planks gone), a C2 stovepipe through the lean-to."""
+    m = homes.Home('RR_Home_N', seed=514)
+    X0, X1, Y0, Y1 = -3.1, 3.1, -2.5, 2.5
+    BASE, WALL, PITCH = 0.4, 2.6, 40.0
+    EAVE = BASE + WALL
+    tan = math.tan(math.radians(PITCH))
+    RISE = (Y1 - Y0) * 0.5 * tan
+    RIDGE_Z = EAVE + RISE
+    LY1 = Y1 + 2.2                                  # the lean-to, the whole back
+    LHIGH, LLOW = EAVE - 0.42, BASE + 1.75          # its roof at the back wall and at its own back
+    rng = m.rng
+    homes.piers(m, [(x, y) for x in (X0 + 0.12, -1.0, 1.0, X1 - 0.12) for y in (Y0 + 0.12, Y1 - 0.12)], BASE - 0.1,
+                size=0.32)
+    homes.quad(m, [(X0, Y0, BASE - 0.12), (X1, Y0, BASE - 0.12), (X1, Y1, BASE - 0.12), (X0, Y1, BASE - 0.12)],
+               Trim('A', world=True), facing=(0.0, 0.0, -1.0))
+    for (space, length) in wall_spaces(X0, X1, Y0, Y1, 0.0)[:2] + wall_spaces(X0, X1, Y0, Y1, 0.0)[3:]:
+        m.board((0.0, 0.08, BASE - 0.2), (length, 0.08, BASE - 0.2), 0.18, 0.16, uv=Trim('C', lane='each'), space=space)
+    m.section('piers, sills')
+
+    win = dict(paint='band_G', sash='A', shutter='woodblack', casing_w=0.1)
+    DOOR = Opening('door', 2.625, 0.0, 0.95, 2.1, style='plank', finish='A', casing='band_G', hinge='left', boarded=True)
+    walls = [
+        ([Opening('window', 0.7, 0.92, 0.8, 1.2, style='boarded', **win), DOOR,
+          Opening('window', 4.7, 0.92, 0.8, 1.2, style='hanging', **win)], False),
+        ([Opening('window', 2.1, 0.95, 0.8, 1.15, style='shut', **win),
+          Opening('window', 2.2, WALL + 0.3, 0.6, 0.7, style='boarded', **win)], True),
+        None,
+        ([Opening('window', 1.9, 0.95, 0.8, 1.15, style='boarded', **win)], True),
+    ]
+    spaces = wall_spaces(X0, X1, Y0, Y1, BASE)
+    for k, ((space, length), spec) in enumerate(zip(spaces, walls)):
+        if spec is None:
+            # The back wall shows only above the lean-to's roof.
+            low = LHIGH - BASE - 0.06
+            clad(m, space, length, [(0.0, low), (length, low), (length, WALL), (0.0, WALL)], [], cladding='batten',
+                 look='woodblack', trim='band_G', table=False, corner=False)
+            continue
+        items, gable = spec
+        outline = gable_outline(length, WALL, RISE) if gable else rect(length, WALL)
+        clad(m, space, length, outline, items, cladding='batten', look='woodblack', trim='band_G', wrap=gable,
+             frieze=False, table=False, corner_w=0.13)
+    m.section('walls')
+
+    # The lean-to: bare boards (never tarred), on a sill on the ground, a plank door at its right end, a board roof.
+    lean = [((X1, Y1), (X1, LY1)), ((X1, LY1), (X0, LY1)), ((X0, LY1), (X0, Y1))]
+    for k, (p0, p1) in enumerate(lean):
+        space = kit.wall_space(p0, p1, 0.0)
+        length = (Vector(p1) - Vector(p0)).length
+        if k == 1:
+            outline = [(0.0, -0.15), (length, -0.15), (length, LLOW), (0.0, LLOW)]
+            items = [Opening('window', 2.6, 0.95, 0.7, 0.6, style='boarded', paint='C', sash='A', casing_w=0.08)]
+        elif k == 0:
+            outline = [(0.0, -0.15), (length, -0.15), (length, LLOW), (0.0, LHIGH)]
+            items = [Opening('door', 0.55, 0.0, 0.85, 1.75, style='plank', finish='A', casing='C', hinge='left')]
+        else:
+            outline = [(0.0, -0.15), (length, -0.15), (length, LHIGH), (0.0, LLOW)]
+            items = []
+        homes.shell(m, outline, [kit.rect(o.x, o.z if o.kind == 'window' else 0.0, o.w, o.h) for o in items], 0.06,
+                    Trim('A', world=True, rotate=True, u=rng.uniform(0.0, 6.4)), space, around=items)
+        homes.battens(m, space, outline, 0.0, length, homes.keep_out(items), look='A', every=0.42)
+        homes.openings(m, space, items, 0.06)
+        m.board((0.0, 0.05, 0.05), (length, 0.05, 0.05), 0.2, 0.1, uv=Trim('C', lane='each'), space=space)
+    lean_roof = homes.shed_roof(m, X0, X1, LY1, LLOW, Y1, LHIGH, overhang=0.3, rake=(0.25, 0.25), deck=0.06, sag=0.05)
+    PIPE = (1.7, Y1 + 1.0)
+    homes.cover(m, lean_roof, 'R3', every=0.28, gone=(5,),
+                skip=skip_round(lean_roof, [(PIPE[0], PIPE[1], 0.14, 0.14)]))
+    # No flashing plate: the kit's is on the trim's tin strip, which reads as loot colours.
+    homes.chimney_pipe_roof(m, PIPE[0], PIPE[1], LLOW, EAVE + 0.95, radius=0.085, lean=(0.04, -0.03))
+    m.section('lean-to')
+
+    # The roof: tarred boards battened, a few gone; the portico's little gable dies into its front slope.
+    front = homes.plane(m, X0, X1, Y0, EAVE, PITCH, (Y1 - Y0) * 0.5, 1.0, overhang=0.32, rake=(0.3, 0.3), deck=0.08,
+                        sag=0.08)
+    back = homes.plane(m, X0, X1, Y1, EAVE, PITCH, (Y1 - Y0) * 0.5, -1.0, overhang=0.32, rake=(0.3, 0.3), deck=0.08,
+                       sag=0.08)
+    homes.cover(m, front, 'R3T', every=0.3, gone=(7,))
+    homes.cover(m, back, 'R3T', every=0.3, gone=(3, 14))
+    homes.ridge(m, front, back, 'R3T')
+    m.section('roof')
+
+    # P4: the portico, its ridge running back into the roof's front slope; one post knocked askew, the bench gone.
+    mx = X0 + DOOR.x + DOOR.w * 0.5
+    P_EAVE, P_PITCH, P_W = BASE + 2.42, 40.0, 3.0
+    p_ridge = P_EAVE + P_W * 0.5 * math.tan(math.radians(P_PITCH))
+    homes.portico(m, mx, Y0 - 0.02, BASE, width=P_W, depth=1.7, eave=P_EAVE, pitch=P_PITCH, roof='R3T', slack=True,
+                  pediment='woodblack', door_w=DOOR.w, roof_back=Y0 + (p_ridge - EAVE) / tan + 0.3)
+    m.section('portico')
+
+    m.hull((X1 - X0 + 0.04, Y1 - Y0 + 0.04, EAVE), at=(0.0, 0.0, EAVE * 0.5))
+    homes.gable_hull(m, X0, X1, Y0, Y1, EAVE, EAVE, 0.0, RIDGE_Z, overhang=0.32, rake=0.3, pitch_front=PITCH)
+    m.hull((X1 - X0, LY1 - Y1, LLOW), at=(0.0, (Y1 + LY1) * 0.5, LLOW * 0.5))
+    homes.slope_hull(m, lean_roof, thick=0.15)
+    return m.finish(pivot=(mx, Y0), footprint=(X0, X1, Y0, LY1))
+
+
+def two_tone(m, space, length, outline, items, split, looks, trim, wrap, frieze, belt=0.18):
+    """A wall clad in two finishes, looks (below, above) split at split (the floor of the upper storey): two clad()
+    walls, the upper one in a space raised to the split, and a belt course over the seam."""
+    lower = [o for o in items if o.z < split - 0.2]
+    upper = [Opening(o.kind, o.x, o.z - split, o.w, o.h, **o.opts) for o in items if o.z >= split - 0.2]
+    # The outline's upper part: its corners above the split, from the right end round to the left.
+    top_outline = [(0.0, 0.0), (length, 0.0)] + [(x, z - split) for x, z in outline[2:]]
+    # The lower storey has no rake, so the face behind its clapboards shows only in the reveals: the trim's weathered
+    # boards there instead of a painted plank set of their own (a slot saved).
+    clad(m, space, length, rect(length, split), lower, look=looks[0], trim=trim, wrap=wrap, frieze=False,
+         backing=(Trim('A', world=True, u=m.rng.uniform(0.0, kit.U_REPEAT)), 'trim'))
+    up = Space(space.matrix @ Matrix.Translation((0.0, 0.0, split)))
+    clad(m, up, length, top_outline, upper, look=looks[1], trim=trim, wrap=wrap, frieze=frieze, table=False)
+    homes.band(m, space, [(0.0, length)], split + 0.02, belt, look=trim, out=LAP)
+
+
+def home_o():
+    """RR_Home_O, the narrow two-storey (lived in): one bay wide, its gable to the street, oxide-red clapboards below and
+    cream above a belt course, R2 shakes, two C1 fieldstone stacks through the ridge, a P2 shed porch across the
+    front."""
+    m = homes.Home('RR_Home_O', seed=515, lived=True, window_sockets=True)
+    X0, X1, Y0, Y1 = -2.5, 2.5, -3.8, 3.8
+    BASE, STOREY, PITCH = 0.55, 2.6, 42.0
+    WALL = STOREY * 2.0
+    EAVE = BASE + WALL
+    tan = math.tan(math.radians(PITCH))
+    RISE = (X1 - X0) * 0.5 * tan
+    RIDGE_Z = EAVE + RISE
+    homes.plinth(m, X0, X1, Y0, Y1, BASE)
+    m.section('foundation')
+
+    lit = dict(paint='band_G', sash='band_G', lit=True, panes=(2, 2))
+    dark = dict(paint='band_G', sash='band_G', panes=(2, 2))
+    W, H, Z = 0.8, 1.4, 0.85
+    U = STOREY + 0.7
+    DOOR = Opening('door', 0.6, 0.0, 0.95, 2.25, style='panel', finish='planks', casing='band_G', knob='H3',
+                   transom=0.3, glass=True)
+    walls = [
+        ([DOOR, Opening('window', 3.0, Z, W, H, **lit), Opening('window', 0.75, U, W, 1.35, **lit),
+          Opening('window', 3.15, U, W, 1.35, **dark), Opening('window', 2.15, WALL + 0.35, 0.7, 0.85, **dark)], True),
+        ([Opening('window', 1.4, Z, W, H, **dark), Opening('window', 4.3, Z, W, H, **lit),
+          Opening('window', 6.2, Z, W, H, **dark), Opening('window', 1.4, U, W, 1.35, **dark),
+          Opening('window', 4.3, U, W, 1.35, **lit)], False),
+        ([Opening('door', 3.2, 0.0, 0.9, 2.1, style='plank', finish='A', casing='band_G', hinge='right'),
+          Opening('window', 1.0, Z, W, H, **dark), Opening('window', 1.6, U, W, 1.35, **dark)], True),
+        ([Opening('window', 1.6, Z, W, H, **dark), Opening('window', 5.0, Z, W, H, **dark),
+          Opening('window', 3.3, U, W, 1.35, **dark)], False),
+    ]
+    for k, ((space, length), (items, gable)) in enumerate(zip(wall_spaces(X0, X1, Y0, Y1, BASE), walls)):
+        outline = gable_outline(length, WALL, RISE) if gable else rect(length, WALL)
+        two_tone(m, space, length, outline, items, STOREY, ('H2', 'band_G'), 'band_G', wrap=gable, frieze=not gable)
+    m.section('walls')
+
+    frame = Matrix.Rotation(math.radians(90.0), 4, 'Z')
+    right = homes.plane(m, Y0, Y1, -X1, EAVE, PITCH, (X1 - X0) * 0.5, 1.0, overhang=0.34, rake=(0.32, 0.32), deck=0.1,
+                        sag=0.06, frame=frame)
+    left = homes.plane(m, Y0, Y1, -X0, EAVE, PITCH, (X1 - X0) * 0.5, -1.0, overhang=0.34, rake=(0.32, 0.32), deck=0.1,
+                       sag=0.06, frame=frame)
+    STACKS = [(0.0, -1.2), (0.0, 2.1)]
+    for slope, patches in ((right, 2), (left, 1)):
+        homes.cover(m, slope, 'R2', skip=skip_round(slope, [(x, y, 0.4, 0.46) for x, y in STACKS]), patches=patches)
+    homes.ridge(m, right, left, 'R2')
+    for (x, y), socket in zip(STACKS, ('Smoke', 'Smoke_2')):
+        homes.stack(m, x, y, RIDGE_Z - 1.1, RIDGE_Z + 0.85, size=(0.62, 0.74), socket=socket)
+    m.section('roof, chimneys')
+
+    # P2: the shed porch across the narrow front, under the belt course.
+    mx = X0 + DOOR.x + DOOR.w * 0.5
+    homes.porch(m, X0 - 0.1, X1 + 0.1, Y0 - LAP, 1.8, BASE, BASE + 2.28, BASE + STOREY - 0.08, kind='P2', roof='R2',
+                roof_options=dict(patches=0, piece=(1.8, 3.0)), steps=mx, steps_w=1.2,
+                posts=(X0 + 0.02, 0.15, X1 - 0.02))
+    homes.porch_lantern(m, mx + DOOR.w * 0.5 + 0.34, Y0 - LAP, BASE + 1.72)
+    m.section('porch')
+
+    m.hull((X1 - X0 + 0.1, Y1 - Y0 + 0.1, EAVE), at=(0.0, 0.0, EAVE * 0.5))
+    m.hull_points([(x, y, EAVE - 0.34 * tan + 0.22) for x in (X0 - 0.34, X1 + 0.34) for y in (Y0 - 0.32, Y1 + 0.32)] +
+                  [(0.0, y, RIDGE_Z + 0.25) for y in (Y0 - 0.32, Y1 + 0.32)])
+    m.socket('Light', (0.9, Y0 + 1.0, BASE + 1.5))
+    return m.finish(pivot=(mx, Y0), footprint=(X0, X1, Y0, Y1))
+
+
+def home_p():
+    """RR_Home_P, the log pen with a frame addition (empty): one pen of hewn logs with white chinking (the dogtrot's) and
+    a lower clapboard addition on its right, R1 shakes on both, a C1 fieldstone chimney outside the pen's left gable, a
+    short P3 turned porch at the pen's door, sagging at its lost post."""
+    m = homes.Home('RR_Home_P', seed=516)
+    PX0, PX1, Y0, Y1 = -4.0, 0.6, -2.5, 2.5           # the pen
+    AX0, AX1, AY0, AY1 = 0.6, 4.0, -2.1, 2.1          # the addition, set back a little
+    BASE, WALL, PITCH = 0.45, 2.6, 36.0
+    A_WALL = 2.3
+    EAVE, A_EAVE = BASE + WALL, BASE + A_WALL
+    tan = math.tan(math.radians(PITCH))
+    RIDGE_Z = EAVE + (Y1 - Y0) * 0.5 * tan
+    A_RIDGE = A_EAVE + (AY1 - AY0) * 0.5 * tan
+    rng = m.rng
+    homes.plinth(m, PX0, PX1, Y0, Y1, BASE, out=0.04)
+    homes.plinth(m, AX0 + 0.02, AX1, AY0, AY1, BASE, out=0.04)
+    m.section('foundations')
+
+    shut = dict(paint='C', sash='A', shutter='A', casing_w=0.1)
+    DOOR = Opening('door', 1.9, 0.0, 0.95, 2.05, style='plank', finish='A', casing='C', hinge='left', boarded=True)
+    pen = [
+        [Opening('window', 0.45, 0.9, 0.8, 1.1, style='shut', **shut), DOOR,
+         Opening('window', 3.45, 0.9, 0.8, 1.1, style='hanging', **shut)],
+        [],
+        [Opening('window', 1.7, 0.95, 0.8, 1.05, style='boarded', **shut)],
+        [Opening('window', 0.7, 0.95, 0.7, 1.0, style='shut', **shut)],
+    ]
+    D = Y1 - Y0
+    for k, ((space, length), items) in enumerate(zip(wall_spaces(PX0, PX1, Y0, Y1, BASE), pen)):
+        hewn_wall(m, space, length, WALL, items, parity=k % 2)
+        homes.openings(m, space, items, 0.22, out=0.0)
+        if k % 2:
+            # Board gables over the side walls, up under the roof.
+            rise = D * 0.5 * tan
+            homes.shell(m, [(0.0, WALL), (length, WALL), (length * 0.5, WALL + rise)], (), 0.06,
+                        Trim('A', world=True, rotate=True, u=rng.uniform(0.0, 6.4)),
+                        Space(space.matrix @ Matrix.Translation((0.0, 0.08, 0.0))))
+    m.section('pen')
+
+    awin = dict(paint='C', sash='A', shutter='A', casing_w=0.1)
+    add = [
+        ([Opening('window', 1.3, 0.9, 0.8, 1.2, style='boarded', **awin)], False),
+        ([Opening('window', 1.7, 0.95, 0.8, 1.15, style='hanging', **awin)], True),
+        ([Opening('door', 1.2, 0.0, 0.85, 2.0, style='plank', finish='A', casing='C', boarded=True)], False),
+    ]
+    a_rise = (AY1 - AY0) * 0.5 * tan
+    for (space, length), (items, gable) in zip(wall_spaces(AX0, AX1, AY0, AY1, BASE)[:3], add):
+        outline = gable_outline(length, A_WALL, a_rise) if gable else rect(length, A_WALL)
+        clad(m, space, length, outline, items, look='A', trim='C', wrap=not gable, frieze=not gable)
+    m.section('addition')
+
+    # The roofs: the pen's shakes over the chimney's flue at its left rake; the addition's lower gable against the
+    # pen's side, no rake board there.
+    CY = 0.4
+    p_front = homes.plane(m, PX0, PX1, Y0, EAVE, PITCH, D * 0.5, 1.0, overhang=0.3, rake=(0.4, 0.3), deck=0.1, sag=0.1)
+    p_back = homes.plane(m, PX0, PX1, Y1, EAVE, PITCH, D * 0.5, -1.0, overhang=0.3, rake=(0.4, 0.3), deck=0.1, sag=0.1)
+    for slope in (p_front, p_back):
+        homes.cover(m, slope, 'R1', skip=skip_round(slope, [(PX0 - 0.42, CY, 0.5, 0.5)]), missing=0.05,
+                    piece=(2.0, 3.4))
+    homes.ridge(m, p_front, p_back, 'R1')
+    a_front = homes.plane(m, AX0, AX1, AY0, A_EAVE, PITCH, (AY1 - AY0) * 0.5, 1.0, overhang=0.3, rake=(0.0, 0.3),
+                          deck=0.1, sag=0.08, rake_boards=(False, True))
+    a_back = homes.plane(m, AX0, AX1, AY1, A_EAVE, PITCH, (AY1 - AY0) * 0.5, -1.0, overhang=0.3, rake=(0.0, 0.3),
+                         deck=0.1, sag=0.08, rake_boards=(False, True))
+    for slope in (a_front, a_back):
+        homes.cover(m, slope, 'R1', missing=0.06, piece=(1.8, 3.0))
+    homes.ridge(m, a_front, a_back, 'R1')
+    homes.outside_chimney(m, PX0 - 0.02, CY, -1.0, RIDGE_Z + 0.75, BASE, width=1.25, deep=0.9)
+    m.section('roofs, chimney')
+
+    # P3, short: the pen's door under a turned porch, its left post gone, the rail with it.
+    mx = PX0 + DOOR.x + DOOR.w * 0.5
+    homes.porch(m, mx - 1.35, mx + 1.35, Y0, 1.6, BASE - 0.04, BASE + 1.98, EAVE - 0.16, kind='P3', roof='R1',
+                posts=(mx - 1.23, mx + 1.23), steps=mx, steps_w=1.2, slack='left', gone=(4, 9), post_look='C',
+                rail_look='A', roof_options=dict(piece=(1.4, 2.4), missing=0.08))
+    m.section('porch')
+
+    m.hull((PX1 - PX0 + 0.26, D + 0.04, EAVE), at=((PX0 + PX1) * 0.5, 0.0, EAVE * 0.5))
+    homes.gable_hull(m, PX0, PX1, Y0, Y1, EAVE, EAVE, 0.0, RIDGE_Z, overhang=0.3, rake=0.3, pitch_front=PITCH)
+    m.hull((AX1 - AX0 + 0.06, AY1 - AY0 + 0.1, A_EAVE), at=((AX0 + AX1) * 0.5 + 0.03, 0.0, A_EAVE * 0.5))
+    homes.gable_hull(m, AX0, AX1, AY0, AY1, A_EAVE, A_EAVE, 0.0, A_RIDGE, overhang=0.3, rake=0.3, pitch_front=PITCH)
+    return m.finish(pivot=(mx, Y0), footprint=(PX0, AX1, Y0, Y1))
+
+
 # --- RR_Well: the sweep well ---
 
 def rope(m, p0, p1, r=0.014):
@@ -1604,7 +1984,10 @@ def rr_windmill_fan():
 
 BUILDERS = [('A', home_a), ('B', home_b), ('C', home_c), ('D', home_d), ('E', home_e), ('F', home_f), ('G', home_g),
             ('H', home_h), ('I', home_i), ('J', home_j), ('WELL', rr_well), ('OUTHOUSE', rr_outhouse),
-            ('WINDMILL', rr_windmill), ('FAN', rr_windmill_fan)]
+            ('WINDMILL', rr_windmill), ('FAN', rr_windmill_fan),
+            ('K', home_k), ('L', home_l), ('M', home_m), ('N', home_n), ('O', home_o), ('P', home_p)]
+KIT_HOMES = ['RR_Home_K', 'RR_Home_L', 'RR_Home_M', 'RR_Home_N', 'RR_Home_O', 'RR_Home_P']
+KIT_PREVIEW_DIR = os.path.join(lt.PREVIEW_DIR, 'Buildings2')
 CAPTIONS = {
     'RR_Home_A': 'The saltbox (lived in): two storeys in front,\na long sweep of shakes down the back.',
     'RR_Home_B': 'The dogtrot (lived in): two hewn-log pens and\nan open breezeway under one long roof.',
@@ -1619,6 +2002,12 @@ CAPTIONS = {
     'RR_Well': "The sweep well: a hewn crib, a forked post, the\nsweep with its stone, the bucket; a trough.",
     'RR_Outhouse': "The privy: board-and-batten under a gable of\nshakes, a star cut in the door.",
     'RR_Windmill': "The windpump: a timber tower, wooden sails\n(RR_WindmillFan), a stave tank on a stand.",
+    'RR_Home_K': 'The storey-and-a-half (lived in): whitewash,\neyebrow windows, R2 shakes, a turned porch.',
+    'RR_Home_L': 'The shotgun of two rooms (empty): tar paper,\na stoop under a hood, the stovepipe out the wall.',
+    'RR_Home_M': 'The hall-and-parlor (lived in): bleached boards,\nteal trim, a clay chimney, a shed porch.',
+    'RR_Home_N': 'The tarred cabin (empty): board-and-batten,\na lean-to behind, a gable portico gone askew.',
+    'RR_Home_O': 'The narrow two-storey (lived in): oxide below,\ncream above, two stacks, a shed porch.',
+    'RR_Home_P': 'The log pen and its addition (empty): chinked\nlogs, clapboards, a short porch fallen at a post.',
 }
 # The renders' views where the default (front-left three-quarter, sun from the front-right) hides what makes the house:
 # the saltbox's long back from its side, the dogtrot's breezeway from lower down, the stone house's woodshed side.
@@ -1630,10 +2019,14 @@ SHOTS = {
     'RR_Home_J': dict(view=(-0.7, -1.0, 0.5)),
     'RR_Well': dict(margin=1.1),
     'RR_Windmill': dict(margin=1.08),
+    'RR_Home_N': dict(view=(-0.75, -1.0, 0.34)),
+    'RR_Home_P': dict(view=(-0.5, -1.0, 0.3), figure='left'),
 }
 ROWS = [['RR_Home_D', 'RR_Home_B', 'RR_Home_A', 'RR_Home_H', 'RR_Home_I'],
         ['RR_Home_C', 'RR_Home_E', 'RR_Home_F', 'RR_Home_G', 'RR_Home_J'],
         ['RR_Windmill', 'RR_Well', 'RR_Outhouse']]
+# --lineup (with --preview): today's ten homes behind, the six kit homes in front, one scale, into Buildings2.
+LINEUP_ROWS = [ROWS[0], ROWS[1], KIT_HOMES]
 
 models = [build() for key, build in BUILDERS if not ONLY or key in ONLY]
 # The Tripo windpump fitted into RR_Windmill and its wheel into RR_WindmillFan (Art/Models/Buildings/Tripo/
@@ -1649,5 +2042,16 @@ if lt.want_preview():
         homes.mount(by_name['RR_Windmill'], by_name['RR_WindmillFan'], 'Fan')     # on its socket, as the game hangs it
     if 'RR_WindmillFan' in by_name:
         by_name['RR_WindmillFan'].hide_render = True
-    homes.previews([o for o in models if o.name != 'RR_WindmillFan'], CAPTIONS, sheet=not ONLY, shots_by_name=SHOTS,
-                   rows=ROWS)
+    if '--lineup' in ARGS:
+        homes.lineup([o for o in models if o.name.startswith('RR_Home_')],
+                     os.path.join(KIT_PREVIEW_DIR, 'Lineup_Homes.png'), rows=LINEUP_ROWS)
+    else:
+        # Today's homes and their look sheet as before; the kit homes' shots into Buildings2.
+        old = [o for o in models if o.name != 'RR_WindmillFan' and o.name not in KIT_HOMES]
+        new = [o for o in models if o.name in KIT_HOMES]
+        if old:
+            homes.previews(old, CAPTIONS, sheet=not ONLY, shots_by_name=SHOTS, rows=ROWS)
+        for o in old:
+            homes.show(o, False)
+        if new:
+            homes.previews(new, CAPTIONS, sheet=False, shots_by_name=SHOTS, out_dir=KIT_PREVIEW_DIR)
