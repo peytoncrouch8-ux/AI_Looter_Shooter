@@ -245,3 +245,14 @@ sheds A and B, root cellar.
 5. Tests: Looter.World.HouseLights (3 more lit houses), Looter.World.TownLife, Looter.World.RansomsRest.InsideBoundary,
    Looter.UI.Minimap, Looter.Encounters.Camps; Tools\tour.ps1 + Tools\perf.ps1 (3 houses + 3 outbuildings, 3 lights, 4 plumes at
    Main Street east end: the town view toward the Sink and the depot).
+
+## Round 4 correction (2026-11-05, found at round 5): the cottonwood paring changed layoutSha1
+- `obstacles` is a read block of the terrain generator (only `level` and `gameplay` are BUILD_ONLY, `area_shape.layout_sha1`), so the
+  `set obstacles sinkRoadCottonwoods` op of `towns_backstreet.patch.json` moved layoutSha1 from 72a9a0b1... (layout_computed.json) to
+  60948475...: `terrain_check` calls the computed layout stale. Everything else in that patch is `level.*` and leaves the hash alone.
+- Fix, either: (a) apply `towns_backstreet_revert_cottonwoods.patch.json` (puts the original polygon back; checked: the hash is 72a9a0b1
+  again) and keep the trees off the row with a NoTrees box in DRESSING's town.json noTrees (id eastRow, polygon (700, 6350), (2900, 6350),
+  (2900, 9500), (700, 9500): the scatter reads these as Town/Scatter NoTrees volumes); or (b) rerun the generator `--computed`
+  (about 8-14 min offline, layout_computed.json refreshed) and keep the paring. (a) costs no machine time.
+- Rule for every lane: only `level.*` / `gameplay.*` edits leave the terrain alone; roads, pads, zones, obstacles, features, boundary
+  and `erosion` are read blocks (a rebuild).

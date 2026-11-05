@@ -3,7 +3,18 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
-## START HERE (2026-11-05 08:20: TWO playtest builds ready; the user hasn't played either)
+## START HERE (2026-11-05 10:15: THREE playtest builds; build 3 is the one to play; none played yet)
+**Build 3** `Builds\Playtest6-11-05_1004\Windows\AI_Looter_Shooter.exe` (commit 1e3158cd, smoke PASS, full cook 5574) = build 2
++ the east row on the yard road (homes K, M, O lived, shed C, smokehouse, privy; towns_backstreet.patch.json; no back street fits:
+biggest free patch 12 x 24 m), the barge on round 5d (a thin Tripo strap across the starboard walk at 1.35 m removed; the stern
+route test now sweeps simple collision like CharacterMovement, Barge 12/12), the hose in one piece, the dressing round 5 (393
+pieces; wall pieces 4 cm off the new buildings' faces). Warm 53-view tour: all <= 8.3 ms (Farm 8.20). Page v4 (same URL below).
+**The user's calls (morning):** "Trace it in C++" (done: BargeBlock, Bugs.md); "A back street on a pad" (impossible; east row
+instead); then "A hamlet out of town" for the other 7 (boarding house, feed store, homes N and P, sheds A and B, root cellar):
+LEVEL designing (`towns_hamlet.patch.json`). **Running:** REWORK round 6: the walks' raw jagged cut faces at eye level (DEMO4:
+`Saved/Screenshots/Tools/demo4_barge_x1600.png`; in builds 1-3): every cut capped flat in her paint, slivers gone.
+
+## Before build 3 (2026-11-05 08:20: two builds)
 **Builds:** build 2 `Builds\Playtest6-11-05_0800\Windows\AI_Looter_Shooter.exe` (commit dffbb14a, smoke PASS, full cook
 5573) = build 1 (`2026-11-05_0158`, 9052a9dc) + round 7: the town dressed by rules (338 pieces; town_rules.py), the smithy, bathhouse
 and Home L placed, PERF2's fight fixes (hit zones once a frame; Abel's lines held), the tour's warm pass fixed. Page (v3):
