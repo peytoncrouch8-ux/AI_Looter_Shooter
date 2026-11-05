@@ -115,7 +115,10 @@ WALK_SLOTS = {'Boardwalk_4m_Worn': 3, 'Boardwalk_4m_Patched': 2, 'Boardwalk_Step
 # signs (the new buildings), the farm set (step 6; the Farm view is over its line).
 CHOSEN = ('WeedFringe_A', 'WeedFringe_B', 'WeedFringe_C', 'PlankCrossing_A', 'StrawLitter_A', 'FallenBoards_A',
           'Handbills_A', 'CrateStack_A', 'CrateStack_B', 'BarrelStack_A', 'WaterBarrel_Cart', 'WagonFreight_Canvas',
-          'Vignette_Alley_A', 'ToolsLeaning_A', 'Ladder_A', 'Boardwalk_4m_Patched', 'LampPost_B', 'LampPost_C')
+          'Vignette_Alley_A', 'ToolsLeaning_A', 'Ladder_A', 'Boardwalk_4m_Patched', 'LampPost_B', 'LampPost_C',
+          # The feed store's dock (the back street, LEVEL's lots; plan 4.4's "feed store's front"): placed only where a
+          # shop has a front deck, so it costs nothing until one stands.
+          'Vignette_ShopFront_B')
 # Also left out for the draws (2026-11-04, the first estimate: +29-36 draws in the street views before these cuts):
 # Boardwalk_4m_Worn (three slots: WoodHoney; Patched is two and reads stronger) and Vignette_PorchEmpty_A (three slots
 # and a shadow for the one shut porch with room for it, the hotel's: a tipped chair, a crate of empties and fallen boards
@@ -152,6 +155,7 @@ NOW_SHADOWLESS = ('Boardwalk_4m', 'Boardwalk_2m', 'Boardwalk_Steps', 'Bench', 'W
 # Homestead.py (pivot: the front door at the ground, X out of the front).
 # ---------------------------------------------------------------------------
 
+LAP = 4.0
 FRAMES = {
     # The dogtrot (home_b: pens 4.4 m either side of a 2.6 m breezeway, 5 m deep; a 2.1 m porch the whole length at the
     # pens' 0.45 m floor, six posts; steps front and back of the breezeway; a chimney outside each end; a bench and a
@@ -168,28 +172,40 @@ FRAMES = {
     # 0.45 m, its corner post fallen in the grass before it; the back door boarded).
     # The BUILDINGS lane's (2026-11-05, Docs/Work/2026-11-04-Towns/BUILDINGS.md "walls" and "bounds"): the body from the
     # walls, a porch, stoop or dock from the bounds in front of it (its floor taken at 0.45 m where the table gives none).
-    'RR_Smithy_Town': dict(     # open front: the whole front is its way in
+    # lap: how far (cm) the cladding (laps, battens, planks, logs) stands proud of the table's walls; everything placed
+    # against a wall keeps that much more off it (DEMO3, 2026-11-05: the bathhouse's north face is 3 cm out of its frame,
+    # its bills were 2 cm inside the planks). The A-J frames above are measured to the face (lap 0).
+    'RR_Smithy_Town': dict(lap=LAP,     # open front: the whole front is its way in
         walls=[(-700.0, 5.0, -450.0, 450.0)], doors=[(5.0, 0.0, 1.0, 0.0, 800.0, 250.0)]),
-    'RR_Bathhouse': dict(       # the boiler and its firebox roof on its left (Blender +x: Unreal -Y) side
+    'RR_Bathhouse': dict(lap=LAP,       # the boiler and its firebox roof on its left (Blender +x: Unreal -Y) side
         walls=[(-500.0, 5.0, -300.0, 300.0), (-450.0, -50.0, -500.0, -300.0)], doors=[(5.0, 0.0, 1.0, 0.0, 110.0, 200.0)]),
-    'RR_FeedStore': dict(       # the 1.0 m dock 2.5 m deep, its steps on the right
+    'RR_FeedStore': dict(lap=LAP,       # the 1.0 m dock 2.5 m deep, its steps on the right
         walls=[(-1000.0, 5.0, -350.0, 350.0)], decks=[((0.0, 250.0, -350.0, 350.0), 100.0)],
         steps=[(250.0, 369.0, -350.0, -200.0)], doors=[(250.0, 0.0, 1.0, 0.0, 200.0, 200.0)]),
-    'RR_BoardingHouse': dict(   # the outside stair up the right gable (keep 1.4 m clear there)
+    'RR_BoardingHouse': dict(lap=LAP,   # the outside stair up the right gable (keep 1.4 m clear there)
         walls=[(-800.0, 5.0, -550.0, 550.0), (-700.0, -73.0, -685.0, -550.0)],
         decks=[((0.0, 230.0, -550.0, 550.0), 45.0)], doors=[(230.0, 0.0, 1.0, 0.0, 120.0, 220.0)]),
-    'RR_Home_K': dict(walls=[(-600.0, 5.0, -420.0, 420.0)], decks=[((0.0, 245.0, -460.0, 460.0), 45.0)],
-                      doors=[(245.0, 0.0, 1.0, 0.0, 110.0, 200.0)]),
-    'RR_Home_L': dict(walls=[(-740.0, 5.0, -134.0, 306.0)], steps=[(0.0, 175.0, -70.0, 70.0)],
+    # K, M, O measured from Homestead.py's builders (2026-11-05, once placed: the east row): the porch deck from the wall's
+    # laps 1.9 m (O 1.8) out at the house's BASE (K 0.5, M 0.45, O 0.55 m), its steps in its middle 1.4 m wide, the door at
+    # the pivot (O's porch runs 1.4 m right of its door).
+    'RR_Home_K': dict(lap=LAP, walls=[(-600.0, 5.0, -420.0, 420.0)], decks=[((0.0, 193.0, -420.0, 420.0), 50.0)],
+                      steps=[(193.0, 250.0, -70.0, 70.0)], doors=[(5.0, 0.0, 1.0, 0.0, 110.0, 300.0)]),
+    'RR_Home_L': dict(lap=LAP, walls=[(-740.0, 5.0, -134.0, 306.0)], steps=[(0.0, 175.0, -70.0, 70.0)],
                       doors=[(175.0, 0.0, 1.0, 0.0, 100.0, 150.0)]),
-    'RR_Home_M': dict(walls=[(-560.0, 5.0, -460.0, 460.0)], decks=[((0.0, 245.0, -260.0, 260.0), 45.0)],
-                      doors=[(245.0, 0.0, 1.0, 0.0, 110.0, 200.0)]),
-    'RR_Home_N': dict(walls=[(-500.0, 5.0, -310.0, 310.0), (-720.0, -500.0, -310.0, 310.0)],
+    'RR_Home_M': dict(lap=LAP, walls=[(-560.0, 5.0, -460.0, 460.0)], decks=[((0.0, 193.0, -260.0, 260.0), 45.0)],
+                      steps=[(193.0, 245.0, -70.0, 70.0)], doors=[(5.0, 0.0, 1.0, 0.0, 110.0, 300.0)]),
+    'RR_Home_N': dict(lap=LAP, walls=[(-500.0, 5.0, -310.0, 310.0), (-720.0, -500.0, -310.0, 310.0)],
                       decks=[((0.0, 200.0, -150.0, 150.0), 45.0)], doors=[(200.0, 0.0, 1.0, 0.0, 110.0, 200.0)]),
-    'RR_Home_O': dict(walls=[(-760.0, 5.0, -392.0, 108.0)], decks=[((0.0, 235.0, -443.0, 158.0), 45.0)],
-                      doors=[(235.0, 0.0, 1.0, 0.0, 110.0, 200.0)]),
-    'RR_Home_P': dict(walls=[(-500.0, 5.0, -562.0, 238.0)], decks=[((0.0, 210.0, -150.0, 150.0), 45.0)],
+    'RR_Home_O': dict(lap=LAP, walls=[(-760.0, 5.0, -392.0, 108.0)], decks=[((0.0, 183.0, -403.0, 118.0), 55.0)],
+                      steps=[(183.0, 250.0, -213.0, -73.0)], doors=[(5.0, 0.0, 1.0, 0.0, 100.0, 300.0)]),
+    'RR_Home_P': dict(lap=LAP, walls=[(-500.0, 5.0, -562.0, 238.0)], decks=[((0.0, 210.0, -150.0, 150.0), 45.0)],
                       doors=[(210.0, 0.0, 1.0, 0.0, 110.0, 200.0)]),
+    'RR_Shed_A': dict(lap=LAP, walls=[(-240.0, 5.0, -80.0, 220.0)], doors=[(5.0, 0.0, 1.0, 0.0, 90.0, 150.0)]),
+    'RR_Shed_B': dict(lap=LAP, walls=[(-180.0, 5.0, -125.0, 115.0)], doors=[(5.0, 0.0, 1.0, 0.0, 90.0, 150.0)]),
+    'RR_Shed_C': dict(lap=LAP, walls=[(-300.0, 5.0, -130.0, 130.0)], doors=[(5.0, 0.0, 1.0, 0.0, 120.0, 150.0)]),
+    'RR_Privy_B': dict(lap=LAP, walls=[(-140.0, 5.0, -90.0, 90.0)], doors=[(5.0, 0.0, 1.0, 0.0, 80.0, 150.0)]),
+    'RR_Smokehouse': dict(lap=LAP, walls=[(-220.0, 5.0, -110.0, 110.0)], doors=[(5.0, 0.0, 1.0, 0.0, 80.0, 150.0)]),
+    'RR_RootCellar': dict(walls=[(-340.0, 5.0, -212.0, 212.0)], doors=[(5.0, 0.0, 1.0, 0.0, 100.0, 150.0)]),
     'RR_Home_I': dict(
         walls=[(-485.0, 5.0, -565.0, 245.0), (0.0, 305.0, -525.0, -215.0)],
         decks=[((0.0, 190.0, -215.0, 245.0), 45.0)],
@@ -208,7 +224,8 @@ TYPES = {
     'cabinNorthWest': 'shopShut', 'saloon': 'shopShut', 'cabinNorth': 'shopShut', 'cabinSouth': 'shopShut',
     'sheriff': 'office',
     'cottageNorth': 'homeLived', 'cottageNorthEast': 'homeLived', 'dugout': 'homeLived', 'farmhouse': 'homeLived',
-    'homeB': 'homeLived',
+    'homeB': 'homeLived', 'homeK': 'homeLived', 'homeM': 'homeLived', 'homeO': 'homeLived',
+    'shedC': 'outbuilding', 'smokehouse': 'outbuilding', 'privyB': 'outbuilding',
     'cottageSouth': 'homeEmpty', 'cottageSouthWest': 'homeEmpty', 'penLaneWest': 'homeEmpty', 'penLaneEast': 'homeEmpty',
     'amosHouse': 'homeEmpty', 'homeI': 'homeEmpty',
     'barn': 'barn', 'whitlockBarn': 'barn',
@@ -219,17 +236,21 @@ MODEL_TYPES = {
     'RR_BoardingHouse': 'homeLived',
     'RR_Home_I': 'homeEmpty', 'RR_Home_L': 'homeEmpty', 'RR_Home_N': 'homeEmpty', 'RR_Home_P': 'homeEmpty',
     'RR_Smithy_Town': 'shopOpen', 'RR_FeedStore': 'shopOpen', 'RR_Bathhouse': 'shopOpen',
+    'RR_Shed_A': 'outbuilding', 'RR_Shed_B': 'outbuilding', 'RR_Shed_C': 'outbuilding', 'RR_Privy_B': 'outbuilding',
+    'RR_Smokehouse': 'outbuilding', 'RR_RootCellar': 'outbuilding',
 }
 # What the rules dress (the town: Main Street, Pen Lane, Tilly's workshop, the two placed homes; Amos's cabin gets its
 # weeds only). The farmhouse is the story's (Delia's porch), the depot and the barns are later steps.
 DRESSED = ('cabinNorthWest', 'sheriff', 'cottageNorth', 'saloon', 'cabinNorth', 'cottageNorthEast', 'cottageSouthWest',
            'cabinSouth', 'store', 'cottageSouth', 'undertaker', 'penLaneWest', 'penLaneEast', 'workshop', 'homeB',
-           'homeI', 'amosHouse')
+           'homeI', 'amosHouse',
+           # The east row on the yard road (LEVEL, 2026-11-05: towns_backstreet.patch.json) and its outbuildings.
+           'homeK', 'homeM', 'homeO', 'shedC', 'smokehouse', 'privyB')
 FRINGE_ONLY = ('amosHouse',)
 # The weeds by type: a lived house's and an open shop's wall foot short dry grass, a shut or empty one's tall dock and
 # thistle; one strip in SKIP_EVERY left out for rhythm.
 FRINGE = {'homeLived': 'WeedFringe_A', 'shopOpen': 'WeedFringe_A', 'office': 'WeedFringe_A',
-          'homeEmpty': 'WeedFringe_B', 'shopShut': 'WeedFringe_B'}
+          'homeEmpty': 'WeedFringe_B', 'shopShut': 'WeedFringe_B', 'outbuilding': 'WeedFringe_A'}
 FRINGE_STEP = 200.0
 SKIP_EVERY = 3
 FRINGE_DOOR = 100.0      # a strip keeps this far (cm, along the wall) off a door's middle past its half width
@@ -255,7 +276,9 @@ def type_of(pid, model):
 MENUS = {
     'shopOpen': [('wall', 'side_front', 'Handbills_A', 145.0), ('back', 'back_door', 'CrateStack_B', 0.0),
                  ('back', 'back_out', 'StrawLitter_A', 0.0), ('side', 'side_back', 'Ladder_A', 0.0),
-                 ('front', 'front_ends', 'CrateStack_A', 0.0)],
+                 ('front', 'front_ends', 'CrateStack_A', 0.0),
+                 # (last, so the items before keep their picks: a menu item's crc is its place in the menu)
+                 ('front', 'deck_ends', 'Vignette_ShopFront_B', 0.0)],
     'shopShut': [('wall', 'side_front', 'Handbills_A', 145.0), ('side', 'side_mid', 'Vignette_Alley_A', 0.0),
                  ('back', 'back_out', 'FallenBoards_A', 0.0)],
     'office': [('wall', 'side_front', 'Handbills_A', 145.0), ('back', 'back_out', 'FirewoodStack', 0.0),
@@ -269,6 +292,7 @@ MENUS = {
 # Menu items a building leaves out (its front, sides or back are full, or the story keeps them clear): (key, zone, mesh).
 SKIP = {
     ('store', 'front', 'CrateStack_A'),         # Pruitt's porch: the hatch, the speaker post, the sacks, the buckboard
+    ('store', 'front', 'Vignette_ShopFront_B'),
     ('undertaker', 'front', 'CrateStack_A'),    # Tilly's walk: her window, the bench, the broom
     ('workshop', 'side', 'Ladder_A'),            # its sides: the firewood and the cellar
     ('undertaker', 'side', 'Ladder_A'),          # its ladder is the yard side's (extras)
@@ -479,6 +503,7 @@ class Frame:
         y0, y1 = min(w[2] for w in main), max(w[3] for w in main)
         self.body = (x0, x1, y0, y1)
         self.decks = [(tuple(d), z) for d, z in spec.get('decks', [])]
+        self.lap = float(spec.get('lap', 0.0))
         self.steps = [tuple(s) for s in spec.get('steps', [])]
         self.posts = [tuple(p) for p in spec.get('posts', [])]
         self.doors = [tuple(dd) for dd in spec.get('doors', [])]
@@ -668,9 +693,9 @@ class Rules:
         flat = KIT.get(mesh, (None, 0, 0, ''))[3] == 'flat'
 
         def against(face, along, gap=4.0):
-            # Ground cover turned a little off its wall keeps a hand's breadth from it.
-            gap = max(gap, 15.0) if flat else gap
-            """A spot against a face at 'along' (the face's own coordinate), the piece's back to it."""
+            # A spot against a face at 'along' (the face's own coordinate), the piece's back to it, its cladding's lap
+            # off the frame's wall. Ground cover turned a little off its wall keeps a hand's breadth from it.
+            gap = (max(gap, 15.0) if flat else gap) + f.lap
             if face == 'front':
                 yaw, nx = 0.0, x1
                 lx = nx + gap + (0.0 if wall_pivot else -bx0)
@@ -686,7 +711,7 @@ class Rules:
             return along, ly, -90.0
 
         if rule in ('front_ends', 'front_sides', 'deck_ends'):
-            mount = 'deck' if rule == 'deck_ends' else 'ground'
+            mount = 'deck' if rule == 'deck_ends' or f.front_deck else 'ground'
             if rule == 'deck_ends' and not f.front_deck:
                 return []
             if mount == 'deck':
@@ -703,7 +728,7 @@ class Rules:
                 if any(abs(along - dy) < dh + width * 0.5 + 40.0 for dy, dh in doors):
                     continue
                 if mount == 'deck':
-                    lx = x1 + 4.0 + (0.0 if wall_pivot else -bx0)
+                    lx = x1 + 4.0 + f.lap + (0.0 if wall_pivot else -bx0)
                     out.append((lx, along, 0.0, 'deck'))
                 else:
                     lx, ly, yaw = against('front', along)
@@ -800,14 +825,15 @@ class Rules:
                         continue
                     if any(abs(along - dm) < dh + FRINGE_DOOR for dm, dh in doors):
                         continue
+                    off = 1.0 + (f.lap if not is_deck else 0.0)
                     if face == 'front':
-                        lx, ly, yaw = x1 + 1.0, along, 0.0
+                        lx, ly, yaw = x1 + off, along, 0.0
                     elif face == 'back':
-                        lx, ly, yaw = x0 - 1.0, along, 180.0
+                        lx, ly, yaw = x0 - off, along, 180.0
                     elif face == 'left':
-                        lx, ly, yaw = along, y1 + 1.0, 90.0
+                        lx, ly, yaw = along, y1 + off, 90.0
                     else:
-                        lx, ly, yaw = along, y0 - 1.0, -90.0
+                        lx, ly, yaw = along, y0 - off, -90.0
                     # Skip a face that's inside another of the building's boxes (a wing's join, a porch's wall side).
                     px, py = probe_out(lx, ly, yaw, 20.0)
                     if any(bx0 - 1.0 <= px <= bx1 + 1.0 and by0 - 1.0 <= py <= by1 + 1.0

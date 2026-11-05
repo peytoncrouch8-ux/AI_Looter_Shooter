@@ -46,6 +46,11 @@ HOUSEHOLDS = {
     'cottageNorth': 'CottageNorth',
     'cottageNorthEast': 'CottageSouth',
     'dugout': 'Cottage',
+    # The east row on the yard road (towns plan, D5: K, M, O lived; LEVEL's towns_backstreet patch): heard through their
+    # walls, never met, as the dugout's.
+    'homeK': 'Cottage',
+    'homeM': 'Cottage',
+    'homeO': 'Cottage',
 }
 
 # The settler's cottage's front door in the model's own frame (Art/Models/Buildings/Cottage.py, Cottage_Ransom: the front

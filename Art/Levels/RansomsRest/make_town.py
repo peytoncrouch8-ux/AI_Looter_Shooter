@@ -1398,6 +1398,9 @@ class Placer:
                 return f'off {where}', (cx - x, cy - y)
         elif w.probe.ok and mount in ('ground', 'walk'):
             heights = [w.probe.ground(px, py) for px, py in box.samples()]
+            if any(h is None for h in heights) and rule and piece.solid and piece.kind != 'flat' and                     not getattr(piece, 'built', False):
+                # A rule's standing piece on ground the probe never measured (past its regions) isn't risked.
+                return 'no terrain measured under it (outside the probe\'s regions)', None
             if any(h is None for h in heights):
                 self.unmeasured.add(piece.id)
                 heights = [h for h in heights if h is not None] or [0.0]
@@ -1703,6 +1706,20 @@ def name_pieces(d):
         p.id = f'{p.group}_{snake(p.mesh)}_{counters[(p.group, base)]:02d}'
 
 
+PATCHES = []
+
+
+def apply_patches(layout, path):
+    """A layout patch (Tools/layout_patch.py: path, op, value, where) applied to the layout in memory, so a town can be
+    made for placements another lane hands in before Main applies them to layout.json (the same result after)."""
+    sys.path.insert(0, os.path.join(REPO, 'Tools'))
+    import layout_patch  # noqa: E402
+    full = path if os.path.isabs(path) else os.path.join(REPO, path)
+    lines = []
+    layout_patch.apply_patch(layout, full, load(full), lines.append)
+    print(f'patch {os.path.relpath(full, REPO)} applied in memory: {len(lines)} entries')
+
+
 def pin(d, path):
     """The hand-made pieces of the town as it was built before the towns round (BEFORE_PATH: the same id and mesh, or
     the same mesh at the same spot) keep their spots against the fights' spawn points that came in since (the probe's
@@ -1719,6 +1736,10 @@ def pin(d, path):
         at[p['mesh']].append(tuple(p['at'][:2]))
     for p in d.pieces:
         if getattr(p, 'rule', False):
+            # A rule's piece that stands in the built town (the same id and mesh) is checked as ever, but isn't dropped
+            # for ground the probe never reached: it was placed and seen there.
+            was = ids.get((p.id, p.mesh))
+            p.built = was is not None and math.dist(tuple(was['at'][:2]), (p.x, p.y)) <= 300.0
             continue
         was = ids.get((p.id, p.mesh))
         if was is not None and math.dist(tuple(was['at'][:2]), (p.x, p.y)) > 300.0:
@@ -2042,6 +2063,9 @@ def main():
     for k, arg in enumerate(sys.argv[1:]):
         if arg == '--approve' and k + 2 <= len(sys.argv[1:]):
             approved |= {a.strip() for a in sys.argv[k + 2].split(',') if a.strip()}
+        if arg == '--patch' and k + 2 <= len(sys.argv[1:]):
+            # Layout patches not yet applied to layout.json (Tools/layout_patch.py's form), applied in memory only.
+            PATCHES.extend(a.strip() for a in sys.argv[k + 2].split(',') if a.strip())
         if arg == '--out' and k + 2 <= len(sys.argv[1:]):
             OUT_PATH = os.path.join(HERE, os.path.basename(sys.argv[k + 2]))
         if arg == '--skip' and k + 2 <= len(sys.argv[1:]):
@@ -2051,6 +2075,8 @@ def main():
     if unknown:
         raise SystemExit(f'--approve: no such new piece: {", ".join(sorted(unknown))}')
     layout = load(LAYOUT_PATH)
+    for path in PATCHES:
+        apply_patches(layout, path)
     if not os.path.exists(BOUNDS_PATH):
         raise SystemExit(f'{BOUNDS_PATH} is missing: write it from the editor first (Saved/mesh_bounds.py)')
     probe = Probe(load(PROBE_PATH) if os.path.exists(PROBE_PATH) else None)
@@ -2148,7 +2174,7 @@ def rules_report(d, world, placer, pieces):
           'of every one, lived homes 3+, empty ones 2+):')
     for bid, z in town_rules.zones_table(r.frames, pieces).items():
         total = z['front'] + z['side'] + z['back']
-        need = 3 if z['kind'] == 'homeLived' else 2 if z['kind'] == 'homeEmpty' else 1
+        need = 3 if z['kind'] == 'homeLived' else 2 if z['kind'] == 'homeEmpty' else 0 if z['kind'] == 'outbuilding' else 1
         flag = '' if total >= need and (z['front'] or z['kind'] not in ('shopOpen', 'shopShut', 'office')) else '   <- short'
         print(f'  {bid:17s} {z["kind"]:9s} front {z["front"]:2d}  side {z["side"]:2d}  back {z["back"]:2d}{flag}')
     marked = [dict(p, _new=(p['mesh'], tuple(p['at'])) not in previous) for p in pieces]

@@ -163,3 +163,56 @@ weeds: + cabinSouth 2, + mainStreet 2 rings, - cottageNorthEast 1, ~ mainStreet 
 ```
 Main runs: copy town_next.json over town.json, `build_area.py RansomsRest dressing`, scatter, fauna, path_probe, tour (MainStreet*,
 PenLane, YardRoad, Farm), Looter.Breakable / Economy.Balance (no breakable mesh added or moved), PIE look at the east end and Pen Lane.
+
+# Round 3 (2026-11-05 09:20; DEMO3.md: the bathhouse's bills 2 cm inside its north wall)
+- Cause: the BUILDINGS lane's frames take its tables' walls (the sheathing); the cladding stands proud of them (the bathhouse's
+  north face traced at 303 cm from its pivot line, the frame's wall at 300). Fix in the rules: `lap` on those frames
+  (town_rules.LAP = 4 cm: the 10 BUILDINGS frames and the 5 board outbuildings; the A-J and homeB/homeI frames are measured to the
+  face, lap 0). Every piece placed against a wall (bills, ladders, tools, stacks, vignettes, deck pieces) and every weed strip
+  keeps the lap more off it: the bathhouse's bills' pivot at 305 now, 2 cm off the traced face.
+- The frames against the probe's real bounds (07:46: Buildings2 imported): every frame's walls lie inside its mesh's bounds by
+  30-55 cm (eaves, rakes, the stoop, dock steps, the boarding house's stair) on every side; none outside. Only the bathhouse's
+  face was traced; the rest are the tables' plus the lap.
+- Ready for the back street (LEVEL's lots): FRAMES for RR_Shed_A/B/C, RR_Privy_B, RR_Smokehouse, RR_RootCellar (type
+  'outbuilding': weeds only, short grass); K, M, O, RR_BoardingHouse dress as homeLived, N, P as homeEmpty, RR_FeedStore as
+  shopOpen. A shop's front pieces stand on its front deck when it has one (the feed store's dock), and Vignette_ShopFront_B
+  (now in CHOSEN: 18 types, placed only on a shop's front deck; the store's is in SKIP) goes there. Nothing of these is placed
+  until the lots are in the layout.
+- town_next.json regenerated (twice, identical); town.json untouched. 338 pieces, no piece added or dropped. Diff vs town.json:
+  bathhouse_handbills_a_01 (-4974, 6380) -> (-4970, 6380); bathhouse_ladder_a_01 4 cm out; bathhouse_crate_stack_a_01 4 cm,
+  _b_01 24 cm (re-nudged); smithyTown_handbills_a_01, _ladder_a_01, _crate_stack_b_01 4 cm out; homeL_fallen_boards_a_01 4 cm;
+  weed strips 4 cm out: bathhouse 5, homeL 9, smithyTown 8. Everything else identical.
+
+# Round 4 (2026-11-05 09:35; LEVEL's east row on the yard road: towns_backstreet.patch.json, HOMES.md round 4)
+- `make_town.py --patch <file>[,file]`: applies layout patches in memory with Tools/layout_patch.apply_patch (the same code
+  Main applies them with), so the town can be made before layout.json takes them. Run:
+  `make_town.py --out town_next.json --patch Docs/Work/2026-11-04-Towns/towns_backstreet.patch.json` (twice: identical). Once
+  the patch is in layout.json, the same without --patch gives the same file.
+- town_rules: DRESSED + homeK, homeM, homeO (TYPES homeLived), shedC, smokehouse, privyB (outbuilding: weeds only).
+  build_area_townlife.HOUSEHOLDS + homeK, homeM, homeO: 'Cottage' (heard through their walls, as the dugout's).
+- town_next.json: 338 -> 394 pieces, 17 new types (cap 24), 12 lights (the homes' lamps are build_area.py's level.lights).
+  Nothing of the town as it stood moved or dropped. Added (56): homeK PorchChair, Washtub, ToolsLeaning_A, FirewoodStack,
+  ChoppingBlock, 13 WeedFringe_A (its LaundryLine dropped: the cottonwoods); homeM the same + LaundryLine, 11 weeds; homeO the
+  same + LaundryLine, 8 weeds; shedC 4, smokehouse 1, privyB 2 weed strips. Kit pieces only: no new type in any view; YardRoad
+  +12 instances. Main Street north front bin 8 (the street's east end) 5 -> 6 (homeK's porch): north mean 5.4, south 4.6.
+- Not measured: the row's back yards are outside the probe's regions (no ground check under 39 pieces), and the homes aren't
+  built, so their porch pieces stand 45 cm over the ground under them, not over the houses' floors. After the patch is applied
+  and `build_area.py RansomsRest props` placed them: a probe with a region over X 900..3000, Y 6400..9700, then make_town again
+  (without --patch).
+
+# Round 5 (2026-11-05 09:35; the east row built, probe 09:33 with eastRow X 900..3000, Y 6400..9700)
+- `make_town.py --out town_next.json` (no --patch: applied), twice identical; town.json untouched. 393 pieces (built town.json:
+  338; round 4's 394).
+- Porches: K, M, O's frames re-measured from Homestead.py's builders (deck 1.9 / 1.9 / 1.8 m out of the laps, floors at BASE
+  50 / 45 / 55 cm, steps 1.4 m in the porch's middle, the door's way from the wall): every porch piece now stands at its
+  house's real deck height (probe z + BASE: K 43.9, M 48.5, O 58.2; all 6 at 0.0 cm off), inside the decks' real ends
+  (round 4 had them 5-10 cm sunk, K's chair 15 cm past its deck's end).
+- Yards: every row piece's ground checked on the eastRow grid (GROUND_RANGE). New rule: a rule's standing piece on ground no
+  probe region covers is dropped (homeO's laundry line, behind the smokehouse at X 3030, went: no spot left in range); pieces
+  already in the built town keep their spots (undertaker's crates). homeK has no laundry line either (the cottonwoods).
+- vs round 4: + privyB 1, smokehouse 1 weed strip; - homeK 2 weed strips, homeO's laundry line; K, M, O porch pieces re-seated
+  (lifts 44.3/58.2, 50.8/53.1, 41.1/44.3 over the ground under them), 10 weed strips re-run against the new steps.
+- vs the built town: + homeK 16, homeM 17, homeO 13, privyB 3, shedC 4, smokehouse 2; round 3's 4 cm lap moves (bathhouse,
+  smithyTown, homeL); the bills' lifts now from the buildings' probed heights (bathhouse 142.7, smithy 153.9). Nothing removed.
+- Unchecked: by eye in Unreal; 12 pieces still outside every probe region (Pen Lane's C weeds and boards, homeL's second boards,
+  the dugout's line: flat or hand-made, as built).

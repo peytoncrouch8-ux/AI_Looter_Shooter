@@ -1,0 +1,50 @@
+[
+  {
+    "path": "obstacles",
+    "op": "set",
+    "where": {
+      "id": "sinkRoadCottonwoods"
+    },
+    "value": {
+      "id": "sinkRoadCottonwoods",
+      "kind": "trees",
+      "polygon": [
+        [
+          1479,
+          6289
+        ],
+        [
+          1885,
+          7305
+        ],
+        [
+          2082,
+          8097
+        ],
+        [
+          2418,
+          8766
+        ],
+        [
+          1882,
+          9034
+        ],
+        [
+          1518,
+          8303
+        ],
+        [
+          1315,
+          7495
+        ],
+        [
+          921,
+          6511
+        ]
+      ],
+      "height": 1100,
+      "note": "cottonwoods behind Main Street's east end, hiding the Sink from the street"
+    },
+    "comment": "puts the cottonwood stand back as it was before towns_backstreet.patch.json: obstacles is a read block of the generator, so the paring changed layoutSha1 (72a9a0b1... -> 60948475...) and terrain_check calls layout_computed.json stale; with this the hash is 72a9a0b1 again"
+  }
+]
