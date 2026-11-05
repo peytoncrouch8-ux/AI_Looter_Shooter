@@ -128,5 +128,7 @@ keep it short; details go in the pipeline.
 - Every new creature, enemy, NPC or friend gets a bestiary page (`/Game/Data/Bestiary/DA_Bestiary_<Name>`, `ActorClass`
   set); `Looter.Bestiary.Entries` checks them.
 - Volumes answer world-static queries: a trace for real geometry uses `LooterWorld::StaticGeometryParams`.
-- **Performance target:** 120 fps (8.3 ms), 1080p Medium, reference PC (RX 580, i7-8700, 16 GB), heaviest view.
+- Set pieces for Mains 4-7: script-made in our sets, no new Tripo models (the user, 2026-11-04).
+- **Performance target:** 120 fps (8.3 ms), 1080p Medium, reference PC (RX 580, i7-8700, 16 GB), heaviest view: a hard line
+  for every view, flyovers and spyglass shots included (the user, 2026-11-04).
   Nanite is High/Epic only, Lumen Epic only: everything must look right on the Nanite fallback without Lumen.

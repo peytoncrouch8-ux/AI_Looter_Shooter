@@ -153,10 +153,21 @@ void ARappelSpawner::OnCreatureSpawned(ACreatureBase& Creature)
 
 	FSlider& Slider = Sliders.AddDefaulted_GetRef();
 	Slider.Creature = &Creature;
-	Slider.Rope = Turn % Count;
 	Slider.Feet = Creature.GetActorLocation();
+	TArray<FVector> Tops;
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		Tops.Add(GetRopeTop(Index));
+	}
+	Slider.Rope = PickRope(Tops, Slider.Feet, Turn, bRopeNearestFeet);
 	// A drop's men go down one rope after another: the second on a rope waits at its top.
-	Slider.Clock = -(Turn / Count) * SlideSeconds * NextOnRopeShare;
+	if (Turn == 0 || DropOnRope.Num() != Count)
+	{
+		DropOnRope.Init(0, Count);
+	}
+	const int32 Ahead = bRopeNearestFeet ? DropOnRope[Slider.Rope] : Turn / Count;
+	++DropOnRope[Slider.Rope];
+	Slider.Clock = -Ahead * SlideSeconds * NextOnRopeShare;
 	Slider.Sway = FMath::FRandRange(0.f, 6.f);
 	// Held, passive, out of the fight until he's down (the spawner's call to hunt is refused while he's passive).
 	Creature.SetPassive(true);
@@ -182,6 +193,27 @@ void ARappelSpawner::OnCreatureSpawned(ACreatureBase& Creature)
 	bRopesDown = true;
 	RopesHung = 0.f;
 	SetActorTickEnabled(true);
+}
+
+int32 ARappelSpawner::PickRope(TConstArrayView<FVector> Tops, const FVector& Feet, int32 Turn, bool bNearest)
+{
+	if (Tops.IsEmpty())
+	{
+		return INDEX_NONE;
+	}
+	if (!bNearest)
+	{
+		return FMath::Max(Turn, 0) % Tops.Num();
+	}
+	int32 Best = 0;
+	for (int32 Index = 1; Index < Tops.Num(); ++Index)
+	{
+		if (FVector::DistSquared2D(Tops[Index], Feet) < FVector::DistSquared2D(Tops[Best], Feet))
+		{
+			Best = Index;
+		}
+	}
+	return Best;
 }
 
 void ARappelSpawner::Tick(float DeltaSeconds)

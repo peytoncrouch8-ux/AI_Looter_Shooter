@@ -79,8 +79,18 @@ void ABargeBoarding::Advance(float DeltaSeconds)
 	{
 		AdvanceDying(DeltaSeconds);
 	}
+	// Her lights by where the player is (only while she hangs whole: dying puts them out).
+	if (Player && State == EBargeState::Hanging)
+	{
+		const int32 View = LightViewAt(GetActorTransform().InverseTransformPosition(Player->GetActorLocation()) - FVector(0.0, 0.0, KitLift));
+		if (View != LightView)
+		{
+			ShowLightsFor(View);
+		}
+	}
 	if (bNear && State != EBargeState::Falling)
 	{
+		AdvancePushes(DeltaSeconds);
 		AdvanceVents(DeltaSeconds);
 		AdvanceHose(DeltaSeconds);
 	}

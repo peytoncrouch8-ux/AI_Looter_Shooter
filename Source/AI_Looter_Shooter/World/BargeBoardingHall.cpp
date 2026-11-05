@@ -1,7 +1,8 @@
 // ABargeBoarding: below the deck, built in code in her own frame (BargeRules), in the hull's hollow under the casing: the
 // furnace hall (its floor, its round wall with lintels over the stokeholds' doors, its ceiling closing the hollow (Tripo made
 // no deck inside the casing) cut round the hatch's hole, the catwalk ring open under the hatch's stair and over the two
-// floor stairs, its ends walled, the stokeholds' alcoves) and the hatch's stair from the cross walk down onto the catwalk.
+// floor stairs, its ends walled, a hand rail along its inner edge, the stokeholds' alcoves) and the hatch's stair from the
+// cross walk down onto the catwalk, railed both sides.
 // The hollow is empty, so all of this closes itself in: nobody sees into the shell. The way in: the hatch on the cross walk,
 // down its stair onto the catwalk (the stoker's corner is there: BargeBoardingProps.cpp), down a floor stair to the floor.
 
@@ -35,6 +36,33 @@ namespace
 	{
 		return UE_TWO_PI * BargeRules::CatwalkMiddle / BargeRules::CatwalkSpans * BargeRules::CatwalkSpanStretch;
 	}
+
+	/** The hatch stair's run, its slope's turn and up, and its sides' way (flat, square to the run). */
+	struct FHatchRails
+	{
+		FVector Middle;
+		FVector Run;
+		FRotator Slope;
+		FVector Up;
+		FVector Across;
+	};
+	FHatchRails HatchRails()
+	{
+		const BargeRules::FStairRun Stair = BargeRules::HatchStair();
+		FHatchRails Rails;
+		Rails.Middle = (Stair.From + Stair.To) * 0.5;
+		Rails.Run = Stair.To - Stair.From;
+		Rails.Slope = Rails.Run.Rotation();
+		Rails.Up = Rails.Slope.Quaternion().GetUpVector();
+		Rails.Across = FVector(-Rails.Run.Y, Rails.Run.X, 0.0).GetSafeNormal();
+		return Rails;
+	}
+
+	/** Where a hatch stair's rail stands: its side (-1, 1), a hand in from the stair's edge. */
+	FVector HatchRailSide(const FHatchRails& Rails, double Side)
+	{
+		return Rails.Across * Side * (BargeRules::HatchStairWidth * 0.5 - BargeRules::HatchRailIn);
+	}
 }
 
 void ABargeBoarding::BuildHall()
@@ -47,6 +75,9 @@ void ABargeBoarding::BuildHall()
 	const float Floor = BargeRules::HallFloor;
 	const float R = BargeRules::HallRadius;
 	const float Catwalk = Floor + BargeRules::CatwalkUp;
+	// The hand rails' iron (the kit's lighter plate, MI_BargeKitIron), laid with the hall's looks.
+	HandrailLook = MakeInstanced(TEXT("HandrailLook"), CubeMesh, KitIron);
+	HandrailLook->SetCastShadow(false);
 	// The floor: a riveted iron disc to see, a box to stand on (the walls bound it).
 	const float Disc = BargeRules::HallFloorLookThick;
 	MakePiece(TEXT("HallFloorLook"), CylinderMesh, KitIronDark, BargeRules::HallCenter + FVector(0.0, 0.0, Floor - Disc * 0.5),
@@ -107,22 +138,57 @@ void ABargeBoarding::BuildHall()
 	// Past each one's foot, and past the hatch stair's top, an unseen wall (pawns only) closes the ring's end, so nobody walks
 	// off it into the drop. The walls stand under the ceiling (the hatch stair passes over the one by its top).
 	const float EndHeight = FMath::Min(BargeRules::RailWallHeight, BargeRules::HallHeight - BargeRules::CatwalkUp);
-	const auto EndWallAt = [this, RingDepth, Catwalk, EndHeight](const TCHAR* Name, float End)
+	// An unseen wall for pawns only (shots pass): the ring's ends, its hand rail, the hatch stair's.
+	const auto PawnWall = [this](const TCHAR* Name, const FVector& Center, const FVector& Half, const FRotator& Turn)
 	{
-		UBoxComponent* EndWall = CreateDefaultSubobject<UBoxComponent>(Name);
-		EndWall->SetupAttachment(Kit);
-		EndWall->SetMobility(EComponentMobility::Movable);
-		EndWall->SetBoxExtent(FVector(RingDepth * 0.5, BargeRules::RailWallThick * 0.5, EndHeight * 0.5), false);
-		EndWall->SetRelativeLocationAndRotation(HallXY(End, BargeRules::CatwalkMiddle) + FVector(0.0, 0.0, Catwalk + EndHeight * 0.5),
-			FRotator(0.f, HallYaw(End), 0.f));
-		EndWall->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-		EndWall->SetCollisionObjectType(ECC_WorldDynamic);
-		EndWall->SetCollisionResponseToAllChannels(ECR_Ignore);
-		EndWall->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
-		EndWall->SetCanEverAffectNavigation(false);
-		EndWall->SetGenerateOverlapEvents(false);
-		EndWall->SetHiddenInGame(true);
+		UBoxComponent* Wall = CreateDefaultSubobject<UBoxComponent>(Name);
+		Wall->SetupAttachment(Kit);
+		Wall->SetMobility(EComponentMobility::Movable);
+		Wall->SetBoxExtent(Half, false);
+		Wall->SetRelativeLocationAndRotation(Center, Turn);
+		Wall->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		Wall->SetCollisionObjectType(ECC_WorldDynamic);
+		Wall->SetCollisionResponseToAllChannels(ECR_Ignore);
+		Wall->SetCollisionResponseToChannel(ECC_Pawn, ECR_Block);
+		Wall->SetCanEverAffectNavigation(false);
+		Wall->SetGenerateOverlapEvents(false);
+		Wall->SetHiddenInGame(true);
 	};
+	const auto EndWallAt = [&PawnWall, RingDepth, Catwalk, EndHeight](const TCHAR* Name, float End)
+	{
+		PawnWall(Name, HallXY(End, BargeRules::CatwalkMiddle) + FVector(0.0, 0.0, Catwalk + EndHeight * 0.5),
+			FVector(RingDepth * 0.5, BargeRules::RailWallThick * 0.5, EndHeight * 0.5), FRotator(0.f, HallYaw(End), 0.f));
+	};
+	// The hand rail along each laid span's inner edge (the PIE walk, 2026-11-04: off it was a 5.8 m fall); the floor stairs'
+	// openings have no span, so no rail. Its wall stands to the ceiling (a 1 m one is jumped); its look is 1 m.
+	for (int32 Index = 0; Index < BargeRules::CatwalkSpans; ++Index)
+	{
+		if (BargeRules::IsCatwalkSpanLaid(Index))
+		{
+			const float Angle = BargeRules::CatwalkSpanAngle(Index);
+			PawnWall(*FString::Printf(TEXT("Handrail%d"), Index), HallXY(Angle, BargeRules::CatwalkInner + BargeRules::CatwalkRailIn) + FVector(0.0, 0.0, Catwalk + EndHeight * 0.5),
+				FVector(BargeRules::CatwalkRailWidth * 0.5, CatwalkSpanLength() * 0.5, EndHeight * 0.5), FRotator(0.f, HallYaw(Angle), 0.f));
+		}
+	}
+	// Both sides of the hatch's stair (over the hall's drop, over the hole's gap beside it), in upright pieces along it: each
+	// from the treads under its lower end to HatchRailWallUp over its upper end, so nothing overhangs past the stair's foot.
+	const FHatchRails Hatch = HatchRails();
+	const FRotator Along(0.f, static_cast<float>(Hatch.Run.Rotation().Yaw), 0.f);
+	const FVector Piece = Hatch.Run / BargeRules::HatchRailPieces;
+	for (const double Side : { -1.0, 1.0 })
+	{
+		const FVector StairTop = Hatch.Middle - Hatch.Run * 0.5 + HatchRailSide(Hatch, Side);
+		for (int32 Index = 0; Index < BargeRules::HatchRailPieces; ++Index)
+		{
+			const FVector Upper = StairTop + Piece * Index;
+			const FVector Lower = Upper + Piece;
+			const double Bottom = FMath::Min(Upper.Z, Lower.Z);
+			const double Height = FMath::Max(Upper.Z, Lower.Z) + BargeRules::HatchRailWallUp - Bottom;
+			const FVector Middle((Upper.X + Lower.X) * 0.5, (Upper.Y + Lower.Y) * 0.5, Bottom + Height * 0.5);
+			PawnWall(*FString::Printf(TEXT("HatchRail%d_%d"), Side < 0.0 ? 0 : 1, Index), Middle,
+				FVector(Piece.Size2D() * 0.5, BargeRules::CatwalkRailWidth * 0.5, Height * 0.5), Along);
+		}
+	}
 	for (int32 Index = 0; Index < BargeRules::NumFloorStairs; ++Index)
 	{
 		MakeRamp(*FString::Printf(TEXT("Stair%d"), Index), BargeRules::FloorStair(Index));
@@ -177,7 +243,7 @@ void ABargeBoarding::LayHallLooks()
 	{
 		return;
 	}
-	// The hall's iron (wall panels, lintels, the alcoves) as their boxes stand; the catwalk's grating and its inner hand rail.
+	// The hall's iron (wall panels, lintels, the alcoves) as their boxes stand; the catwalk's grating; the hand rails.
 	TArray<FTransform> Walls;
 	for (const UBoxComponent* Wall : HallWalls)
 	{
@@ -189,6 +255,7 @@ void ABargeBoarding::LayHallLooks()
 	HallWallLook->ClearInstances();
 	HallWallLook->AddInstances(Walls, false);
 	TArray<FTransform> Grating;
+	TArray<FTransform> Rails;
 	const float SpanLength = CatwalkSpanLength();
 	const float Catwalk = BargeRules::HallFloor + BargeRules::CatwalkUp;
 	for (int32 Index = 0; Index < BargeRules::CatwalkSpans; ++Index)
@@ -202,9 +269,47 @@ void ABargeBoarding::LayHallLooks()
 		// The grating a hair under the walk's top (the office's floor reaches over it in the doorway: no flicker).
 		Grating.Add(FTransform(Facing, HallXY(Angle, BargeRules::CatwalkMiddle) + FVector(0.0, 0.0, Catwalk - BargeRules::CatwalkThick * 0.5 - BargeRules::LookDrop),
 			FVector(BargeRules::CatwalkDepth / 100.0, SpanLength / 100.0, BargeRules::CatwalkThick / 100.0)));
-		Grating.Add(FTransform(Facing, HallXY(Angle, BargeRules::CatwalkInner + BargeRules::CatwalkRailIn) + FVector(0.0, 0.0, Catwalk + BargeRules::CatwalkRailUp),
-			FVector(BargeRules::CatwalkRailWidth / 100.0, SpanLength / 100.0, BargeRules::CatwalkRailDepth / 100.0)));
+		// The rail: its top and a mid rail along the span, a stanchion at its start (and at its end where the ring ends).
+		const FVector RailAt = HallXY(Angle, BargeRules::CatwalkInner + BargeRules::CatwalkRailIn);
+		for (const float Up : { BargeRules::CatwalkRailUp, BargeRules::CatwalkRailMidUp })
+		{
+			Rails.Add(FTransform(Facing, RailAt + FVector(0.0, 0.0, Catwalk + Up),
+				FVector(BargeRules::CatwalkRailWidth / 100.0, SpanLength / 100.0, BargeRules::CatwalkRailDepth / 100.0)));
+		}
+		const float Half = 180.f / BargeRules::CatwalkSpans;
+		for (const float Edge : { Angle - Half, Angle + Half })
+		{
+			if (Edge > Angle && BargeRules::IsCatwalkSpanLaid((Index + 1) % BargeRules::CatwalkSpans))
+			{
+				continue;
+			}
+			Rails.Add(FTransform(Facing, HallXY(Edge, BargeRules::CatwalkInner + BargeRules::CatwalkRailIn) + FVector(0.0, 0.0, Catwalk + BargeRules::CatwalkRailUp * 0.5),
+				FVector(BargeRules::CatwalkStanchion / 100.0, BargeRules::CatwalkStanchion / 100.0, BargeRules::CatwalkRailUp / 100.0)));
+		}
 	}
 	CatwalkLook->ClearInstances();
 	CatwalkLook->AddInstances(Grating, false);
+	// The hatch stair's: along each side, its rails straight over the treads (their height upright, so their ends stand over
+	// the stair's: none overhangs its foot), stanchions at its ends and its middle.
+	const FHatchRails Hatch = HatchRails();
+	const FQuat Pitched = Hatch.Slope.Quaternion();
+	for (const double Side : { -1.0, 1.0 })
+	{
+		const FVector Line = Hatch.Middle + HatchRailSide(Hatch, Side);
+		for (const float Up : { BargeRules::CatwalkRailUp, BargeRules::CatwalkRailMidUp })
+		{
+			Rails.Add(FTransform(Pitched, Line + FVector(0.0, 0.0, Up),
+				FVector(Hatch.Run.Size() / 100.0, BargeRules::CatwalkRailWidth / 100.0, BargeRules::CatwalkRailDepth / 100.0)));
+		}
+		for (const double Along : { -0.5, 0.0, 0.5 })
+		{
+			Rails.Add(FTransform(FQuat::Identity, Line + Hatch.Run * Along + FVector(0.0, 0.0, BargeRules::CatwalkRailUp * 0.5),
+				FVector(BargeRules::CatwalkStanchion / 100.0, BargeRules::CatwalkStanchion / 100.0, BargeRules::CatwalkRailUp / 100.0)));
+		}
+	}
+	if (HandrailLook)
+	{
+		HandrailLook->ClearInstances();
+		HandrailLook->AddInstances(Rails, false);
+	}
 }

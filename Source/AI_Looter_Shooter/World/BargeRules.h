@@ -225,6 +225,9 @@ namespace BargeRules
 	inline constexpr float ShipDeckOverKeel = 422.f;
 	inline constexpr float ShipRailOut = 375.f;
 	inline constexpr float ShipBagHalfBeam = 527.f;
+	/** Her plank's hinge this far fore of her keel's middle (ALamplighterShip::PlankHingeX: fore of her locker bench): the
+	 *  berths lie her keel this far aft of the gap, so the plank comes square across it. */
+	inline constexpr float ShipPlankHingeX = 300.f;
 	/** The plank lands this far in from the well deck's edge; its floor lies this far under its line. */
 	inline constexpr float BoardingInset = 150.f;
 	inline constexpr float PlankUnderside = 10.f;
@@ -246,23 +249,23 @@ namespace BargeRules
 	 *  top (cm, in her level frame; above 0 it clears). */
 	AI_LOOTER_SHOOTER_API float JumpBagClearance();
 
-	// --- The deck's pieces (the plan: BARGE.md "Round 9"). The player lands mid-deck on the port side; nine Dredgers come in
-	// two pushes: four on the well deck behind cover facing the landing, three on the forecastle (the high ground: two in the
-	// clear strip beside the scoop's frame, one fore of it), one in each house walk's mouth (the flanks). The way on: a house
-	// walk aft to the cross walk, its hatch, the hall under the casing ---
+	// --- The deck's pieces (BARGE.md "Round 9", the lanes "Round 13"; the fight's plan: BargeFightRules.h). The player lands
+	// mid-deck on the port side; the way on: a house walk aft to the cross walk, its hatch, the hall under the casing. Lanes
+	// 1.5 m wide stay clear from the landing and the deck's middle along both rails to the walks' mouths: the gantry and the
+	// stack stand inboard of them ---
 
 	/** The hose drum under the keel (the hull's SOCKET_HoseDrum), and its gantry with the jam lever on the well deck's aft
 	 *  port quarter (a drive shaft runs between; its housing is cover too): half its housing's size (ABargeHoseDrum's
 	 *  4 x 2.6 m: change both together). */
 	inline const FVector DrumUnderKeel(-889.0, 323.0, 0.0);
-	inline const FVector DrumOnDeck(2500.0, -430.0, WellDeckZ);
+	inline const FVector DrumOnDeck(2560.0, -280.0, WellDeckZ);
 	inline const FVector2D DrumGantryHalf(200.0, 130.0);
 	/** The kit's third stack at the well deck's aft starboard corner, against the house's fore face (clear of the starboard
 	 *  walk's mouth): in step 7 it breaks off and falls (degrees off -Y toward -X: -90 is toward the bow) along the deck's
 	 *  starboard side, clear of the landing, the port way from the walks to the gap, and the forecastle's stairs. Its tube
 	 *  this round and tall (13 m); its bolted foot flange this round: it topples about the flange's edge on the fall's side,
 	 *  so it lands on its side on the deck, its doubler plate (this half size) staying behind. */
-	inline const FVector FallingStackFoot(2440.0, 420.0, WellDeckZ);
+	inline const FVector FallingStackFoot(2440.0, 380.0, WellDeckZ);
 	inline constexpr float StackRadius = 150.f;
 	inline constexpr float StackHeight = 1300.f;
 	inline constexpr float StackFallAft = -90.f;
@@ -275,7 +278,7 @@ namespace BargeRules
 	/** The work lamp on the house's fore face over the well deck; shadowless, warm, this bright (candelas), this far. */
 	inline const FVector DeckLampSpots[] = { FVector(2300.0, 0.0, 3200.0) };
 	inline constexpr float DeckLampCandelas = 35.f;
-	inline constexpr float DeckLampReach = 2600.f;
+	inline constexpr float DeckLampReach = 1200.f;
 	inline const FLinearColor DeckLampColor(1.f, 0.72f, 0.42f);
 	/**
 	 * The work lamps (the PIE look check, 2026-11-04: in Main 6's low sun the Lamplighter's shadow lies over the port half
@@ -290,8 +293,12 @@ namespace BargeRules
 	 *    the grapples' bites (x 2550 and 3750 on the port rim).
 	 *  - The forecastle: posts on the scoop's side walls' tops (z 2564 / 2569) by the stairs' heads, fore of the port
 	 *    strip's spots.
-	 *  - Each walk's mouth, from the house's overhang (underside z 2701); the hatch, from the house's aft overhang (x
-	 *    -358..-315, z 2700) over the cross walk by the restart.
+	 *  - The forecastle's fore half (the PIE walk, 2026-11-04: "a near-black pit"): posts 2.3 m up from its floor at the
+	 *    scoop's walls' feet (clear of the floor's edge by 15 cm), fore of the frame.
+	 *  - Each walk's mouth, from the house's overhang (underside z 2701); the cross walk, from the house's aft overhang (x
+	 *    -358..-315, z 2700) either side of the hatch, one over the restart.
+	 * The PIE walk's "their light is weak and the deck stays dusk-dark": 40 cd each; the perf lane's 1.65 ms for her lights at
+	 * the deck (PERF.md): 6.5 m each, local pools, not a flood.
 	 */
 	enum class ELampMount : uint8 { Rim, Post, Drop };
 	struct FWorkLamp
@@ -299,22 +306,32 @@ namespace BargeRules
 		ELampMount Mount;
 		FVector Fixed;
 		FVector2D Out;
+		/** A post's height over what it stands in, a rod's length under the roof (a rim's lamp: none). */
+		float Up;
 	};
 	inline const FWorkLamp WorkLamps[] = {
-		{ ELampMount::Rim, FVector(2400.0, 792.0, 2341.0), FVector2D(0.0, -1.0) }, { ELampMount::Rim, FVector(3550.0, 792.0, 2341.0), FVector2D(0.0, -1.0) },
-		{ ELampMount::Rim, FVector(2400.0, -792.0, 2341.0), FVector2D(0.0, 1.0) }, { ELampMount::Rim, FVector(3550.0, -792.0, 2341.0), FVector2D(0.0, 1.0) },
-		{ ELampMount::Post, FVector(4170.0, 590.0, 2564.0), FVector2D(0.0, -1.0) }, { ELampMount::Post, FVector(4170.0, -530.0, 2569.0), FVector2D(0.0, 1.0) },
-		{ ELampMount::Drop, FVector(1950.0, -757.0, 2701.0), FVector2D(1.0, 0.0) }, { ELampMount::Drop, FVector(1950.0, 780.0, 2701.0), FVector2D(1.0, 0.0) },
-		{ ELampMount::Drop, FVector(-336.0, 300.0, 2700.0), FVector2D(-1.0, 0.0) },
+		{ ELampMount::Rim, FVector(2400.0, 792.0, 2341.0), FVector2D(0.0, -1.0), 0.f }, { ELampMount::Rim, FVector(3550.0, 792.0, 2341.0), FVector2D(0.0, -1.0), 0.f },
+		{ ELampMount::Rim, FVector(2400.0, -792.0, 2341.0), FVector2D(0.0, 1.0), 0.f }, { ELampMount::Rim, FVector(3550.0, -792.0, 2341.0), FVector2D(0.0, 1.0), 0.f },
+		{ ELampMount::Post, FVector(4170.0, 590.0, 2564.0), FVector2D(0.0, -1.0), 50.f }, { ELampMount::Post, FVector(4170.0, -530.0, 2569.0), FVector2D(0.0, 1.0), 50.f },
+		{ ELampMount::Post, FVector(4870.0, 445.0, ForecastleZ), FVector2D(0.0, -1.0), 230.f },
+		{ ELampMount::Post, FVector(4870.0, -385.0, ForecastleZ), FVector2D(0.0, 1.0), 230.f },
+		{ ELampMount::Drop, FVector(1950.0, -757.0, 2701.0), FVector2D(1.0, 0.0), 80.f }, { ELampMount::Drop, FVector(1950.0, 780.0, 2701.0), FVector2D(1.0, 0.0), 80.f },
+		{ ELampMount::Drop, FVector(-336.0, 300.0, 2700.0), FVector2D(-1.0, 0.0), 80.f }, { ELampMount::Drop, FVector(-336.0, -450.0, 2700.0), FVector2D(-1.0, 0.0), 80.f },
 	};
 	inline constexpr int32 NumWorkLamps = UE_ARRAY_COUNT(WorkLamps);
-	inline constexpr float WorkLampCandelas = 12.f;
-	inline constexpr float WorkLampReach = 1200.f;
-	/** The iron (cm): a post's arm this long, the post this tall over the top it stands in, a roof's rod this long under the
-	 *  underside, all this thick, each sunk this far into what it's fixed to; a rim's foot plate this thick. */
+	inline constexpr float WorkLampCandelas = 40.f;
+	inline constexpr float WorkLampReach = 650.f;
+	/**
+	 * Her lights by where the player is (the perf lane's finding): the deck's (the house's lamp and the work lamps) on
+	 * while the player is on her deck or within LampsNear of its middle; the hall's lanterns, the stoker's and the cage's
+	 * only while the player is below her deck (in her footprint, from under her hall's floor to this far under the cross
+	 * walk's deck: on the hatch's stair or in the hall).
+	 */
+	inline constexpr float LampsNear = 9000.f;
+	inline constexpr float BelowDeckUnder = 40.f;
+	/** The iron (cm): a post's arm this long, all of it this thick, each post and rod sunk this far into what it's fixed
+	 *  to; a rim's foot plate this thick. */
 	inline constexpr float WorkLampArm = 40.f;
-	inline constexpr float WorkLampPostUp = 50.f;
-	inline constexpr float WorkLampDrop = 80.f;
 	inline constexpr float WorkLampIron = 5.f;
 	inline constexpr float WorkLampSunk = 10.f;
 	inline constexpr float WorkLampPlate = 2.f;
@@ -324,7 +341,7 @@ namespace BargeRules
 	inline bool WorkLampHangs(const FWorkLamp& Lamp) { return Lamp.Mount != ELampMount::Rim; }
 	/** The furnace vents, each a 2 x 2 m grille glowing through its slots, in the lanes between the cover (one across the
 	 *  landing's way inboard). */
-	inline const FVector VentSpots[] = { FVector(3000.0, -100.0, WellDeckZ), FVector(3350.0, 350.0, WellDeckZ), FVector(2550.0, -130.0, WellDeckZ),
+	inline const FVector VentSpots[] = { FVector(3000.0, -100.0, WellDeckZ), FVector(3350.0, 350.0, WellDeckZ), FVector(2480.0, 40.0, WellDeckZ),
 		FVector(3800.0, -50.0, WellDeckZ) };
 	inline constexpr int32 NumVents = UE_ARRAY_COUNT(VentSpots);
 	inline constexpr float VentHalf = 100.f;
@@ -354,7 +371,7 @@ namespace BargeRules
 		{ ECover::Crate, 3616.f, 176.f, WellDeckZ, 0.f }, { ECover::BarrelTrio, 3605.f, -310.f, WellDeckZ, 0.f },
 		{ ECover::HoseCart, 2760.f, 60.f, WellDeckZ, 0.f }, { ECover::BarrelTrio, 3000.f, 150.f, WellDeckZ, 30.f },
 		{ ECover::Barrel, 3400.f, -250.f, WellDeckZ, 0.f }, { ECover::BarrelPair, 4790.f, 150.f, ForecastleZ, 0.f },
-		{ ECover::Winch, 4950.f, -200.f, ForecastleZ, 90.f },
+		{ ECover::Winch, 4950.f, -200.f, ForecastleZ, 90.f }, { ECover::BarrelPair, 3500.f, -560.f, WellDeckZ, 15.f },
 	};
 	inline constexpr int32 NumCoverPieces = UE_ARRAY_COUNT(CoverPieces);
 	/** The stand-in blocks' half sizes, in ECover's order (only without the mesh: each mesh is laid at its own size): about
@@ -367,10 +384,6 @@ namespace BargeRules
 	inline constexpr float SandbagsStackUnder = 90.f;
 	inline constexpr float BarrelGap = 2.f;
 	inline constexpr float BarrelTurn = 37.f;
-	/** The four horn clusters (ACompanyLoudspeaker posts the build script attaches here): two along each of the well deck's
-	 *  rails, off the gap. */
-	inline const FVector HornSpots[] = { FVector(2700.0, 640.0, WellDeckZ), FVector(3700.0, 640.0, WellDeckZ), FVector(2800.0, -640.0, WellDeckZ),
-		FVector(3700.0, -640.0, WellDeckZ) };
 	/** The casing's roof (the hull's: its high hulls' tops), where her two stacks stand. */
 	inline constexpr float CasingRoofAft = -3290.f;
 	inline constexpr float CasingRoofFore = -680.f;
@@ -384,25 +397,7 @@ namespace BargeRules
 	inline constexpr int32 NumSternFires = UE_ARRAY_COUNT(SternFireSpots);
 	/** Where her smoke trails from in the fall: over the casing's roof. */
 	inline const FVector FallSmokeSpot(-2000.0, 0.0, CasingRoofZ + 150.0);
-	/** The deck fight's nine spots (BargeDeck): four on the well deck behind cover facing the landing, three on the
-	 *  forecastle (two in the strip beside the frame, one fore of it), one in each house walk's mouth. The build script and
-	 *  the spawner's groups count on nine. */
-	inline const FVector DeckFightSpots[] = { FVector(3700.0, 300.0, WellDeckZ), FVector(3750.0, -350.0, WellDeckZ), FVector(2700.0, 180.0, WellDeckZ),
-		FVector(2350.0, -200.0, WellDeckZ), FVector(4250.0, -440.0, ForecastleZ), FVector(4250.0, 380.0, ForecastleZ),
-		FVector(4885.0, 150.0, ForecastleZ), FVector(1850.0, -757.0, WalkZ), FVector(1850.0, 780.0, WalkZ) };
-	/** Every spawn spot stands this far over its floor (a hand: the spawner's probes find the floor under it). */
-	inline constexpr float SpotUp = 20.f;
-	/** The plan's lines of sight (the tests hold it): from the plank's landing the player sees at least this many of the
-	 *  nine over the cover (the walks' flankers and the one behind the frame are hidden by design), and from each forecastle
-	 *  stair's top at least this many; an eye this high, a chest this high. */
-	inline constexpr int32 PlankSightLines = 4;
-	inline constexpr int32 StairSightLines = 4;
-	inline constexpr float EyeUp = 160.f;
-	inline constexpr float ChestUp = 120.f;
-	/** The plank's landing keeps this much deck clear round it (no cover or vent in the player's first step). */
-	inline constexpr float LandingApron = 200.f;
-	/** The well deck's middle (the deck fight's spawner stands there). */
-	AI_LOOTER_SHOOTER_API FVector DeckMiddle();
 }
 
 #include "World/BargeHallRules.h"
+#include "World/BargeFightRules.h"

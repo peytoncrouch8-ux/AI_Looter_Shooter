@@ -1,6 +1,6 @@
 // ARespawnMarker's post (the Wardens' lantern post since 2026-10-31, Hob's roost before): the model (or its greybox stand-in)
 // placed by its Wake socket, the beacon and its light at its lamp, its sockets, the lamp's glass dark until lit, the light's
-// flare as it's lit, its sound near the player, and the crows' welcome when they bring someone.
+// flare as it's lit, its sound near the player (its crows and bell: RespawnMarkerBell.cpp).
 
 #include "World/RespawnMarker.h"
 #include "AI_Looter_Shooter.h"
@@ -30,10 +30,6 @@ namespace
 	/** The roost's sound fades out over this long as the player walks away (seconds). */
 	constexpr float AmbientFadeSeconds = 1.2f;
 
-	/** The bell's swing on its loop, as the vigil stone's: how far at a full ring (degrees), how fast, how soon it settles (s). */
-	constexpr float BellSwingDegrees = 24.f;
-	constexpr float BellSwingHz = 1.2f;
-	constexpr float BellSettleSeconds = 1.3f;
 
 	/** How hard the bell is rung: a find, a homecoming after a death, a fast travel's landing, a mark again (0 to 1). */
 	constexpr float RingFound = 1.f;
@@ -192,14 +188,15 @@ void ARespawnMarker::FitRoost()
 	BellRest = Bell->GetRelativeRotation().Quaternion();
 	BellStrength = 0.f;
 
-	// The beacon and its light at the lamp (the post's Light socket, or the stand-in's lantern).
-	FTransform Top;
-	if (!ModelSocket(RoostMesh, RoostKit::BeaconSocket(), Top))
+	// The beacon and its light at the lamp (the post's Beacon socket, else its Light; or the stand-in's lantern). The Tripo
+	// post's hangs at 1.91 m (its glass), the stand-in's at 2.36.
+	FTransform Lamp;
+	if (!ModelSocket(RoostMesh, RoostKit::BeaconSocket(), Lamp))
 	{
-		StandInSocket(RoostKit::BeaconSocket(), Top);
+		StandInSocket(RoostKit::BeaconSocket(), Lamp);
 	}
-	Beacon->SetRelativeLocationAndRotation(Top.GetLocation(), FRotator::ZeroRotator);
-	BeaconLight->SetRelativeLocation(Top.GetLocation());
+	Beacon->SetRelativeLocationAndRotation(Lamp.GetLocation(), FRotator::ZeroRotator);
+	BeaconLight->SetRelativeLocation(Lamp.GetLocation());
 	Beacon->BuildCards();
 	const URoostSettings& Settings = URoostSettings::Get();
 	// The lamp's own warm light on the post and the ground round it: its hot core's colour.
@@ -269,87 +266,6 @@ TArray<FTransform> ARespawnMarker::GetPerches() const
 		}
 	}
 	return Perches;
-}
-
-ARoostCrows* ARespawnMarker::GetCrows() const
-{
-	return Crows.Get();
-}
-
-ARoostCrows* ARespawnMarker::GetCirclingCrows() const
-{
-	return CirclingCrows.Get();
-}
-
-void ARespawnMarker::UpdateCirclingCrows()
-{
-	ARoostCrows* Circling = CirclingCrows.Get();
-	const int32 Count = URoostSettings::Get().CirclingCrows;
-	UWorld* World = GetWorld();
-	const bool bWanted = bLit && bInPlay && Count > 0 && World;
-	if (!bWanted)
-	{
-		if (Circling)
-		{
-			Circling->Destroy();
-		}
-		CirclingCrows.Reset();
-		return;
-	}
-	if (Circling)
-	{
-		return;
-	}
-	// A few of Hob's crows riding the fire's heat over the basket, as long as it burns: with the column, a roost's form far off.
-	const FTransform At(FRotator::ZeroRotator, GetBeaconLocation());
-	Circling = World->SpawnActorDeferred<ARoostCrows>(ARoostCrows::StaticClass(), At, this, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-	if (!Circling)
-	{
-		return;
-	}
-	Circling->MakeCircling(GetBeaconLocation(), Count);
-	Circling->Seed = static_cast<int32>(GetTypeHash(GetMarkerId()) * 31u) | 1;
-	Circling->FinishSpawning(At);
-	CirclingCrows = Circling;
-}
-
-// ---------------------------------------------------------------------------
-// The bell
-// ---------------------------------------------------------------------------
-
-void ARespawnMarker::RingBell(float Strength)
-{
-	// Rung again while it swings, it swings on from the harder of the two.
-	BellStrength = FMath::Clamp(FMath::Max(Strength, BellStrength * FMath::Exp(-BellTime / BellSettleSeconds)), 0.f, 1.f);
-	BellTime = 0.f;
-	UpdateTicking();
-}
-
-void ARespawnMarker::SwingBell(float DeltaSeconds)
-{
-	if (BellStrength <= 0.f)
-	{
-		return;
-	}
-	BellTime += DeltaSeconds;
-	const float Fade = FMath::Exp(-BellTime / BellSettleSeconds);
-	if (Fade < 0.02f)
-	{
-		BellStrength = 0.f;
-		Bell->SetRelativeRotation(BellRest);
-		return;
-	}
-	// Side to side on its loop (about the socket's +X, as the vigil stone's bell), dying away.
-	Bell->SetRelativeRotation(BellRest * FQuat(FVector::ForwardVector, FMath::DegreesToRadians(GetBellSwing())));
-}
-
-float ARespawnMarker::GetBellSwing() const
-{
-	if (BellStrength <= 0.f)
-	{
-		return 0.f;
-	}
-	return BellSwingDegrees * BellStrength * FMath::Exp(-BellTime / BellSettleSeconds) * FMath::Sin(BellTime * UE_TWO_PI * BellSwingHz);
 }
 
 // ---------------------------------------------------------------------------

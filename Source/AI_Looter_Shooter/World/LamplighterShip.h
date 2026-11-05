@@ -153,6 +153,10 @@ public:
 	/** The main deck's top above her keel (the pivot), and her rails out from her middle. */
 	static constexpr float DeckTop = 422.f;
 	static constexpr float RailOut = 375.f;
+	/** Main 6's plank to the barge: its hinge on her starboard rail this far fore of her middle, fore of her locker bench
+	 *  (x -175..215; the plank's 55 cm half width and a hand clear of it). The barge's berth lies her keel this far aft of its
+	 *  rail's gap (BargeRules::ShipPlankHingeX), so the plank comes square across it. */
+	static constexpr float PlankHingeX = 300.f;
 
 	// --- The flight ---
 
@@ -245,7 +249,7 @@ public:
 	/** The sortie holds the session's saves while she's in the air (and lets them go while the player's on the barge). */
 	void SetSortieSavesHeld(bool bHold);
 
-	/** Opens the middle length of her starboard rail for the plank to the barge (or shuts it again). */
+	/** Opens her starboard rail where the plank to the barge comes aboard (round PlankHingeX), or shuts it again. */
 	void OpenStarboardRail(bool bOpen);
 
 	/** Back on the ledge at Moored, anchored, the gangway down: the sortie's over. */

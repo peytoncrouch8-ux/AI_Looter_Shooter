@@ -18,9 +18,130 @@ Tripo hull (`BARGE_MEASURE.md`). This lane: the barge's C++ and tests. Route: **
 - **Round 11** (14:40): the PIE look check's three (below): the Tripo horn post, barrels for the sandbags, work lamps.
   Not built.
 - **Round 12** (15:50): REWORK's round-4 hull: Barge 8/9 (`.Hull`'s deck heights); the zones re-plugged (below). Not built.
+- **Rounds 13-14** (17:00): the PIE walk's six fixes; the bigger deck fight (three pushes). Not built (below).
+- **Round 15** (19:15): the review's fixes and the perf lane's lights (below). Not built.
 - **Next**: Main's build, then `Looter.World.Barge.Kit`, `.Deck`, `.Hall`; `.Hull` after REWORK's round 4 (its lid, rail, coaming); PIE.
 - Round 6 supersedes everything below it on the house, the arena rectangle, the deck-level hall and office, and the spots;
   the berth math, the catwalk openings (round 5), the vents' clock and the dying/fall still hold. Rounds 2-5 are history.
+
+## Round 15 (19:15): the review's fixes, the perf lane's lights; not built
+- **The stern push** starts in the cross walk: `SternFightSpots` (-600, +-820), (-400, +-560), at least 250 apart. The stern deck lay past the Dredgers' LoseInterestRadius (80 m) from the forecastle. It still comes up both house walks behind the player.
+- **Hatch stair rails:**
+  - The pawn walls are 8 upright pieces each side, from the treads to 2 m over them. Nothing overhangs the foot; the tilted 1 m box's end had stood 62 cm past it, up to 79 cm high.
+  - The rails' look sits straight over the treads (its ends over the stair's).
+  - The catwalk's pawn rail stands to the ceiling; its look is 1 m.
+  - `.Hall`: a man's walk from the stair's foot + 50 to the desk.
+- **Roof rope 1's landing** moved to (2660, -80); it had been inside vent 2. `.Deck`'s clash loop covers every push's spots.
+- **Rope pairing:** `ARappelSpawner::bRopeNearestFeet`. Each man takes the rope nearest his landing, and the next on a rope waits behind him. `PickRope` is pure and tested both ways; Mains 4-5 keep the turn order (off by default).
+- **Pushes:** only while the player is up and within `PushPlayerReach` 80 m of the deck's middle. A push whose spawners aren't placed counts as down.
+- **Horns:** all four on the starboard rim, bow-most first: x 4050, 3800, 3100, 2700. Against the house they met the gantry and the stack. `.Deck` checks each foot on the rim's top and its pole clear.
+- **Grapples:** they bite at `BerthX - ShipPlankHingeX +- GrappleSpread` (x 2250, 3450), square to the Lamplighter lying 300 aft.
+- **Lights** (PERF.md, 1.65 ms at the deck):
+  - The deck lamp reaches 12 m, the work lamps 6.5 m at 40 cd.
+  - `ABargeBoarding::LightViewAt` / `ShowLightsFor` (`BargeBoardingLights.cpp`): the deck's lights while the player is on her deck or within 90 m; the hall's lanterns, the stoker's and the cage's (`ABargeFurnace::SetLightShown`) only below her deck; none when far.
+  - Applied as the view changes while she hangs; dying puts all out, a reset shows the view again.
+  - `Looter.World.Barge.Lights` counts them per view.
+- **Tests:**
+  - `Why` is read after its walk.
+  - The stern route runs once a side.
+  - The manifest is checked `<=` the bench's top.
+  - The rails are checked at every laid span.
+  - The mouths' band comes from the walk strips + `MouthBandOut`.
+  - PilotSortieTests' capsule uses `LooterPlayerSize::Scale`.
+- **Splits:**
+  - `BargeBoarding.cpp` 495 -> 287 (+ `BargeBoardingStory.cpp`); `BargeBoarding.h` 495 (its doc trimmed).
+  - `LamplighterShipParts.cpp` 590 -> 292 (+ `LamplighterShipKit.h`, its numbers and box kinds; + `LamplighterShipGangway.cpp`).
+  - `RespawnMarkerRoost.cpp` 506 -> 421 (+ `RespawnMarkerBell.cpp`); the beacon's socket variable is `Lamp`.
+- **For the level script:**
+  - The two rappel spawners set `rope_nearest_feet` True.
+  - BargeDeckStern stands at the cross walk spots' middle (-500, 0, 2256 + 50).
+  - The horns' Vane cue: `place_horns` takes spot index 0, the bow-most now. Better: by position, `max(range(len(spots)), key=lambda i: barge-local x)`.
+
+## Round 14 (17:00): the deck fight "Bigger" (the user: "More pushes, Dredgers dropping from the house roof and the tower, a third push from the stern deck"); not built
+- **Plan** (`World/BargeFightRules.h`, part of BargeRules):
+
+  | Push | Encounter | Dredgers | Where |
+  |---|---|---|---|
+  | 1 | BargeDeck (as now, its two waves) | 9 | the nine spots |
+  | 2 | BargeDeckRoof + BargeDeckTower (rappel) | 6 (4 + 2) | ropes off the house's fore face under its roof (3), the bow scoop's aft face (2) |
+  | 3 | BargeDeckStern | 4 | the stern deck, up both walks |
+
+  - Push 1 is the well deck's, as now. Push 2 drops in front of the player and behind them: onto the well deck's aft half and the forecastle's fore end. Push 3 comes from behind, its men showing at the walks' mouths.
+  - The pushes and their counts are rules constants (`NumDeckPushes` 3, `DeckPushDredgers` {9, 6, 4}).
+- **Pacing:** she starts push 2, then push 3, herself in step 3 (`ABargeBoarding::AdvancePushes`, `BargeBoardingPushes.cpp`; `TriggerWave` on the next push's spawners).
+  - The next push starts `PushBeatSeconds` 4 after the last has brought all its waves and is down to `PushNextAlive` 2 (alive plus owed).
+  - Or `PushNextSeconds` 75 after the last began, whatever's left of it.
+  - The count starts over whenever her step changes.
+- **The way down:** a scripted rope slide, because Dredgers can't step off a drop (`bCanWalkOffLedges` false; the steering's ledge look is 3.5 m; the spawner's own note: "creatures never step off a drop of more than about 4 m").
+  - The house roof is 9.5 m over the well deck and the scoop's top 7.6 m over the forecastle.
+  - So push 2 uses `ARappelSpawner` (Main 4-5's tender and hose drops): men appear at the rope tops, slide down, land, hunt.
+  - Pairing: a man's rope is his spawn's turn, so each spawner's spots are in rope order and one spawner per face.
+  - Ropes are world positions; she doesn't move while hanging.
+- **Rope tops** (from `BARGE_LAYOUT.md`'s hulls; the editor was closed, so not traced; the `.Fight` test checks each face):
+  - Roof: (2262, -380 / 0 / 600, 3190), slanted out over the horns, the vent and the stack. Landings (2880, -350), (2570, -20), (2800, 560).
+  - Tower: (5070, +-250, 3100). Landings (4960, -300), (4960, 280).
+- **Stern spots:** (-3600, +-300), (-3480, +-150), aft of the casing's aft wall.
+- **Cover:**
+  - Against the drops: the crate, the trios, the cart and the forecastle's aft face.
+  - Against the stern push: the gantry and the stack guard the walks' mouths aft; a new barrel pair at (3500, -560) gives mid-port cover facing aft.
+- **Tests** (`Looter.World.Barge.Fight`, `BargeBoardingFightTests.cpp`):
+  - The pushes and their pacing.
+  - Every push's spots on their zones.
+  - The droppers' rope tops a hand off their faces (the hull within 60 cm), each rope clear, each landing floored and clear for a Dredger.
+  - The stern push's route: a 35 cm-radius walker flood-filled over a 30 x 15 cm grid from each stern spot to x 2320.
+  - The layout's casing walks show headroom 26-50 cm at x -2700..-2825. If both walks are blocked there, the test names the place: a hull change for REWORK.
+- **For the level script and the mission data (Main / LEVEL):**
+  - `build_area_main6.py`:
+    - Keep BargeDeck as is.
+    - Add two `RappelSpawner`s:
+      - `BargeDeckRoof`: groups 3 riflemen + 1 hose-man, wave 1.
+      - `BargeDeckTower`: 2 riflemen.
+      - For each, `rope_tops` = `barge.get_drop_rope_tops(name)` (world) and `spawn_points` from `get_fight_spots(name)` in that order.
+      - `spawn_on_approach` False, `num_waves` 1, `hunt_on_spawn` True, the same `active_when` as BargeDeck, `creature_tags` `Dredger_<name>`, attached.
+    - Add one `EncounterSpawner` `BargeDeckStern` at the stern spots' middle (-3540, 0, 2250 + 50):
+      - groups 3 riflemen + 1 hose-man, `spawn_on_approach` False.
+      - `give_up_radius` 0 or `ground_corners` = her deck's outline (x -3750..5590, y +-1237 in world), so they hunt the player 60 m fore.
+    - `place_spawner` needs a class argument and the rappel's `rope_tops`.
+  - `create_mission_assets.py`: the deck step's "Fight across the barge's deck" (`spawner_id` BargeDeck, `count=9`) gains three more clear objectives: BargeDeckRoof 4, BargeDeckTower 2, BargeDeckStern 4 (all required; the tracker can keep the one line). Or one count of 19 if an objective can span spawners; `UMissionClearObjective` finds one spawner by id.
+
+## Round 13 (17:00): the PIE walk's fixes (grabs `Saved/ArtPreviews/BargeRound3Final/`); not built
+1. **Lanes 1.5 m to both walks:**
+   - The four horns moved:
+     - two against the house's fore face facing fore: (2215, +-115), yaw 0;
+     - two on the starboard rim facing in: (2700 / 3700, 792, 2340), yaw -90 (the port rim is the Lamplighter's).
+   - `HornSpots` is now `FHornSpot` {At, Yaw}; `GetHornSpots` turns each its way.
+   - Moved pieces:
+     - the gantry (2500, -430) -> (2560, -280): its -Y edge -502, 33 cm inside the port lane;
+     - the stack (2440, 420) -> (2440, 380): its flange 92 cm off the starboard lane's sphere;
+     - the vent (2550, -130) -> (2480, 40);
+     - W4 (2350, -200) -> (2290, -380), aft of the gantry.
+   - Lanes: `PortLaneY` -610, `StarboardLaneY` 650, `LaneAftX` 2320, `WalkMouthX` 1850.
+   - `.Deck` checks:
+     - a 75 cm-radius body every 30 cm from the landing along each rail, and from the deck's middle to it;
+     - then a man's way (`RouteOpen`, 30 cm) into each walk's mouth;
+     - the horns against the house or on the starboard rim, off the lanes.
+2. **The manifest:** on the bench's work top, at its `Gun` socket less 3 cm (GunsmithBench.py: top 0.95 m, the socket 3 cm over its clear middle). Without the socket, the bounds' bottom + `DeskWorkTop` 95.
+   - The radio stands on the top's back corner (`RadioOnDesk` (-20, 60, 15)).
+   - The fallback block is 95 tall.
+   - `.Hall`: the manifest 95 +-5 over the bench's foot and under its top, seen from the walkway (an eye at r 600).
+3. **The desk turned:**
+   - `DeskYaw` + 180: its front (+X) to the hall, the tool wall to the wall. Turned the other way, the tool wall had faced the aisle.
+   - `DeskGap` 2: its back against the wall (r 748; its front about r 658).
+   - The walkway is r 559..658.
+   - `.Hall`: a capsule every 30 cm round both runs at r 600 (284..334 deg, 26..76 deg). The chord walk's desk point moved to r 610 (the rail).
+4. **Hand rails:**
+   - Pawn-only walls 100 high along every laid span's inner edge (r 553..559); none at the floor stairs' openings.
+   - Both sides of the hatch stair, 3 cm in from its edges: over the hall and over the hole's gap.
+   - Their look in `MI_BargeKitIron` (`HandrailLook`): top and mid rails, stanchions at the span edges and the stair's ends and middle. The old top-rail look left CatwalkLook.
+   - `.Hall`: steps off the inner edge at four angles and off both stair sides meet a rail.
+5. **The pipe in the stair shot:** the draft valve at 300 deg (r 730), its riser through the catwalk's grating.
+   - Neither the risers nor the furnace pipes clip a stair: the 300-deg riser stands 2.25 m past the port stair's top; the furnace pipes are within r 220.
+   - Fix: the risers (and the stand-in pipe) now end at the catwalk's underside (`ValveRiserTop` 560).
+6. **Light:**
+   - Work lamps 40 cd, 16 m.
+   - Two new lamps on the forecastle's fore half: posts 2.3 m up from its floor at the scoop walls' feet, (4870, 445) and (4870, -385).
+   - One more in the cross walk, a rod from the house's aft overhang at (-336, -450).
+   - Twelve lamps in all, shadowless; perf on the barge's view next time.
 
 ## Round 12 (15:50): REWORK's round-4 hull; `.Hull`'s deck heights (not built)
 - **Cause** (`.Hull` "Her decks at their zones' heights", every zone): the zones' heights against the hull's own tops to

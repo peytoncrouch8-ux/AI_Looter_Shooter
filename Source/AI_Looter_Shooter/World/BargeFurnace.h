@@ -93,6 +93,10 @@ public:
 	FVector GetCageLocation() const;
 	FVector GetCageFacing() const;
 	FVector GetCageMouth() const;
+	/** The cage's light drawn only while the player is below her deck (ABargeBoarding::ShowLightsFor); lit as its state
+	 *  has it. */
+	void SetLightShown(bool bShown);
+	bool IsCageLightOn() const;
 	FVector GetBackWall() const;
 
 	/** Its opening's lines while it's shut and wanted: OpenWhen (Main 6 step 6). */
@@ -188,6 +192,7 @@ private:
 	bool bGrateModel = false;
 	bool bFireModel = false;
 	bool bShardModel = false;
+	bool bLightShown = true;
 	FVector BodyScale = FVector::OneVector;
 	FVector HeartAt = FVector::ZeroVector;
 	FVector MouthAt = FVector::ZeroVector;

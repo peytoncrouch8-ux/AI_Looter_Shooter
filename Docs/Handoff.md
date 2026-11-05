@@ -3,7 +3,18 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
-## START HERE (2026-11-04 ~11:00, IN PROGRESS: the barge's ROUND 3; the committed a81c52ab has the boxed house the user REJECTED)
+## START HERE (2026-11-04 evening, IN PROGRESS: art round 4 on CONTRACT.md "Round 4"; barge round 3 committed in 0c0750bf)
+**The user's calls this evening:** next "Sharper Tripo models" (REPACK lane); barge leftovers "Berth repetition, Plain stairs,
+Blurry house walls" (REWORK r5, REBAKE); perf "Alongside the next work" (PERF lane: the heavy views wait on last frame's
+occlusion queries, GPU + 1.2-1.4 ms; `r.NumBufferedOcclusionQueries 2` on test). From a grill round: playtest "Later this week"
+(keep building); 120 fps "Hard line, every view" (CLAUDE.md); the deck fight "Bigger" (three pushes, droppers from the house roof
+and the tower, a push from the stern: KIT round 14); Mains 4-7 set pieces "Script-made only" (CLAUDE.md). The full PIE walk
+(`Saved/ArtPreviews/BargeRound3Final/`) found: no boarding from the Lamplighter (her sortie opens `Rail_Port_4`, a stale index
+since the COLLISION lane's 20 rails a side, and her `Locker` block sits on the plank's hinge: COLLISION fixing), knife-edge lanes
+to the walks, the manifest 2.1 m up on the bench's tool wall, the desk blocking the catwalk ring, no inner handrail (a 5.8 m
+fall), dark forecastle, weak lamps (KIT round 13); the hall walls' blotch tiling (`MI_BargeKitIron` at full strength).
+
+## Round 3 of the barge (2026-11-04 ~11:00; committed 0c0750bf; a81c52ab had the boxed house the user REJECTED)
 The user on a81c52ab's barge: "why the fuck did you put a big box on the Tripo model. This does not look good in slightest. Use
 the Tripo model and adjust it, don't just throw a structure on the ship and call it a day." Then: pieces may be moved, resized,
 retextured ("act like a senior game designer and developer"); the hall "Below deck, smaller". Round 3 (`CONTRACT.md` "Round

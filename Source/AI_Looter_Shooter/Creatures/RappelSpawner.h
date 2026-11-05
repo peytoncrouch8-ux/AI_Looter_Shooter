@@ -42,6 +42,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Encounter|Rappel", meta = (ClampMin = "0.3", Units = "s"))
 	float SlideSeconds = 2.2f;
 
+	/**
+	 * Each man takes the rope nearest the spot he lands on (the barge's droppers, whose ropes hang over their own landings:
+	 * the spawner may skip a spot near the player or too near another, and in turn he could slide from one face to
+	 * another's landing); a drop's second on a rope waits behind the first. Off: the ropes taken in turn (Mains 4-5).
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Encounter|Rappel")
+	bool bRopeNearestFeet = false;
+
 	/** The ropes hang on this long (s) after the last man lands (without a tender to hang from). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Encounter|Rappel", meta = (ClampMin = "0", Units = "s"))
 	float RopeLingerSeconds = 6.f;
@@ -53,6 +61,9 @@ public:
 	int32 NumRopes() const;
 	/** Rope Index's top now (world). */
 	FVector GetRopeTop(int32 Index) const;
+
+	/** The rope a drop's Turn-th man (from 0) takes for his landing at Feet: the nearest of Tops (flat), or Turn's in turn. Pure. */
+	static int32 PickRope(TConstArrayView<FVector> Tops, const FVector& Feet, int32 Turn, bool bNearest);
 
 	/** How far down a slide Time seconds into Seconds is (0 the top, 1 the ground): quick at first, braked at the bottom. Pure. */
 	static float SlideAlpha(float Time, float Seconds);
@@ -97,4 +108,6 @@ private:
 	float RopesHung = 0.f;
 	bool bRopesDown = false;
 	TArray<FVector> RopeFeet;
+	/** Men sent down each rope this drop (bRopeNearestFeet: the next on a rope waits behind them). */
+	TArray<int32> DropOnRope;
 };

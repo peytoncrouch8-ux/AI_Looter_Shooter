@@ -14,6 +14,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshSocket.h"
 #include "Materials/MaterialInterface.h"
 #include "PhysicsEngine/BodySetup.h"
 
@@ -140,8 +141,9 @@ void ABargeBoarding::BuildDressing()
 	static UMaterialInterface* const Wood = BargeLooks::Find<UMaterialInterface>(BargeLooks::Wood);
 	static UMaterialInterface* const KitIronDark = BargeLooks::FindOr<UMaterialInterface>(BargeLooks::KitIronDark, BargeLooks::IronBlack);
 
-	// The stoker's corner on the catwalk. The desk: the bench at its own size against the hall's wall, its long side along
-	// the ring; the radio on its corner (Ned's call comes out of it).
+	// The stoker's corner on the catwalk. The desk: the bench at its own size, its back (the tool wall) to the hall's wall,
+	// its work top into the walkway, its long side along the ring; the radio on its top's back corner (Ned's call comes out
+	// of it), the manifest on its clear middle (GetOfficeSpot).
 	const FVector DeskFallback = BargeRules::DeskFallbackHalf;
 	const bool bLongX = DeskMesh && DeskMesh->GetBoundingBox().GetSize().X > DeskMesh->GetBoundingBox().GetSize().Y;
 	const float DeskYaw = BargeRules::DeskYaw() + (bLongX ? 90.f : 0.f);
@@ -149,7 +151,11 @@ void ABargeBoarding::BuildDressing()
 	const double DeskDepth = bLongX ? DeskExtent.Y : DeskExtent.X;
 	const FVector DeskFoot = BargeRules::DeskSpot(static_cast<float>(DeskDepth));
 	Desk = MakeProp(TEXT("OfficeDesk"), DeskMesh, Wood, DeskFoot, DeskYaw, DeskFallback, true);
-	const FVector OnDesk = DeskFoot + FVector(0.0, 0.0, DeskExtent.Z * 2.0);
+	// The work top's height: the bench's Gun socket (over its top's clear middle) less its rise, else the rules' (its 0.95 m).
+	const UStaticMeshSocket* TopSocket = DeskMesh ? DeskMesh->FindSocket(BargeRules::DeskTopSocket()) : nullptr;
+	const double WorkTop = TopSocket ? TopSocket->RelativeLocation.Z - DeskMesh->GetBoundingBox().Min.Z - BargeRules::DeskSocketOverTop
+		: (DeskMesh ? BargeRules::DeskWorkTop : DeskFallback.Z * 2.0);
+	const FVector OnDesk = DeskFoot + FVector(0.0, 0.0, WorkTop);
 	// The kit's oxide wireless standing on its feet, its dials into the hall; else a dark iron block.
 	const FVector RadioMiddle = BargeRules::RadioSpot(OnDesk);
 	if (RadioMesh)
@@ -233,7 +239,7 @@ void ABargeBoarding::BuildWorkLamps()
 	static UStaticMesh* const LanternMesh = BargeLooks::Find<UStaticMesh>(BargeLooks::HallLantern);
 	static UMaterialInterface* const KitIronDark = BargeLooks::FindOr<UMaterialInterface>(BargeLooks::KitIronDark, BargeLooks::IronBlack);
 
-	// The brackets' iron and the lanterns, instanced (nine lamps: two draws); looks only, no shadows.
+	// The brackets' iron and the lanterns, instanced (two draws for them all); looks only, no shadows.
 	WorkLampIron = MakeInstanced(TEXT("WorkLampIron"), CubeMesh, KitIronDark);
 	WorkLampLanterns = MakeInstanced(TEXT("WorkLampLanterns"), LanternMesh, nullptr);
 	for (UInstancedStaticMeshComponent* Looks : { WorkLampIron.Get(), WorkLampLanterns.Get() })
@@ -286,8 +292,8 @@ void ABargeBoarding::LayWorkLamps()
 		{
 		case BargeRules::ELampMount::Post:
 		{
-			// Up out of the wall's top, then the arm along the post's top.
-			const FVector Top = Lamp.Fixed + FVector(0.0, 0.0, BargeRules::WorkLampPostUp);
+			// Up out of what it stands in, then the arm along the post's top.
+			const FVector Top = Lamp.Fixed + FVector(0.0, 0.0, Lamp.Up);
 			Bar(Lamp.Fixed - Sunk, Top);
 			Bar(Top - FVector(0.0, 0.0, T * 0.5), Top + Out * Arm - FVector(0.0, 0.0, T * 0.5));
 			break;

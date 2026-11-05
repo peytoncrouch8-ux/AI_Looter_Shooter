@@ -70,7 +70,7 @@ void ABargeFurnace::SetCageBurst(bool bBurst)
 	Heart->SetVisibility(!bBurst && !bOut);
 	HeartSmog->SetVisibility(!bBurst && !bOut);
 	CageFrame->SetVisibility(!WholeMesh);
-	CageLight->SetVisibility(!bBurst && !bOut);
+	CageLight->SetVisibility(bLightShown && !bBurst && !bOut);
 	// The boiler burst: its porthole torn open on its hinge, bars snapped and bent (the same pivot, sockets and slots).
 	if (WholeMesh && BrokenMesh)
 	{
@@ -119,6 +119,17 @@ void ABargeFurnace::UpdateGlow()
 FVector ABargeFurnace::GetCageMouth() const
 {
 	return GetActorTransform().TransformPosition(MouthAt);
+}
+
+void ABargeFurnace::SetLightShown(bool bShown)
+{
+	bLightShown = bShown;
+	CageLight->SetVisibility(bLightShown && !bCageBurst && !bOut);
+}
+
+bool ABargeFurnace::IsCageLightOn() const
+{
+	return CageLight && CageLight->IsVisible();
 }
 
 void ABargeFurnace::PutOut()

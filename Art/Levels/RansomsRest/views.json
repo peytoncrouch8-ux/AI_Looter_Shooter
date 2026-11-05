@@ -1,5 +1,5 @@
 {
-  "about": "Where Ransom's Rest is looked at from, for screenshots and performance (Looter.Tour; Tools/tour.ps1 -Map /Game/Maps/Lvl_RansomsRest -Views Art/Levels/RansomsRest/views.json), most from the terrain's preview cameras (layout.json preview.views). x and y in cm (X north, Y east); height in cm above the first surface under the view (so never over a roof; an interior's view gives top, a world height in cm under its ceiling, where that search starts: the mine's galleries, the depot's waiting room, the watchtower's deck); yaw 0 looks north, 90 east; pitch up is positive. A view's exec runs as the tour arrives and after as it leaves: the _NoBeyond views measure what lies past the boundary (tagged Beyond) by the difference, the _FarShadow ones one far shadow cascade to 400 m drawn by buildings and cliffs (Looter.Perf.FarShadow), and the _Dusk ones the level at dusk (Looter.Light Dusk behind its fade, back to Day after; on the deck the Gravewind's wisps and the canyon's fog show then). WhitlockFields is the plan's view 12: from the fields path by Amos's gate over the hay to the Whitlock barn and the windmill (Amos leans there only in a session past Main 4). DeckFight_Dusk is the plan's view 13, last because it moves the player: Abel's fight on the deck at dusk with ten adds hunting the player, who can't be hurt (Looter.Abel.Perf 10), started over as it leaves (Looter.Abel.Reset).",
+  "about": "Where Ransom's Rest is looked at from, for screenshots and performance (Looter.Tour; Tools/tour.ps1 -Map /Game/Maps/Lvl_RansomsRest -Views Art/Levels/RansomsRest/views.json), most from the terrain's preview cameras (layout.json preview.views). x and y in cm (X north, Y east); height in cm above the first surface under the view (so never over a roof; an interior's view gives top, a world height in cm under its ceiling, where that search starts: the mine's galleries, the depot's waiting room, the watchtower's deck); yaw 0 looks north, 90 east; pitch up is positive. A view's exec runs as the tour arrives and after as it leaves: the _NoBeyond views measure what lies past the boundary (tagged Beyond) by the difference, and the _Dusk ones the level at dusk (Looter.Light Dusk behind its fade, back to Day after; on the deck the Gravewind's wisps and the canyon's fog show then). WhitlockFields is the plan's view 12: from the fields path by Amos's gate over the hay to the Whitlock barn and the windmill (Amos leans there only in a session past Main 4). DeckFight_Dusk is the plan's view 13, last because it moves the player: Abel's fight on the deck at dusk with ten adds hunting the player, who can't be hurt (Looter.Abel.Perf 10), started over as it leaves (Looter.Abel.Reset). BargeDeck_Landfall and its _Stay come after it, last because they leave the world in Main 6's state: the barge at her berth over the town with the Lamplighter grappled and the player on her well deck (Looter.Landfall 4, Looter.Barge.Show 3 aboard, Looter.Pilot.State Grappled); the camera stands where the player's eyes were (2026-11-04), at a world height: a top under the world makes the ground search find nothing, so the height is the camera's z. The far-cascade views (_FarShadow) went on 2026-11-04: they measured a far cascade the user turned down on 2026-10-07.",
   "views": [
     {"name": "Grave", "x": -3660, "y": -8650, "height": 170, "yaw": 35, "pitch": 2, "fov": 80},
     {"name": "Farm", "x": -3900, "y": -5100, "height": 170, "yaw": 64, "pitch": -2, "fov": 80},
@@ -25,10 +25,6 @@
     {"name": "Aerial", "x": -9000, "y": -9000, "height": 6000, "yaw": 45, "pitch": -22, "fov": 70},
     {"name": "Aerial_NoBeyond", "x": -9000, "y": -9000, "height": 6000, "yaw": 45, "pitch": -22, "fov": 70,
      "exec": ["Looter.Perf.HideTag Beyond 1"], "after": ["Looter.Perf.HideTag Beyond 0"]},
-    {"name": "PointOverValley_FarShadow", "x": -7400, "y": -9300, "height": 170, "yaw": 49, "pitch": -4, "fov": 80,
-     "exec": ["Looter.Perf.FarShadow 1 400"], "after": ["Looter.Perf.FarShadow 0"]},
-    {"name": "ChapelOverTown_FarShadow", "x": 5300, "y": -1900, "height": 170, "yaw": 137, "pitch": -4, "fov": 80,
-     "exec": ["Looter.Perf.FarShadow 1 400"], "after": ["Looter.Perf.FarShadow 0"]},
     {"name": "Grave_Dusk", "x": -3660, "y": -8650, "height": 170, "yaw": 35, "pitch": 2, "fov": 80,
      "exec": ["Looter.Light Dusk"], "after": ["Looter.Light Day"]},
     {"name": "PointWest_Dusk", "x": -7400, "y": -9300, "height": 170, "yaw": 247.5, "pitch": -3, "fov": 80,
@@ -54,6 +50,9 @@
     {"name": "FarmBarge", "x": -3900, "y": -5100, "height": 170, "yaw": 60, "pitch": 12, "fov": 80},
     {"name": "SinkUnderBarge", "x": 4523, "y": 4301, "height": 170, "yaw": 88, "pitch": 25, "fov": 80},
     {"name": "DeckFight_Dusk", "x": 1200, "y": -13800, "height": 200, "yaw": 262, "pitch": -7, "fov": 80,
-     "exec": ["Looter.Light Dusk", "Looter.Abel.Perf 10"], "after": ["Looter.Abel.Reset", "Looter.Light Day"]}
+     "exec": ["Looter.Light Dusk", "Looter.Abel.Perf 10"], "after": ["Looter.Abel.Reset", "Looter.Light Day"]},
+    {"name": "BargeDeck_Landfall", "x": 8521, "y": -5543, "top": -99000, "height": 5647, "yaw": 90, "pitch": 0, "fov": 90,
+     "exec": ["Looter.Landfall 4", "Looter.Barge.Show 3 aboard", "Looter.Pilot.State Grappled"]},
+    {"name": "BargeDeck_Landfall_Stay", "x": 8521, "y": -5543, "top": -99000, "height": 5647, "yaw": 90, "pitch": 0, "fov": 90}
   ]
 }

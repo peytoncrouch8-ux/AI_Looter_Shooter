@@ -86,8 +86,11 @@ lamplit recess behind the door), so a door sweep means reaching the door face.
   windows are placed (their faces are what the player sees at the edges), then cover_leftovers; `old_hulls()`:
   LOOTER_TRIPO_HULLS=kdop keeps the old refit for comparing.
 - `Source/AI_Looter_Shooter/World/LamplighterShipParts.cpp`: 18 tilted floor pieces (DeckPieces; Deck, SternDeck, ProwDeck
-  three of them), 5 deck blocks (console, its engine, locker, chest, wheel house: BlockAll, WorldDynamic), side rails along
-  the measured bulwark line (20 stretches a side, tagged by side and span; ShowGangway opens the gangway's span by tag),
+  three of them), deck blocks (console, its engine, the starboard locker bench whole, chest, wheel house: BlockAll,
+  WorldDynamic), side rails along the measured bulwark line (20 stretches a side, tagged by side and span; ShowGangway opens
+  the gangway's span by tag; OpenStarboardRail, moved here from LamplighterShipSortie.cpp, opens the stretches tagged
+  SideRail_Plank: those reaching within PlankOpenHalf 110 of the plank's hinge, x 150..450. The old index 4 opened
+  Rail_Port_4 once there were 20 stretches a side, a regression a PIE walk found),
   spots on the measured deck (LandingLocal z 10, Holloway 50, Finch 120, engine barrels 8).
 - `Source/AI_Looter_Shooter/World/CompanyTender.cpp`: DeckTop 298 replaced by HingeTop 300 (the plank's hinge on the bag
   cradle's rim) and per-spot rifleman heights (above). Needs the tender's SPECS hook: with the old box (top 298) the aft
@@ -117,5 +120,20 @@ lamplit recess behind the door), so a door sweep means reaching the door face.
   cm over the deck's edge there.
 - LamplighterShipParts.cpp is 556 lines (over ~500: the deck tables could move to their own file); the new Python module
   888. CODEMAP has its line.
+- The plank to the barge moved fore of her locker bench (2026-11-04, after the regression): ALamplighterShip::PlankHingeX
+  300 (LamplighterShip.h; PilotSortieFight.cpp PlankHinge reads it), the bench's collision whole again (x -175..215), her
+  rail open x 150..450 round the hinge. The berth follows: BargeRules.h berth lines, new ShipPlankHingeX 300 (after
+  ShipBagHalfBeam); BargeBoardingSpots.cpp GetBerth and GetJumpBerth lie her keel at BerthX - ShipPlankHingeX (2850), so the
+  hinge meets the barge's gap (x 3005..3295) square at 3150; the grapples' bites (BerthX +-600) and BerthX itself unchanged.
+  The y-z clearances (PlankSillClearance, BerthBagClearance, JumpBagClearance) don't read x: unchanged.
+- Looter.World.PilotSortie.PlankWalk (PilotSortieTests.cpp, now with the barge, BargeTestWorld::SpawnBarge at DeckStep): the
+  player's capsule every 30 cm out through the gangway's span moored; in the berth the hinge within 5 cm of BerthX, the walk
+  from her deck (x 300, y 150) over the plank to the barge's GetBoardingPoint clear, a walk into the bench at x 0 stopped by
+  Locker; after Jump the rail at the hinge shut. ShipPlankHingeX == PlankHingeX checked there.
+- Junie's grapple lines now lean forward: her launchers stand at x 520 and -560, the barge's bites at her x 900 and -300
+  (were 600, -600). Square again would need the launchers moved (x 900 is where her bulwark has narrowed to y 260) or the
+  bites made relative to her keel (GetGrappleAnchor).
+- build_area_main6_sortie.py aims her course's end at GetBerth: placed before this, the course ends 3 m fore of the new
+  berth (the C++ glides her the rest); a rebuild of that level script puts it back.
 - Tests after the build: Looter.World.Landfall*, Looter.World.PilotSortie*, the roost tests, Looter.World.Barge.* (the berth
   reads the ship's numbers; DeckTop and RailOut are unchanged).

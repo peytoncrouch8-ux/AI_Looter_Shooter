@@ -225,6 +225,7 @@ def _paint_grid(area, grid, log=print):
     _forest(area, grid, canvas, n_mid, n_fine)
     _plateau_tops(area, grid, canvas, n_fine)
     _features(area, grid, canvas, n_fine, n_grain)
+    _erosion(area, grid, canvas, n_grain)
     _range(area, grid, canvas)
     _orchard(area, grid, canvas)
     _yards(area, grid, canvas, n_fine)
@@ -250,7 +251,9 @@ def _paint_grid(area, grid, log=print):
         faces = _cached(area, 'faces', lambda: area_faces.fields(area, area.grid, area.h))
         if faces is not None:
             log('macro: ridge faces')
-            shaped = _ss(0.5, 1.2, area.onto(np.abs(area.h - area.h_region), grid))
+            # What the core's features shaped, against the heights before erosion: erosion's own change on the ridges'
+            # faces is no feature of the core's, and their faces stay painted.
+            shaped = _ss(0.5, 1.2, area.onto(np.abs(area.h - area.h_region), grid) - _eroded_change(area, grid))
             keep = np.maximum.reduce([near_water, road_near, shaped, _ss(0.0, 0.08, depth)])
             del shaped
             if area_mosaic.spec(area) is not None:
@@ -369,6 +372,35 @@ def _features(area, grid, canvas, n_fine, n_grain):
         canvas.paint(PEBBLE_DARK, 0.5 * bed * _ss(0.55, 0.7, n_grain), alpha=0.6)
     for k in getattr(area, 'knobs', []):
         _disc(grid, canvas, np.asarray(k['center']), max(k['radius'] * 0.8, 1.2), SOIL, 0.7, 0.2, soft=1.0)
+
+
+def _eroded_change(area, grid):
+    """How far erosion moved the ground (m, either way) on a grid; 0 without erosion."""
+    fields = getattr(area, 'erosion', None)
+    if not fields:
+        return 0.0
+    return np.abs(area.onto(fields['applied'], grid))
+
+
+def _erosion(area, grid, canvas, n_grain):
+    """Erosion's own ground (area_erosion.py; erosion.paint): the gullies' beds a darker, stonier soil where the water
+    gathered and the change sank below its surroundings, the fans and the talus a paler grit where it laid soil down.
+    Read from the change erosion made, which is 0 wherever its masks kept the ground (the town, the farmyard, the
+    roads, the zones of play), so nothing is tinted there."""
+    fields = getattr(area, 'erosion', None)
+    if not fields:
+        return
+    import area_erosion
+    if not (area_erosion.settings(area) or {}).get('paint', True):
+        return
+    applied = area.onto(fields['applied'], grid)  # m: + laid down, - cut
+    relief = area.onto(fields['relief'], grid)    # m: the change against its 6 m blur (- a bed, + a rib or a fan)
+    flow = area.onto(fields['flow'], grid)        # log10 of the water gathered (m2)
+    moved = _ss(0.02, 0.1, np.abs(applied))       # none where the masks kept the ground
+    bed = np.maximum(_ss(0.04, 0.35, -relief), 0.6 * _ss(1.4, 2.6, flow)) * moved
+    canvas.paint(_mix(SOIL_DARK, PEBBLE_DARK, 0.4 + 0.6 * n_grain), 0.55 * bed, alpha=0.45)
+    fan = _ss(0.05, 0.5, applied) * _ss(-0.05, 0.1, relief)
+    canvas.paint(_mix(SAND, PEBBLE_LIGHT, 0.45 + 0.8 * n_grain), 0.45 * fan, alpha=0.5)
 
 
 def _plateau_tops(area, grid, canvas, n_fine):

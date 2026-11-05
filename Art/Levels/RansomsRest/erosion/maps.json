@@ -1,0 +1,75 @@
+{
+  "about": "The towns' flow and low-point maps (Art/Levels/area_erosion_maps.py), from the finished heights (erosion included). 16-bit grey PNGs, north up: row 0 is the window's north edge (X covers[1][0]), column 0 its west edge (Y covers[0][1]); each pixel one height-raster cell (cell, cm). flow: round(65535 x clip((log10 A + 2) / 8, 0, 1)), A the m2 draining through the cell (a priority flood's drainage over the window and 30 m round it); lows: millimeters of standing water before the hollow spills. Puddles: lows over 10 (1 cm) where flow is high (the Towns plan, section 6). covers: [[X0, Y0], [X1, Y1]] cm; size [columns, rows].",
+  "flowLog10": [
+    -2.0,
+    6.0
+  ],
+  "windows": [
+    {
+      "id": "town",
+      "flow": "flow_town.png",
+      "lows": "lows_town.png",
+      "covers": [
+        [
+          -3200.0,
+          -1600.0
+        ],
+        [
+          2412.5,
+          14812.5
+        ]
+      ],
+      "size": [
+        1313,
+        449
+      ],
+      "cell": 12.5,
+      "pits": 95236,
+      "deepest": 46.9
+    },
+    {
+      "id": "farm",
+      "flow": "flow_farm.png",
+      "lows": "lows_farm.png",
+      "covers": [
+        [
+          -5600.0,
+          -7400.0
+        ],
+        [
+          -1787.5,
+          -4387.5
+        ]
+      ],
+      "size": [
+        241,
+        305
+      ],
+      "cell": 12.5,
+      "pits": 5247,
+      "deepest": 19.7
+    },
+    {
+      "id": "whitlock",
+      "flow": "flow_whitlock.png",
+      "lows": "lows_whitlock.png",
+      "covers": [
+        [
+          -7800.0,
+          2800.0
+        ],
+        [
+          -5587.5,
+          4812.5
+        ]
+      ],
+      "size": [
+        161,
+        177
+      ],
+      "cell": 12.5,
+      "pits": 980,
+      "deepest": 2.2
+    }
+  ]
+}

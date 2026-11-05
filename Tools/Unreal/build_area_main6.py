@@ -14,6 +14,12 @@ traces) and the barge's own C++ layout (ABargeBoarding's getters: nothing of her
   C++). FallTarget: the wreck's spot below; BoardsPoint: the burial deck.
 - BargeDeck (AEncounterSpawner): six Dredger riflemen and three hose-men at level 6 on her deck's fight spots, in two pushes,
   from Main 6's grapple step (riflemen at the rail fire across as the Lamplighter comes alongside) until the manifest's.
+- The deck fight's later pushes (the user's "Bigger", 2026-11-04; World/BargeFightRules.h), the same level and the same steps,
+  never on the player's approach: she starts each herself in step 3 (ABargeBoarding::AdvancePushes). BargeDeckRoof and
+  BargeDeckTower (ARappelSpawner, one per face of the hull they come over): three riflemen and a hose-man down ropes off the
+  house's roof, two riflemen off the bow tower, their rope tops from GetDropRopeTops and their landings from GetFightSpots, in
+  that order (a man's rope is his spot's turn). BargeDeckStern (AEncounterSpawner): three riflemen and a hose-man up the walks
+  from the stern deck, hunting the player anywhere on her (they start some 60 m off). The mission's deck step clears all four.
 - FurnaceHall (AEncounterSpawner): the Chief Stoker (a hose-man, Hallowed, level 5 + the rank's 2 = 7, leading, x1.76
   health on Hallowed's 3.4: x6) with two riflemen and a hose-man, then two riflemen and two hose-men through the stokeholds,
   level 6, during the furnace's step.
@@ -92,6 +98,13 @@ DRUM_BESIDE = 700.0
 DECK_GROUPS = (('DredgerRifleman', 4, 1), ('DredgerHoseMan', 1, 1), ('DredgerRifleman', 2, 2), ('DredgerHoseMan', 2, 2))
 DECK_LEVEL = 6
 DECK_ACTIVATION, DECK_WAVE_GAP, DECK_MAX_ALIVE = 3500.0, 20.0, 7
+# The deck fight's later pushes (the fight names are ABargeBoarding::RoofFight/TowerFight/SternFight; the counts are
+# BargeRules::DeckPushDredgers {9, 6, 4}, and the mission's clear objectives in create_mission_assets.py): (class, count) per
+# group, one wave each.
+ROOF_FIGHT, TOWER_FIGHT, STERN_FIGHT = 'BargeDeckRoof', 'BargeDeckTower', 'BargeDeckStern'
+ROOF_GROUPS = (('DredgerRifleman', 3), ('DredgerHoseMan', 1))
+TOWER_GROUPS = (('DredgerRifleman', 2),)
+STERN_GROUPS = (('DredgerRifleman', 3), ('DredgerHoseMan', 1))
 HALL_LEVEL = 6
 CHIEF_LEVEL = 5        # + Hallowed's two levels: 7
 CHIEF_HEALTH = 1.76    # x Hallowed's 3.4: about x6
@@ -277,13 +290,25 @@ def make_group(cls_name, count, wave, level, rank='BASIC', health=1.0, leader=Fa
     return made
 
 
-def place_spawner(build, barge, fight, groups, middle, activation, when, waves, wave_gap, wait, most):
-    cls = story.actor_class('EncounterSpawner')
+def place_spawner(build, barge, fight, groups, middle, activation, when, waves, wave_gap, wait, most,
+                  cls_name='EncounterSpawner', ropes=None, on_approach=True, anywhere=False):
+    """One of her fights: the spawner class (EncounterSpawner, or RappelSpawner with ropes: the tops, world, one per spawn spot
+    in the spots' order, since a man's rope is his spot's turn), standing at middle (None: the middle of her spots for it).
+    on_approach False: its first wave comes only on her trigger (ABargeBoarding::AdvancePushes), never as the player nears.
+    anywhere: no hunting ground (radius 0, no corners: its men hunt the player wherever they are on her, up to their own
+    interest radius, at any height) and nothing taken away when the player is far, for the pushes that start a long way off."""
+    cls = story.actor_class(cls_name)
     groups = [g for g in groups if g is not None]
     spots = list(barge.get_fight_spots(unreal.Name(fight)))
     if cls is None or not groups or not spots:
-        build.warn(f'{fight}: no EncounterSpawner class, no Dredger classes or no spots: left out')
+        build.warn(f'{fight}: no {cls_name} class, no Dredger classes or no spots: left out')
         return None
+    if middle is None:
+        middle = unreal.Vector(sum(p.x for p in spots) / len(spots), sum(p.y for p in spots) / len(spots),
+                               sum(p.z for p in spots) / len(spots))
+    if ropes is not None and len(ropes) != len(spots):
+        build.warn(f'{fight}: {len(ropes)} rope tops for {len(spots)} spots (ABargeBoarding::GetDropRopeTops against GetFightSpots): '
+                   f'the men\'s ropes won\'t match their landings')
     label = f'Encounter_{fight}'
     remove_stale(build, label)
     spawner = build.place(cls, (middle.x, middle.y, middle.z + 50.0), 0.0, label=label, folder=FOLDER)
@@ -297,6 +322,15 @@ def place_spawner(build, barge, fight, groups, middle, activation, when, waves, 
     spawner.set_editor_property('active_when', when)
     spawner.set_editor_property('activation_radius', activation)
     spawner.set_editor_property('hunt_on_spawn', True)
+    spawner.set_editor_property('spawn_on_approach', on_approach)
+    if anywhere:
+        spawner.set_editor_property('give_up_radius', 0.0)
+        spawner.set_editor_property('despawn_radius', 0.0)
+    if ropes is not None:
+        spawner.set_editor_property('rope_tops', ropes)
+        # Each man takes the rope nearest the landing he was given (her spawner skips spots near the player, so the turn order
+        # would slide a man from one rope to another's landing through the house face); Mains 4-5 keep the turn order.
+        spawner.set_editor_property('rope_nearest_feet', True)
     # Her deck and her hall are high over the knoll: the ground the spots stand on is hers, at their own height (each spot is
     # kept relative to the spawner, which stands 50 cm over the getter's middle).
     spawner.set_editor_property('spawn_points', [unreal.Vector(p.x - middle.x, p.y - middle.y, p.z - middle.z - 50.0) for p in spots])
@@ -306,16 +340,46 @@ def place_spawner(build, barge, fight, groups, middle, activation, when, waves, 
     # Heights over her keel: what to look for in the editor after a rebuild (they come from her getters, not from here).
     keel = barge.get_actor_location().z
     low, high = min(p.z for p in spots) - keel, max(p.z for p in spots) - keel
+    notes = []
+    if ropes:
+        notes.append(f'{len(ropes)} ropes, tops {min(r.z for r in ropes) - keel:.0f}..{max(r.z for r in ropes) - keel:.0f} cm over her keel')
+    if not on_approach:
+        notes.append('only on her trigger')
+    if anywhere:
+        notes.append('hunting anywhere on her')
     build.log(f'{fight}: {count} Dredgers on the barge ({len(spots)} spots {low:.0f}..{high:.0f} cm over her keel, spawner '
-              f'{middle.z + 50.0 - keel:.0f} cm over it, {waves} pushes)')
+              f'{middle.z + 50.0 - keel:.0f} cm over it, {waves} wave(s){"".join(", " + n for n in notes)})')
     return spawner
+
+
+def rope_tops(build, barge, fight):
+    """Her droppers' rope tops for fight (world), or None, with a warning, when the game module lacks the getter."""
+    try:
+        return list(barge.get_drop_rope_tops(unreal.Name(fight)))
+    except Exception as error:
+        build.warn(f'{fight}: ABargeBoarding::GetDropRopeTops can\'t be called ({error}): build the game module first; left out')
+        return None
+
+
+def deck_when():
+    """The deck fight's steps, every push's: from the grapples (step 2) until the manifest's (4)."""
+    return story.condition(during=MAIN6, from_step=GRAPPLE_STEP, before_step=MANIFEST_STEP)
 
 
 def place_fights(build, barge):
     deck = [make_group(name, count, wave, DECK_LEVEL) for name, count, wave in DECK_GROUPS]
-    place_spawner(build, barge, DECK_FIGHT, deck, barge.get_deck_middle(), DECK_ACTIVATION,
-                  story.condition(during=MAIN6, from_step=GRAPPLE_STEP, before_step=MANIFEST_STEP), 2, DECK_WAVE_GAP, False,
+    place_spawner(build, barge, DECK_FIGHT, deck, barge.get_deck_middle(), DECK_ACTIVATION, deck_when(), 2, DECK_WAVE_GAP, False,
                   DECK_MAX_ALIVE)
+    # The later pushes: one spawner each, a wave each, started by her (never by the player's approach). The droppers' (roof,
+    # tower) are rappel spawners, one per face they come over, since a spawner skips spots on another level.
+    for fight, plan, kind in ((ROOF_FIGHT, ROOF_GROUPS, 'RappelSpawner'), (TOWER_FIGHT, TOWER_GROUPS, 'RappelSpawner'),
+                              (STERN_FIGHT, STERN_GROUPS, 'EncounterSpawner')):
+        ropes = rope_tops(build, barge, fight) if kind == 'RappelSpawner' else None
+        if kind == 'RappelSpawner' and ropes is None:
+            continue
+        place_spawner(build, barge, fight, [make_group(name, count, 1, DECK_LEVEL) for name, count in plan], None, DECK_ACTIVATION,
+                      deck_when(), 1, 0.0, False, sum(count for _, count in plan), cls_name=kind, ropes=ropes, on_approach=False,
+                      anywhere=True)
     hall = [
         make_group('DredgerHoseMan', 1, 1, CHIEF_LEVEL, rank='HALLOWED', health=CHIEF_HEALTH, leader=True, name='The Chief Stoker'),
         make_group('DredgerRifleman', 2, 1, HALL_LEVEL),
@@ -334,14 +398,18 @@ def place_horns(build, barge):
         return
     main2 = importlib.import_module('build_area_main2')
     lines = story.lines(build, VANE_DECK_LINES)
-    for index, spot in enumerate(barge.get_horn_spots()):
+    spots = list(barge.get_horn_spots())
+    # Vane speaks from the bow-most horn (the most forward along her own length), whatever order the C++ lists them in.
+    here, forward = barge.get_actor_location(), barge.get_actor_forward_vector()
+    bow = max(range(len(spots)), key=lambda i: (spots[i].translation - here).dot(forward)) if spots else -1
+    for index, spot in enumerate(spots):
         label = f'{HORN_TAG}_{index + 1}'
         remove_stale(build, label)
         at = spot.translation
         horn = build.place(cls, (at.x, at.y, at.z), spot.rotation.rotator().yaw, label=label, folder=FOLDER,
                            tags=main2.LOUDSPEAKER_TAGS + (HORN_TAG,))
         cues = []
-        if index == 0 and lines is not None:
+        if index == bow and lines is not None:
             # Vane welcomes the boarders from the bow's horn as the plank lands.
             cue = unreal.LoudspeakerCue()
             cue.set_editor_property('when', story.condition(during=MAIN6, from_step=DECK_STEP))

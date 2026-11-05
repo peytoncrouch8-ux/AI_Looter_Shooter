@@ -140,6 +140,150 @@ namespace BargeTestWorld
 		return FString();
 	}
 
+	/** True when a body of Radius stands clear with its feet at Feet (on her): a capsule from OverFeet up to Tall over them
+	 *  meets nothing a pawn bumps into. Blocker (if given) gets the first part it meets. */
+	inline bool CapsuleClear(const UWorld* World, const ABargeBoarding& Barge, const FVector& Feet, double Radius, double Tall, FString* Blocker = nullptr)
+	{
+		const float Half = FMath::Max(static_cast<float>((Tall - OverFeet) * 0.5), static_cast<float>(Radius));
+		const FVector Middle = Barge.GetActorTransform().TransformPosition(Feet + FVector(0.0, 0.0, OverFeet + Half));
+		const FCollisionShape Shape = FCollisionShape::MakeCapsule(static_cast<float>(Radius), Half);
+		if (!Blocker)
+		{
+			return !World->OverlapAnyTestByChannel(Middle, FQuat::Identity, ECC_Pawn, Shape);
+		}
+		TArray<FOverlapResult> Overlaps;
+		World->OverlapMultiByChannel(Overlaps, Middle, FQuat::Identity, ECC_Pawn, Shape);
+		for (const FOverlapResult& Overlap : Overlaps)
+		{
+			if (Overlap.bBlockingHit && Overlap.GetComponent())
+			{
+				*Blocker = Overlap.GetComponent()->GetName();
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * A walk along Points (on her, flat) a step at a time: at every step a floor within Rise of Z under it and a body of
+	 * Radius standing clear there (CapsuleClear, to 1.8 m). Why gets the first step it fails and on what.
+	 */
+	inline bool WalkLegs(const UWorld* World, const ABargeBoarding& Barge, const TArray<FVector2D>& Points, double Z, double Radius, FString* Why = nullptr)
+	{
+		constexpr double Step = 30.0;
+		constexpr double Rise = 10.0;
+		constexpr double Tall = 180.0;
+		for (int32 Leg = 0; Leg + 1 < Points.Num(); ++Leg)
+		{
+			const FVector2D From = Points[Leg];
+			const FVector2D Run = Points[Leg + 1] - From;
+			const int32 Steps = FMath::Max(1, FMath::CeilToInt32(Run.Size() / Step));
+			for (int32 Index = 0; Index <= Steps; ++Index)
+			{
+				const FVector2D At = From + Run * (static_cast<double>(Index) / Steps);
+				double Floor = 0.0;
+				const bool bFloor = FloorUnder(World, Barge, FVector(At, Z + 120.0), Floor) && FMath::Abs(Floor - Z) <= Rise;
+				FString Blocker;
+				if (!bFloor || !CapsuleClear(World, Barge, FVector(At, bFloor ? Floor : Z), Radius, Tall, &Blocker))
+				{
+					if (Why)
+					{
+						*Why = FString::Printf(TEXT("at (%.0f, %.0f): %s"), At.X, At.Y, bFloor ? *(TEXT("in ") + Blocker) : *(TEXT("floor ") + FloorWhat(World, Barge, FVector(At, Z + 120.0))));
+					}
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * A walker's way across her where the walls wander (the walks' mouths, the stern push's walks): a grid of cells 30 cm
+	 * along X by 15 cm across over YMin..YMax, from Start's cell toward GoalX; a cell stands where a drop from over it finds
+	 * a floor within 30 cm of Z and a body of Radius stands clear on it (CapsuleClear, to 1.8 m). Open when a cell at GoalX
+	 * is reached through cells side by side. Why gets the farthest it got and what stopped it past there.
+	 */
+	inline bool RouteOpen(const UWorld* World, const ABargeBoarding& Barge, const FVector2D& Start, double GoalX, double YMin, double YMax, double Z,
+		double Radius, FString* Why = nullptr)
+	{
+		constexpr double StepX = 30.0;
+		constexpr double StepY = 15.0;
+		constexpr double Rise = 30.0;
+		constexpr double Tall = 180.0;
+		const double Way = GoalX >= Start.X ? 1.0 : -1.0;
+		const int32 Columns = FMath::CeilToInt32(FMath::Abs(GoalX - Start.X) / StepX) + 1;
+		const int32 Rows = FMath::Max(1, FMath::CeilToInt32((YMax - YMin) / StepY) + 1);
+		const auto At = [&Start, Way, YMin](int32 Column, int32 Row)
+		{
+			return FVector2D(Start.X + Way * Column * StepX, YMin + Row * StepY);
+		};
+		// 0 not looked at, 1 no stand, 2 stands, 3 reached.
+		TArray<uint8> Cells;
+		Cells.Init(0, Columns * Rows);
+		const auto Stands = [&](int32 Column, int32 Row)
+		{
+			uint8& Cell = Cells[Column * Rows + Row];
+			if (Cell == 0)
+			{
+				const FVector2D Spot = At(Column, Row);
+				double Floor = 0.0;
+				const bool bFloor = FloorUnder(World, Barge, FVector(Spot, Z + 120.0), Floor) && FMath::Abs(Floor - Z) <= Rise;
+				Cell = bFloor && CapsuleClear(World, Barge, FVector(Spot, Floor), Radius, Tall) ? 2 : 1;
+			}
+			return Cell >= 2;
+		};
+		TArray<FIntPoint> Queue;
+		const int32 StartRow = FMath::Clamp(FMath::RoundToInt32((Start.Y - YMin) / StepY), 0, Rows - 1);
+		for (const int32 Offset : { 0, 1, -1, 2, -2 })
+		{
+			const int32 Row = StartRow + Offset;
+			if (Row >= 0 && Row < Rows && Stands(0, Row))
+			{
+				Cells[Row] = 3;
+				Queue.Add(FIntPoint(0, Row));
+				break;
+			}
+		}
+		FIntPoint Farthest(0, StartRow);
+		for (int32 Head = 0; Head < Queue.Num(); ++Head)
+		{
+			const FIntPoint Cell = Queue[Head];
+			if (Cell.X >= Columns - 1)
+			{
+				return true;
+			}
+			if (Cell.X > Farthest.X)
+			{
+				Farthest = Cell;
+			}
+			for (const FIntPoint Step : { FIntPoint(1, 0), FIntPoint(0, 1), FIntPoint(0, -1), FIntPoint(-1, 0) })
+			{
+				const FIntPoint Next = Cell + Step;
+				if (Next.X < 0 || Next.X >= Columns || Next.Y < 0 || Next.Y >= Rows || Cells[Next.X * Rows + Next.Y] == 3)
+				{
+					continue;
+				}
+				if (Stands(Next.X, Next.Y))
+				{
+					Cells[Next.X * Rows + Next.Y] = 3;
+					Queue.Add(Next);
+				}
+			}
+		}
+		if (Why)
+		{
+			const FVector2D Past = At(FMath::Min(Farthest.X + 1, Columns - 1), Farthest.Y);
+			double Floor = 0.0;
+			FString Blocker;
+			const bool bFloor = FloorUnder(World, Barge, FVector(Past, Z + 120.0), Floor) && FMath::Abs(Floor - Z) <= Rise;
+			CapsuleClear(World, Barge, FVector(Past, bFloor ? Floor : Z), Radius, Tall, &Blocker);
+			*Why = Queue.IsEmpty() ? FString::Printf(TEXT("no room at the start (%.0f, %.0f)"), Start.X, Start.Y)
+				: FString::Printf(TEXT("got to x %.0f; past it at (%.0f, %.0f): %s"), At(Farthest.X, Farthest.Y).X, Past.X, Past.Y,
+					bFloor ? *(TEXT("in ") + Blocker) : *(TEXT("floor ") + FloorWhat(World, Barge, FVector(Past, Z + 120.0))));
+		}
+		return false;
+	}
+
 	/** A component's box now (computed, not the cached bounds: instanced looks laid this frame count). */
 	inline FBox BoxOf(const UPrimitiveComponent& Part)
 	{

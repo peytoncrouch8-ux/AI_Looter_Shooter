@@ -9,6 +9,23 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 
+namespace
+{
+	/** The droppers' ropes of a fight (the roof's or the tower's), or none. */
+	TConstArrayView<BargeRules::FDropRope> DropsOf(FName Fight)
+	{
+		if (Fight == ABargeBoarding::RoofFight)
+		{
+			return BargeRules::RoofDrops;
+		}
+		if (Fight == ABargeBoarding::TowerFight)
+		{
+			return BargeRules::TowerDrops;
+		}
+		return {};
+	}
+}
+
 FVector ABargeBoarding::ToWorld(const FVector& Local) const
 {
 	return GetActorTransform().TransformPosition(Local + FVector(0.0, 0.0, KitLift));
@@ -27,24 +44,27 @@ bool ABargeBoarding::HasHull() const
 
 FTransform ABargeBoarding::GetBerth() const
 {
-	const FVector Keel(BargeRules::BerthX, BargeRules::BerthSide * BargeRules::BerthOut,
+	// Her keel aft of the gap by her plank's hinge (ShipPlankHingeX), so the plank comes square across it.
+	const FVector Keel(BargeRules::BerthX - BargeRules::ShipPlankHingeX, BargeRules::BerthSide * BargeRules::BerthOut,
 		BargeRules::WellDeckZ - BargeRules::BerthUnderDeck - BargeRules::ShipDeckOverKeel);
 	return FTransform(FRotator(0.f, GetActorRotation().Yaw, 0.f), ToWorld(Keel));
 }
 
 FTransform ABargeBoarding::GetJumpBerth() const
 {
-	// Under the gangway's broken end, as she lists and drifts: the ship keeps level (the barge's yaw only).
-	const FVector Keel(BargeRules::BerthX, BargeRules::BerthSide * BargeRules::JumpOut,
+	// Under the gangway's broken end, as she lists and drifts: the ship keeps level (the barge's yaw only), lined up as at the
+	// berth (her open deck fore of the console and the locker under the jump).
+	const FVector Keel(BargeRules::BerthX - BargeRules::ShipPlankHingeX, BargeRules::BerthSide * BargeRules::JumpOut,
 		BargeRules::WellDeckZ - BargeRules::JumpUnderDeck - BargeRules::ShipDeckOverKeel);
 	return FTransform(FRotator(0.f, GetActorRotation().Yaw, 0.f), ToWorld(Keel));
 }
 
 FVector ABargeBoarding::GetGrappleAnchor(int32 Index) const
 {
-	// On her rail's top, fore and aft of its gap.
+	// On her rail's top fore and aft of the Lamplighter's middle (her keel lies ShipPlankHingeX aft of the gap: GetBerth), so
+	// the chains run square to Junie's launchers.
 	const float Along = Index == 0 ? BargeRules::GrappleSpread : -BargeRules::GrappleSpread;
-	return ToWorld(FVector(BargeRules::BerthX + Along, BargeRules::BerthSide * (BargeRules::BulwarkHalfBeam - BargeRules::BulwarkThick * 0.5),
+	return ToWorld(FVector(BargeRules::BerthX - BargeRules::ShipPlankHingeX + Along, BargeRules::BerthSide * (BargeRules::BulwarkHalfBeam - BargeRules::BulwarkThick * 0.5),
 		BargeRules::WellDeckZ + BargeRules::RailHeight));
 }
 
@@ -75,6 +95,21 @@ TArray<FVector> ABargeBoarding::GetFightSpots(FName Fight) const
 			Spots.Add(ToWorld(Spot + FVector(0.0, 0.0, BargeRules::SpotUp)));
 		}
 	}
+	else if (Fight == RoofFight || Fight == TowerFight)
+	{
+		// The droppers' landings, in their ropes' order (a spot's turn is its rope's).
+		for (const BargeRules::FDropRope& Rope : DropsOf(Fight))
+		{
+			Spots.Add(ToWorld(Rope.Feet + FVector(0.0, 0.0, BargeRules::SpotUp)));
+		}
+	}
+	else if (Fight == SternFight)
+	{
+		for (const FVector& Spot : BargeRules::SternFightSpots)
+		{
+			Spots.Add(ToWorld(Spot + FVector(0.0, 0.0, BargeRules::SpotUp)));
+		}
+	}
 	else if (Fight == HallFight)
 	{
 		// Four at each stokehold's door, in two rows: the pushes come through them.
@@ -93,13 +128,28 @@ TArray<FVector> ABargeBoarding::GetFightSpots(FName Fight) const
 	return Spots;
 }
 
+TArray<FVector> ABargeBoarding::GetDropRopeTops(FName Fight) const
+{
+	TArray<FVector> Tops;
+	for (const BargeRules::FDropRope& Rope : DropsOf(Fight))
+	{
+		Tops.Add(ToWorld(Rope.Top));
+	}
+	return Tops;
+}
+
 FVector ABargeBoarding::GetOfficeSpot() const
 {
-	// The desk as laid (the bench at its own size): its top's middle; without it the rules' block.
+	// The desk as laid: on the bench's work top, the clear middle its Gun socket marks (seen from the walkway: the bench
+	// faces it); a bench without it, its work top's height over its middle; without the bench the rules' block's top.
 	if (Desk && Desk->GetStaticMesh())
 	{
+		if (Desk->DoesSocketExist(BargeRules::DeskTopSocket()))
+		{
+			return Desk->GetSocketLocation(BargeRules::DeskTopSocket()) - FVector(0.0, 0.0, BargeRules::DeskSocketOverTop);
+		}
 		const FBox Box = Desk->CalcBounds(Desk->GetComponentTransform()).GetBox();
-		return FVector(Box.GetCenter().X, Box.GetCenter().Y, Box.Max.Z);
+		return FVector(Box.GetCenter().X, Box.GetCenter().Y, Box.Min.Z + BargeRules::DeskWorkTop);
 	}
 	return ToWorld(BargeRules::DeskTop());
 }
@@ -107,11 +157,10 @@ FVector ABargeBoarding::GetOfficeSpot() const
 TArray<FTransform> ABargeBoarding::GetHornSpots() const
 {
 	TArray<FTransform> Spots;
-	for (const FVector& Spot : BargeRules::HornSpots)
+	for (const BargeRules::FHornSpot& Spot : BargeRules::HornSpots)
 	{
-		// Each post's horns turned in over the deck (toward her middle line).
-		const float Yaw = static_cast<float>(GetActorRotation().Yaw) + (Spot.Y < 0.0 ? 90.f : -90.f);
-		Spots.Add(FTransform(FRotator(0.f, Yaw, 0.f), ToWorld(Spot)));
+		// Each post's horns (its +X) the spot's way: fore over the deck from the house, in over it from the rim.
+		Spots.Add(FTransform(FRotator(0.f, static_cast<float>(GetActorRotation().Yaw) + Spot.Yaw, 0.f), ToWorld(Spot.At)));
 	}
 	return Spots;
 }

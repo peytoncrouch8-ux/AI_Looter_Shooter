@@ -214,3 +214,64 @@ Check after: Landfall's log "Vane's barge over the Sink (75 m, ...), its hose (.
 sockets, 2); no "has no socket" warning; Main 5's "Landfall's hose (N prop(s)) and N-1 plume(s) hidden" (gameplay pass) and
 "1 stack(s) dying at the choke"; Main 6's wreck line "the barge's wreck ... (/Game/Art/Tripo/SM_DredgeBarge)". In the
 viewport: a plume over each stack mouth, the hose leaving from under the keel.
+
+## 7. The deck fight "Bigger": three pushes (the user's call; KIT lane's C++, `BARGE.md` "Round 14")
+
+Python only, `ast.parse` checked, not run. Push 1 is `BargeDeck` as before (its two waves, on the Lamplighter's approach).
+Pushes 2 and 3 are started by the barge herself in step 3 (`ABargeBoarding::AdvancePushes`: `TriggerWave` on the next push's
+spawners, a beat after the last is down to two, or 75 s after it began): nothing is wired to the player's approach.
+
+Edits:
+- `build_area_main6.py:104-107`: `ROOF_FIGHT/TOWER_FIGHT/STERN_FIGHT` = `BargeDeckRoof/Tower/Stern`; `ROOF_GROUPS` (3 riflemen,
+  1 hose-man), `TOWER_GROUPS` (2 riflemen), `STERN_GROUPS` (3 riflemen, 1 hose-man): level `DECK_LEVEL` 6, one wave each.
+- `build_area_main6.py:293` `place_spawner` takes `cls_name` (`EncounterSpawner` default, or `RappelSpawner`), `ropes` (world
+  tops; set as `rope_tops`), `on_approach` (`spawn_on_approach`) and `anywhere` (`give_up_radius` 0 and `despawn_radius` 0:
+  no hunting ground, so the stern men hunt the player ~60 m off at any height, and nothing is taken away when the player
+  is far; `Creatures/HuntingGround.cpp`: radius 0 with no corners is "not set", so `ground_max_rise` is ignored too).
+  `middle=None` stands the spawner at the middle of its spots (the stern's: about (-3540, 0) barge-local). A warning if the
+  rope tops and spots differ in number. Its log line prints the spots', the spawner's and the ropes' tops' heights over the keel.
+- `build_area_main6.py:352-366`: `rope_tops()` (`barge.get_drop_rope_tops(name)`, a warning and the spawner left out if the
+  game module is not built with it) and `deck_when()` (BargeDeck's condition: Main 6 from the grapples, step 2, until the
+  manifest, step 4; shared by all four).
+- `build_area_main6.py:372` (`place_fights`): the three spawners after BargeDeck's, each with its own `remove_stale` (in
+  `place_spawner`, label `Encounter_<id>`); creature tags `Dredger_BargeDeckRoof/Tower/Stern`; attached to the barge;
+  `num_waves` 1, `wave_interval` 0, `max_alive` = its count (4, 2, 4).
+- `create_mission_assets.py:768-770, ~800-830` (`main6_steps`, step 3): the single `BargeDeck` clear (9) gains three
+  required clear objectives, one per spawner id (a clear objective names one spawner; `UMissionClearObjective` has no list):
+  `BargeDeckRoof` 4, `BargeDeckTower` 2, `BargeDeckStern` 4. So the step passes only when all four are cleared (and the hatch
+  is reached). The three are `waypoint NONE` (the deck's and the hatch's arrows lead) and `pass_without_targets` (a level
+  without their spawners, or a build before this, can't leave the step stuck). Tracker lines: "Put down the roof droppers",
+  "Put down the tower droppers", "Put down the stern push".
+
+Rebuild (after `Tools\launch.ps1 -Build` has the KIT's `GetDropRopeTops`; editor open, no PIE). Both are independent of each
+other; the order does not matter:
+
+    Tools\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_area_main6.py RansomsRest" -Until "Main 6's pieces placed and saved"
+    Tools\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/create_mission_assets.py" -Until "MISSIONS done"
+
+(or the whole gameplay pass of section 6 for the first; `create_mission_assets.py` rebuilds all the story missions from the
+script, other mission assets are left alone, and it saves `DA_Mission_Main6`). The first command now leaves 16 actors in
+`RansomsRest/Gameplay/Main6`: the 13 of section 4 plus `Encounter_BargeDeckRoof`, `Encounter_BargeDeckTower` (both
+`ARappelSpawner`) and `Encounter_BargeDeckStern` (`AEncounterSpawner`).
+
+Check in the log:
+- `RansomsRest: BargeDeckRoof: 4 Dredgers on the barge (3 spots L..H cm over her keel, spawner ... , 1 wave(s), 3 ropes, tops
+  ...  cm over her keel, only on her trigger, hunting anywhere on her)`: landings L = H = WellDeckZ + 20 (2270, same as
+  BargeDeck's well-deck spots), rope tops about 940 over the deck (3190 over the keel). `BargeDeckTower: 2 Dredgers ... 2 spots
+  ... 2 ropes` (landings ForecastleZ + 20 = 2391; tops 3100). `BargeDeckStern: 4 Dredgers ... 4 spots` (SternZ + 20 = 2270),
+  no ropes. `BargeDeck: 9 Dredgers ... 9 spots` as before.
+- No "rope tops for ... spots", "can't be called" or "no RappelSpawner class ... left out" warnings.
+- `MISSIONS DA_Mission_Main6` lines and "MISSIONS done"; no "nothing was saved".
+- In the editor: three spawners attached to `Barge_Pilot`; the roof one's ropes' tops a hand off the house's fore face (the
+  KIT's `.Fight` test checks the faces).
+
+Things for Main and the other lanes (not my files):
+- The tracker shows four lines in step 3 from its start (no hide flag on objectives): the later pushes are visible before
+  they come. Hiding them needs a C++ change (a hidden-until-started flag, or a clear objective that lists ids).
+- Objectives are stored per step by index: a save made inside Main 6 step 3 before this keeps its old progress on objective
+  slots that are now shifted (the hatch, drum and horns come after the three new ones). The user has not played it yet.
+- `Art/Levels/RansomsRest/layout.json` `gameplay.encounters.storyFights` lists `BargeDeck` and `FurnaceHall` (level zone
+  `churchyardFence`) but not `BargeDeckRoof/Tower/Stern`; their groups carry level 6 themselves. `Looter.Creatures.AreaLevels` /
+  `create_area_assets.py` read that list: add the three if the test names them. `Tests/PacingPaths.h` `MainSixStop` counts
+  the deck as 6 riflemen and 3 hose-men; the later pushes add 8 riflemen and 2 hose-men to Main 6's XP.
+- `Tests/PilotLightTests.cpp` finds `BargeDeck` (count 9) by id: it still passes; extend it with the three ids.

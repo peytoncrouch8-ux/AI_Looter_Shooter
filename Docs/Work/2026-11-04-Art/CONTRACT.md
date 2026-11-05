@@ -175,3 +175,47 @@ user's own complaint ("Tripo models are blurry, don't read as intended, and the 
   the Tripo buildings, the big props), each with a fitting set; and the `FLAT_NORMAL` fix (the masters' default NormalMap is
   the engine's brick pattern: six instances show faint blocks). File: `build_world_materials.py`; the editor until it reports.
 Export folders: each Blender lane exports to its own `Intermediate\ArtExport_<Lane>` (REWORK keeps `ArtExport_Tripo`).
+
+### Round 4 (the user, 2026-11-04 ~16:30): sharper Tripo models; the barge's leftovers; a perf pass alongside
+The user's picks: next **"Sharper Tripo models"** (the audit's plan row 5: re-cut the soft Tripo maps from their 4096 sources);
+the barge's leftovers **"Berth repetition, Plain stairs, Blurry house walls"** (the last: rebake the house and casing in our
+sets the way the melee tools were, `looter_rebake.py`, which the user passed as crisp on 2026-10-28); the perf **"Alongside the
+next work"** (the heaviest Medium views 9.2-9.4 ms, render-thread bound: the aerial tour views and the barge's deck).
+Lanes and files (disjoint):
+- **REPACK** (Opus): a general step for Tripo models, `Tools/Blender/looter_tripo_repack.py` (new): repack a model's UV islands to
+  fill its square (rotation allowed, margins kept for mips), then bake its colour, normal and ORM from the ORIGINAL 4096
+  delivery (the GLB's own maps on its own UVs) onto the new layout at the model's map size, so the same 2K map holds 1.5-2.3x the
+  texels. Applied to: the Unpaid (`Art/Models/Creatures/Tripo/parts_unpaid_paint.py`, 28% used), the Tripo farmhouse
+  (`looter_tripo_buildings.py`, 31%), the Lamplighter (50%), then every other Tripo model under ~60% use (list them with their
+  share); hooked by a `repack=` spec flag in `looter_tripo_wardens.py` (one hook line; the REWORK lane does not touch that file
+  this round) and a call in the buildings and Unpaid paths. The barge last, on REWORK's final mesh (its new faces' copied UVs
+  overlap their sources: the repack must keep each copy's paint while giving the overlapped islands their own space). Measured
+  with the audit's texels/cm before/after; previews of each at 1, 3 and 10 m.
+- **REBAKE** (Opus): the barge's house and casing walls (the `TripoDredgeBarge_Super` faces, walls only: not the stacks' or
+  the tank's paint) rebaked in our sets: `Tools/Blender/looter_rebake.py`'s method (our sets cast onto Tripo's shape, edge
+  wear from curvature, normals from our colour), the sets picked per texel from Tripo's own paint zones (its oxide red ->
+  `PaintOxide`, cream patches -> `PaintCream`, black -> `PaintBlack`/`IronBlack`, rust -> `MetalRust`), so the layout of the paint
+  stays Tripo's and the detail becomes ours. New module `Tools/Blender/looter_tripo_barge_paint.py`, a `paint=` hook run after
+  REPACK's step. Developed on the current mesh; re-run on the final layout.
+- **REWORK** (round 5): the berth repetition (the copied run's 0.5-0.8 m pattern at the plank: longer, varied source slabs or
+  per-copy paint variation from the source's other stations) and the plain forecastle stairs and step (treads with nosings,
+  riveted stringers, kick plates, faces copied from Tripo's own riveted bands); files `looter_tripo_barge*.py` only.
+- **PERF** (Opus): the render-thread cost of the aerial views and the barge's deck on Medium: captures with `perf.ps1 -GpuStats`
+  and the CSV's render-thread stats, `stat scenerendering`/`stat initviews` style counters, find what costs (draws, visibility,
+  shadow depths, the 135k-triangle barge's LODs, the scatter's culling distances, the nine lamps), trim it in code/config/
+  content-settings, measure before/after; editor-closed windows only through Main (ask by message), never `close.ps1` itself.
+- **KIT** (side job): the roost's beacon on the Tripo lantern post (`Looter.Roost.Play.Look` "The beacon at the post's lamp"
+  fails since the post went in on 11-01): find and fix, World/ roost files only.
+
+### Round 4, the barge's walls crisp (Main, ~18:30, after the REBAKE lane's report)
+REBAKE's step works (clean zones in our sets, the streaks gone, the tug reads the same from 5 m) but Tripo's atlas gives the
+house and casing walls 14 px/m, so at 1-3 m they stay soft. The fix, three lanes in order:
+1. **REWORK** (in its round 5): a fourth slot `TripoDredgeBarge_Walls` for exactly the faces `looter_tripo_barge_paint`'s wall
+   rule picks (import its rule; one source of truth), so the walls get their own texture set.
+2. **REPACK**: the `_Walls` slot's islands packed into their own 2K square (its own texture set `TripoDredgeBargeWalls`, written
+   by `write_maps` beside the main atlas; extend `write_maps` for a model with two sets if it can't), baked from the source,
+   target >= 35 px/m; then REBAKE's paint step runs on that set (it reads whatever UVs and maps it finds).
+3. **MATERIAL**: `MI_TripoDredgeBarge_Walls` with the detail layer PaintWorn (add PaintWorn to `DETAIL_SETS` with its measured
+   means; REBAKE measured mean linear luma 0.654 Rec709) at ~0.6-0.7, 1.6 m tiles, plus `DetailPlates` for plate seams and
+   rivets if they read; check the chips on the rust zones (REBAKE saw "paint chips on rust"): lower the chip contrast or let
+   the rust zones show grain only (a mask from the zone map, if the layer can take one cheaply).

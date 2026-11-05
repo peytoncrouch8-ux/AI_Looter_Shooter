@@ -32,24 +32,30 @@ bool FQualityPresetsTest::RunTest(const FString& Parameters)
 	for (const EGraphicsQuality Quality : { EGraphicsQuality::Low, EGraphicsQuality::Medium, EGraphicsQuality::High, EGraphicsQuality::Epic })
 	{
 		const FString Name = UGraphicsSettingsSubsystem::QualityName(Quality);
-		const TMap<FString, int32> Settings = UGraphicsSettingsSubsystem::QualitySettings(Quality);
+		const TMap<FString, float> Settings = UGraphicsSettingsSubsystem::QualitySettings(Quality);
+		// The integer variables, as the console sets them.
+		const auto Whole = [&Settings](const TCHAR* Variable) { return FMath::RoundToInt32(Settings.FindRef(Variable)); };
 		const bool bHighOrEpic = Quality == EGraphicsQuality::High || Quality == EGraphicsQuality::Epic;
 		const bool bEpic = Quality == EGraphicsQuality::Epic;
-		TestEqual(Name + TEXT(" Lumen lighting"), Settings.FindRef(TEXT("r.DynamicGlobalIlluminationMethod")), bEpic ? 1 : 0);
-		TestEqual(Name + TEXT(" reflections"), Settings.FindRef(TEXT("r.ReflectionMethod")), bEpic ? 1 : (bHighOrEpic ? 2 : 0));
-		TestEqual(Name + TEXT(" anti-aliasing"), Settings.FindRef(TEXT("r.AntiAliasingMethod")), bEpic ? 4 : 2);
-		TestEqual(Name + TEXT(" Nanite"), Settings.FindRef(TEXT("r.Nanite")), bHighOrEpic ? 1 : 0);
-		TestEqual(Name + TEXT(" virtual shadow maps"), Settings.FindRef(TEXT("r.Shadow.Virtual.Enable")), bHighOrEpic ? 1 : 0);
-		TestEqual(Name + TEXT(" SSAO"), Settings.FindRef(TEXT("r.AmbientOcclusionLevels")), bHighOrEpic ? -1 : 0);
-		TestEqual(Name + TEXT(" distance field AO"), Settings.FindRef(TEXT("r.DistanceFieldAO")), bEpic ? 1 : 0);
-		// The art audit's step 1 (2026-11-04): Medium keeps its full-size textures and 8x filtering (the user's pick: the
-		// filtering is the visible gain, the mips cost 0.2 ms); creature LOD0 up close stays High's and Epic's; Low stays
-		// the engine's own.
+		TestEqual(Name + TEXT(" Lumen lighting"), Whole(TEXT("r.DynamicGlobalIlluminationMethod")), bEpic ? 1 : 0);
+		TestEqual(Name + TEXT(" reflections"), Whole(TEXT("r.ReflectionMethod")), bEpic ? 1 : (bHighOrEpic ? 2 : 0));
+		TestEqual(Name + TEXT(" anti-aliasing"), Whole(TEXT("r.AntiAliasingMethod")), bEpic ? 4 : 2);
+		TestEqual(Name + TEXT(" Nanite"), Whole(TEXT("r.Nanite")), bHighOrEpic ? 1 : 0);
+		TestEqual(Name + TEXT(" virtual shadow maps"), Whole(TEXT("r.Shadow.Virtual.Enable")), bHighOrEpic ? 1 : 0);
+		TestEqual(Name + TEXT(" SSAO"), Whole(TEXT("r.AmbientOcclusionLevels")), bHighOrEpic ? -1 : 0);
+		TestEqual(Name + TEXT(" distance field AO"), Whole(TEXT("r.DistanceFieldAO")), bEpic ? 1 : 0);
+		// The art audit's step 1 (2026-11-04): Medium keeps its full-size textures (the mips cost 0.2 ms); its filtering is
+		// 4x, High's and Epic's 8x (the user's yes on the evening of 2026-11-04: 8x cost the open views 0.1-0.4 ms over the
+		// 120 fps line); creature LOD0 up close stays High's and Epic's; Low stays the engine's own.
 		const bool bLow = Quality == EGraphicsQuality::Low;
-		TestEqual(Name + TEXT(" texture mip bias"), Settings.FindRef(TEXT("r.Streaming.MipBias")), bLow ? 16 : 0);
-		TestEqual(Name + TEXT(" anisotropy"), Settings.FindRef(TEXT("r.MaxAnisotropy")), bLow ? 1 : 8);
-		TestEqual(Name + TEXT(" skeletal LOD bias"), Settings.FindRef(TEXT("r.SkeletalMeshLODBias")), bLow ? 2 : (bHighOrEpic ? 0 : 1));
-		TestEqual(Name + TEXT(" streaming pool"), Settings.FindRef(TEXT("r.Streaming.PoolSize")), bLow ? 400 : 1000);
+		const bool bMedium = Quality == EGraphicsQuality::Medium;
+		TestEqual(Name + TEXT(" texture mip bias"), Whole(TEXT("r.Streaming.MipBias")), bLow ? 16 : 0);
+		TestEqual(Name + TEXT(" anisotropy"), Whole(TEXT("r.MaxAnisotropy")), bLow ? 1 : (bMedium ? 4 : 8));
+		TestEqual(Name + TEXT(" skeletal LOD bias"), Whole(TEXT("r.SkeletalMeshLODBias")), bLow ? 2 : (bHighOrEpic ? 0 : 1));
+		TestEqual(Name + TEXT(" streaming pool"), Whole(TEXT("r.Streaming.PoolSize")), bLow ? 400 : 1000);
+		// Medium's static meshes take their next LOD a quarter sooner (0-0.25 ms in the heaviest views); the engine's own
+		// distances elsewhere.
+		TestEqual(Name + TEXT(" static mesh LOD distance"), Settings.FindRef(TEXT("r.StaticMeshLODDistanceScale")), bMedium ? 1.25f : 1.f);
 	}
 
 	// A fresh install starts on the minimum spec, without motion blur, with the minimap and the FPS counter showing.

@@ -752,53 +752,57 @@ through hull and bag), deck boxes (WorldStatic, so Dredgers have ground), rail w
   hold the hooks under fire; tender falls, landing (skip it once); anchor; Point; spyglass reveal; trail; hat; porch fight; the card;
   a Save & Quit mid-flight; an old session with Main 1 running; `stat unit` / `Tools\perf.ps1` at the deck fight and the Farm view.
 
-### The barge: the reworked Tripo hull and the kit on it (2026-11-04; Art round 1, notes in `Docs/Work/2026-11-04-Art/`)
+### The barge: the reworked Tripo hull and the kit on it (2026-11-04; Art rounds 1-3, notes in `Docs/Work/2026-11-04-Art/`)
 
-Vane's barge (Main 6, `ABargeBoarding`; Landfall's Sink barge is the same mesh) is the user's Tripo hull `/Game/Art/Tripo/SM_DredgeBarge`, reshaped in Blender by script (`Assets.md` item 12). Main's build, tests and PIE: `Docs/Handoff.md`.
-- **Why Tripo's hull as it came failed** (art audit finding 1; MEASURE ran rays on the source triangles): the kit's `DeckTop` 1400 ("by eye") put the player 8.5 m inside a hull with no collision. Of the kit's rectangle (x -3450..3350, y +-1150,
-  1610 m2) 28% is standable (a 23 x 16 m foredeck in terraces at 2250-2371, 1-3 m side rims, an aft platform), 50% superstructure, 13% no surface; no hatch or hole, nothing inside; below the deck the hull is a V (half-beam 650-900 at z 1400): the hall (R 1100) fits nowhere (biggest R 650 at floor 1250). The audit's plan assumed one flat deck; it was five patches.
-- **The user's decisions, in order (2026-11-04):** (1) 07:00, after the measure: a Blender-scripted hull in our texture sets replaces Tripo's everywhere (built, then seen in PIE). (2) 08:35, after seeing it: "remove the hull we
-  just made, and use the Tripo model but rework the model to fit our needs and expectations"; how far: "Reshape for the kit"; the look: "Tripo paint + our tiled detail". The scripted hull (`Art/Models/Vehicles/DredgeBarge.py`,
-  `Tools/Blender/looter_barge.py`, `/Game/Art/Vehicles/SM_DredgeBarge`, `MI_BargeIron`, `MI_BargeRust`) is deleted, never committed.
-- **The hull as reworked** (`Tools/Blender/looter_tripo_barge.py`, run on the fitted Tripo mesh by the `rework=` hook in `looter_tripo_wardens.py`, so every re-export reproduces it; the numbers it shares with the code are
-  `BargeRules.h` "the hull's": change both together). Frame (cm): pivot bottom-centre z 0 (where the hose drum hangs), bow +X, berth side -Y, x +-3750, y +-1237.5 (`BulwarkHalfBeam`).
-  - Kept as Tripo made it: the hull body below the deck, the bow scoop past x 3350, the two stacks ((-1107, 21), (-2373, 19), tops ~4800, starting at the roof), `HoseDrum` (-889, 323, 0), `Stack_1`, `Stack_2`.
-  - Deck: one flat level, `DeckTop` 2250, over x -400..3350 to the bulwark; the midship block, cabin and tanks, the casing, the foredeck terraces (2371, 2300) and the side rails are cut away and the deck filled. Tripo's hull is
-    narrower than the deck (half-beam 1050-1100 at z 2000-2200), so a belt (the guard) closes the overhang like a tug's deck guard.
-  - House: x -3300..-400, full beam +-1237.5, roof `HouseRoof` 3300, walls and roof 20 thick (`HouseWallThick`), hollow with no floor (the kit floors it), nothing of Tripo inside it; a door 240 wide x 300 tall at y 0 in its fore face,
-    threshold 2250. Tripo's tall tower (cabin and two tanks) is copied onto its roof over x -2140..-1340 (the contract's -2000..-1200 would put the cabin into stack 1).
-  - Bulwark 110 high (`RailHeight`) x 15 (`BulwarkThick`), outer face 1237.5, top 2360, along the open deck, with a 300 gap over a 2 cm sill at `BerthX` 2000 on -Y; short end walls at the bow beside the scoop.
-  - Sockets: `Door` (-400, 0, 2250) facing +X = `GetHatchSpot`; `Gangway` (2000, -1237.5, 2250); Tripo's `HoseDrum`, `Stack_1`, `Stack_2` stay (Landfall's build reads them). Collision is in the model (`UCX_` boxes; nothing inside the
-    house): the deck slab, the bulwarks split round the gap and at x 3200, the hull body, the house's walls split round the door, its roof, the stacks, the tower, the scoop, the stern. Nanite off, fallback 100%.
-  - Look: UV0 is Tripo's atlas (new faces take plain patches of it, `Assets.md` item 12). `MI_TripoDredgeBarge` wears M_World's detail layer (object-space triplanar MetalWorn, 1 m tiles, fading 200..1500 cm; `Assets.md` Materials):
-    a re-import clears it, so run `build_world_materials.py DetailInstances` after. Round 2 of the rework (ribs, portholes, a catwalk ring, a door frame and steps; the scoop moved forward) is in progress: see the docstrings of
-    `looter_tripo_barge.py` and `looter_tripo_barge_house.py`; those numbers may still move.
-- **The kit on it** (`BARGE.md` "Round 4"; its earlier sections are superseded). Arena (`IsOpenDeck`): `DeckAft` -300, `DeckFore` 3300, `DeckHalfBeam` 1100 (36 x 22 m), the house its aft wall. Over the hull the kit draws nothing on
-  the open deck bar the cover, vents, horns, the falling third stack (`FallingStackFoot` (-240, 800), 10 cm clear of the house's fore wall; lies across the after deck toward the port lane, go round its tip on the port side) and the drum's
-  gantry (`DrumOnDeck` (-100, -750); the drum stays under the keel, `DrumUnderKeel` (-889, 323, 0), the hose hangs from it). Unseen pawn-only rail walls (`RailWallLayout()`, 4: far side, berth fore and aft of the gap, bow) stand on
-  the bulwark's line, 320 over the deck, open at the gap, so nobody climbs it. `IsAboard`: x -3400..3450, |y| <= 1297.5, z 2100 (`HallFloor` - 150)..`HouseRoof` + 300.
-  - In the house, all at deck level (no stair, hole or hatch cover; the kit's floors stand `InteriorFloorLift` 2 over the deck, so 2252): door (-400, 0, 2250) = `GetHatchSpot` -> vestibule (x -580..-440, |y| <= 300, 360 high, kit lining at
-    x -440..-420, roof 2610) -> office (x -950..-600, |y| <= 500, 360 high with its own roof, wood floor; desk (-830, -300), top 2334 = `DeskTop()` = the manifest's spot `GetOfficeSpot`, the radio on it; safe (-655, 400); a doorway
-    |y| < 190, 300 tall, in its aft wall x -980..-950) -> hall: `HallCenter` (-2050, 0), `HallRadius` 1100, `HallFloor` 2250 (`HallUnderDeck` 0), walls 2250..3150, ceiling 3150..3180 (`CeilingThickness` 30) under the roof, `HallSkinHalfBeam`
-    1217.5, `AlcoveDepth` 77.5, the 4 m catwalk with its two stairs (225->260 and 315->350 degrees) climbing from the hall floor.
-  - Berth: `BerthOut` 1950, `BerthUnderDeck` -100 (her deck 1 m over the barge's; the old 150 put the plank 69 cm under the deck, through the hull), `JumpOut` 2050, `JumpUnderDeck` 350 (the jump is ~2.6 m out and 5 m down; at
-    the full 12 degree list her bag clears the bulwark by 84, 1650 put it 114 inside). Landing (2000, -950, 2250) (`BoardingInset` 150); player start by the plank (2000, -900); grapples bite the bulwark's top
-    (2000 +-600, -1230, 2360); after the manifest the player stands at (-250, 0, 2350) facing the door.
-  - Spots (barge frame, x y): fight, 9 (the groups and the mission count on 9: `Levels.md` "The barge in the level"): (2350,350) (2250,-350) (1550,-300) (1550,750) (1000,200) (950,-750) (400,700) (350,-250) (-50,350), each 150 aft of
-    a crate so riflemen face the berth. Cover, 10 (110 x 80 x 130 half-extents): (2500,350) (2400,-350) (1700,-300) (1700,750) (1150,200) (1100,-750) (550,700) (500,-250) (100,350) (-50,-350). Vents, 8 (2 x 2 m): (2300,0)
-    (1950,400) (1400,-550) (1400,450) (850,0) (750,-700) (250,0) (2900,450). Horns, 4 (on the bulwark): (2800,-980) (1900,980) (800,-980) (300,980). Stern fires, 6: deck (-200,-450) (150,750); roof, z 3300: (-2900,-600) (-2400,700)
-    (-600,-800) (-900,500); `FallSmokeSpot` (-2600, 0, 3450). Lamps: over the door (-340, 0, 3180); a second at (900, 700, 3370) (the old crane's head, see Unchecked).
-- **Switches.** `FDeckPlate::bOnHullDeck` (true = laid only over the stand-in; the vestibule floor is always laid), `bDrawRails` false (kit rails only over the stand-in), `DeckBlocks()` empty, `KitLift` 0. Without the asset
-  (`HasHull()` false) the Hull is the stand-in box 7500 x 2475 x 2250, no collision, and the kit lays its open-deck plate, rails and a stand-in crane so the barge still plays.
-- **Tests:** `Looter.World.Barge.Kit/.Hall/.Deck/.Hull` (`BargeBoardingTests.cpp`) and `.Grates/.Valves/.Cage/.Dying/.Fall` (`BargeBoardingBeatsTests.cpp`), both on `BargeTestWorld.h`; `Looter.World.PilotSortie` for the moved berths. `.Hull`
-  traces the imported hull's collision alone (skips with an info line without the asset): deck top at the arena's corners, the gap open at `BerthX` +-130 and shut at +-170, the door open at y 0 and shut at +-140, the house empty at 2350 and 3100
-  (fore-aft at y 0 through both stacks' x, across at x -1850 and -2050). `.Hall`: floor at the deck's level, ceiling under the roof, desk, stairs, a pawn walk from the deck into the hall (2252), alcoves inside 1217.5. `.Kit`: rail walls by `RailWallLayout()`. `.Deck`: plate tops 2250/2252, no overlaps.
-- **Rebuild and checked:** the level's barge pieces are saved as the C++ getters' positions: after any `BargeRules` change, or a re-import that moves the hull, run `build_area.py RansomsRest gameplay` (Landfall before Main 6; `Levels.md`
-  "The barge in the level"). Checked 2026-11-04: the level rebuilt 10:02 (deck and hall spots at 2270 over the keel, the manifest on the desk); `Looter.World.Barge` 9/9, `PilotSortie` 5/5 (and `Settings` 13/13, Art step 1).
-- **Unchecked:** the PIE walk of the reworked hull (`BARGE.md` "PIE check": deck from the plank, bulwark stops a pawn, door, vestibule, office, hall, `stat unit`; Main's line goes here); the vestibule and office have no light of their own (the
-  door lamp and the cage light through the doorway); no fall damage for the 5 m jump (Hob's catch is the net); the sortie's last glide (C++, course end to standoff) is not swept, so a town across the barge from her berth side makes it cross
-  the hull. Seen in the earlier PIE walk (scripted hull; the kit's own, unchanged), not fixed (plan row 3, "the kit made real"): the engine-cube rooms carry stretched cube UVs; the vents are plain black slabs with bare cone fires; the kit's falling
-  stack is a bare cylinder beside the model's two. The reworked hull has no crane (midship block cleared) but `BargeRules.h` keeps `CraneSpot` (900, 700) and its work lamp hangs bare: drop or move it.
+Vane's barge (Main 6, `ABargeBoarding`; Landfall's Sink barge is the same mesh) is the user's Tripo hull `/Game/Art/Tripo/SM_DredgeBarge`, adjusted piece by piece in Blender by script (`Assets.md` item 12), 93.4 m long now. The model owns the
+numbers: `BARGE_LAYOUT.md` (rays on the built mesh) is plugged into the "the hull's" constants of `BargeRules.h` / `BargeHallRules.h`; a re-export that moves anything means re-measuring and re-plugging. Notes: `BARGE.md` rounds 6-12 (the kit),
+`BARGE_PROPS.md`, `COLLISION.md`, `CONTRACT.md` "Round 3"; Main's build, tests, PIE: `Docs/Handoff.md`.
+- **Rejected on the way:** round 1's hull scripted in our sets (picked after the measure, dropped on sight in PIE) and round 2's reworked hull with a boxed house (`a81c52ab`: the midship superstructure cut away and a plain-walled block put in its
+  place on tiny flat atlas patches, sized for a 22 m deck-level hall). `DredgeBarge.py` / `looter_barge.py` were never committed; `looter_tripo_barge_house.py` is gone.
+- **Why the bought hull failed as it came** (art audit finding 1, rays on the source triangles): the kit's `DeckTop` 1400 ("by eye") put the player 8.5 m inside a hull with no collision. Of the kit's rectangle (1610 m2) 28% is standable (a 23 x 16 m
+  foredeck in terraces at 2250-2371, side rims, an aft platform), 50% superstructure, 13% no surface; no opening; below the deck a V (half-beam 650-900 at z 1400): a hall of R 1100 fits nowhere. The audit had assumed one flat deck.
+- **The user's calls, in order (2026-11-04):** (1) 07:00, after the measure: a Blender-scripted hull in our sets. (2) 08:35, after seeing it in PIE: "remove the hull we just made, and use the Tripo model but rework the model to fit our needs and
+  expectations"; how far "Reshape for the kit"; the look "Tripo paint + our tiled detail". (3) ~11:00, after seeing round 2's house: "why the fuck did you put a big box on the Tripo model. This does not look good in slightest. Use the Tripo model and
+  adjust it, don't just throw a structure on the ship and call it a day"; pieces may be moved, resized, rescaled, retextured ("act like a senior game designer and developer"); the hall "Below deck, smaller". ~11:40: "Run multiple agents to complete
+  faster. Keep working ahead".
+- **The look bar:** Main judges every preview against `Art/Tripo/DredgeBarge/preview.png` and the SpyglassBarge shot: the same Tripo tug at a glance and up close (low boiler casing and two stacks aft, the tall house with portholes and white tanks
+  midship, the raked scoop, Tripo's rails, rivets, rust). No new structure; a new face copies a real Tripo face with its UVs.
+- **The hull as adjusted** (`looter_tripo_barge.py` + modules, hooked as `rework=`/`slots=` in `looter_tripo_wardens.py`; frame cm: pivot bottom-centre z 0 where the hose drum hangs, bow +X, berth side -Y). Bounds x -3750..5590, |y| 1237.5, z
+  0..4809; 135,393 triangles; 152 `UCX_` hulls.
+  - Kept: the casing and its two stacks, the house with its portholes and two white tanks, the scoop (walls, lattice frame), the cradle with the hose drum, the front strut, rails and rust.
+  - Lengthened: everything fore of Tripo's x 2190 moved 16 m forward (`FORE_DX`), the gap filled with 27 unmirrored copies of three slabs of Tripo's own foredeck side (70/60/50 cm, warped to the section, ends morphed, joints zipped watertight): the
+    well deck. 2.4 m more at the cross walk (4 copies of a 60 cm slab) so the hatch fits.
+  - Narrowed: house 0.85, casing 0.82 about the centreline, so the flank walks open from Tripo's 16-160 cm trenches (floors stretched to the bulwark, whose inner face stays; stacks stay round, tanks scale whole). Cleared: the lips, straps and horn
+    pipes that crossed the walks at a pawn's height; the forecastle's stub posts off.
+  - Cut or added from Tripo's own plates: the berth gap in the -Y rim (cut x 3000..3300, sill 2262; measured 3005..3300), the forecastle's two stairs (|y| 150..450, 6 steps), the hatch hole in the cross walk (x -611..-436, y -220..225) with a coaming
+    on three sides (top 2310).
+  - Slots on Tripo's one atlas: `TripoDredgeBarge_Hull` (below z 2170), `_Deck` (walkable up faces), `_Super` (the rest); `MI_TripoDredgeBarge_Hull/_Deck/_Super` wear M_World's detail layer (`Assets.md` Materials; a re-import clears them:
+    `build_world_materials.py DetailInstances`). Sockets: `Gangway` (3150, -840, 2262) facing -Y, `Hatch` (-525, 0, 2250), Tripo's `HoseDrum` (-889, 323, 0), `Stack_1`, `Stack_2` at (-1107, 17) and (-2373, 16), tops ~4808 (Landfall's build reads
+    these three). Collision is in the model, nothing in the hall's cylinder; Nanite off, fallback 100%.
+- **Her decks as zones** (`BargeRules::DeckZones`, from BARGE_LAYOUT.md; `Z` sits between the hull's traced top and where the level's drops land, 2-6 cm lower, within the 5 cm every floor check holds to): well deck x 2245..4031, |y| 665, Z 2250;
+  forecastle (the scoop's floor, 1.2 m up) x 4130..4320 (y -490..540) and 4530..5015 (y -360..420), Z 2371, the scoop frame between (`DeckFittings`, x 4320..4518); house walks x -294..2000, y -790..-725 and 745..815, Z 2257; cross walk x -665..-320,
+  |y| 935, Z 2256; stern x -3650..-3420, |y| 500, Z 2250. Unseen pawn-only rail walls (`RailWallLayout()`, 30 thick, 320 tall) stand on the 42 `RailLine` runs (the bulwark hulls' inner faces), cut at the gap.
+  - **Flow:** plank at the gap -> the well-deck fight -> a house walk -> the cross walk -> the hatch stair (38 degrees, 100 wide, x -558, from the hole's +Y edge down -Y) onto the catwalk -> the stoker's corner (the manifest on his desk at 316
+    degrees, the radio, the safe at 40) -> along the ring to the port floor stair (280) -> the floor, furnace, valves. Step 7: back up the same way, out along the port side to the gap.
+  - **The hall below deck** (`BargeHallRules`): centre (-1185, 0), R 750, floor 1300, ceiling 2220 (kit ceiling 20, walls 900), `HallSkinHalfBeam` 827, alcoves 37 deep, the hole over its fore rim; catwalk 580 up (5.8 m; 200 deep, 18 spans, open under
+    the hatch stair and over the floor stairs at 80 and 280); stokehold doors 90 and 270; furnace R 250 x 600; 12 grates (340..570); valves 60/180/300; 8 fight spots; four wall lanterns.
+  - **Berth:** `BerthX` 3150, `GapHalf` 145, `RailHeight` 90, `BulwarkThick` 70, side 827, `SillUp` 12, `BerthOut` 1520, `BerthUnderDeck` -100 (her deck 1 m over his), `BoardingInset` 150; the plank clears the sill by 16.4, her bag 166. Jump:
+    `JumpOut` 1630, `JumpUnderDeck` 350 (bag 79 clear at the 12 degree list). Landing (3150, -515), start (3150, -465), grapples bite the rim's top (3150 +-600, -792, 2340); after the manifest the player stands 150 behind the hatch stair's top,
+    facing down it.
+  - **Spots** (`BargeRules.h`): fight 9 (the groups and the mission count on 9: `Levels.md`): well deck 4, forecastle 3, one in each walk mouth. Cover 7: crate, hose cart, barrel, two barrel trios on the well deck, a barrel pair and the winch on the
+    forecastle. Drum gantry (2500,-430); the falling stack's foot (2440,420), falling toward the bow along the starboard side. Vents 4 (2 x 2 m, 1 cm proud), horns 4 (the Company post `SM_LoudspeakerPost`), six fires as she dies.
+  - **Props and lamps:** the 16 `BargeKit.py` models (`Assets.md` item 13); cover is existing models (sandbags were dropped for a barrel trio). Still engine shapes: the heart and smog, the kit's stairs, catwalk, hall walls and floors
+    (`MI_BargeKitIron`, world-metre detail), the rail walls. Nine work lamps (`WorkLamps`: four on the well-deck rims, two on posts at the scoop walls, two at the walk mouths, one at the hatch; 12 cd, reach 1200, no shadows) and the deck lamp (2300,
+    0, 3200; 35 cd), all dark as she dies.
+- **Switches:** `bKitForecastleStairs` false (the model has them), `bDrawRails` false, `KitLift` 0. Without the asset (`HasHull()` false) the Hull is an iron box of her bounds with no collision, and the kit lays a plate per zone, rails and stairs.
+- **Tests:** `Looter.World.Barge.Kit/.Deck` (`BargeBoardingTests.cpp`), `.Hall/.Hull` (`BargeBoardingHallTests.cpp`), `.Grates/.Valves/.Cage/.Dying/.Fall` (`BargeBoardingBeatsTests.cpp`), on `BargeTestWorld.h`; `Looter.World.PilotSortie` for the
+  berths. `.Hull` traces the imported hull alone (skips with an info line without the asset): every zone within 5 cm of its Z (it names the hull's top and logs the level's drop per zone), the gap, the hole, the coaming, a hollow hall, the walks clear
+  end to end. The test level never ticks, so `SpawnBarge` flushes the physics scene (`FPhysScene::Flush`). At `0c0750bf`: Barge 9/9, PilotSortie 5/5, TenderDrop 1/1, Story.Landfall 7/7, Settings 13/13, Roost 12/13 (`Roost.Play.Look` "The beacon at
+  the post's lamp" fails, since the Tripo lantern post of 11-01, not from the barge). Perf (`Docs/Performance.md`): on the well deck 9.2 ms / 108 fps, render-thread bound, an aerial view 47 m over the town.
+- **Rebuild:** the level saves the getters' positions: after a `BargeRules` change or a re-import that moves the hull, `build_area.py RansomsRest gameplay` (`Levels.md` "The barge in the level").
+- **Unchecked:** the PIE walk of the whole flow (Main's line goes here); the work lamps' posts and the horns by eye; why the level's drops land 2-6 cm under the hull's tops (the Chaos margin, not proven); the lamps', hull's and detail's shares of the
+  deck view's 9.2 ms; low spots on the house walks in the layout (headroom 29 at x 700, 144 at 1500; 130 wide at 1375: the one route to the hatch; `.Hull` passes); no fall damage checked for the jump; the sortie's last glide is not swept and the
+  barge is 18 m longer; Landfall's Sink barge at 93 m (tour views SpyglassBarge, FarmBarge). The rail walls' port run is still mirrored from starboard (the model has -Y hulls now).
 
 ## Renames on screen (the user, 2026-10-31): Skills, the Warden's Log, Wickcutter
 

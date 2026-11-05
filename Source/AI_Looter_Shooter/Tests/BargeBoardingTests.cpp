@@ -195,12 +195,20 @@ bool FBargeDeckTest::RunTest(const FString& Parameters)
 	};
 	for (const FVector& Spot : DeckFightSpots) { Check(Spot); }
 	for (const FVector& Spot : VentSpots) { Check(Spot); }
-	for (const FVector& Spot : HornSpots) { Check(Spot); }
 	for (const FCoverPiece& Piece : CoverPieces) { Check(FVector(Piece.X, Piece.Y, Piece.Z)); }
 	Check(DrumOnDeck);
 	Check(FallingStackFoot);
 	Check(FVector(BerthX, BerthSide * (WellDeckHalfBeam - BoardingInset), WellDeckZ));
 	TestTrue(TEXT("Every deck spot on open deck at its zone's height"), bSpots);
+	// The horns off every lane: on the starboard rim, along the well deck, the bow-most first (Vane's cue is the first's).
+	bool bHorns = true;
+	for (int32 Index = 0; Index < static_cast<int32>(UE_ARRAY_COUNT(HornSpots)); ++Index)
+	{
+		const FHornSpot& Horn = HornSpots[Index];
+		bHorns &= Horn.At.Y > WellDeckHalfBeam && FMath::IsNearlyEqual(static_cast<float>(Horn.At.Z), WellDeckZ + RailHeight)
+			&& Horn.At.X > WellDeckAft && Horn.At.X < WellDeckFore && (Index == 0 || Horn.At.X < HornSpots[Index - 1].At.X);
+	}
+	TestTrue(TEXT("The horns on the starboard rim, off the lanes, the bow-most first"), bHorns);
 	// The furnace's vents are the deck fight's hazards: her flues run fore from the hall (aft, under the casing) under the
 	// house to them, so each is on the well deck, none over the hall.
 	bool bVentsOnWell = true;
@@ -234,6 +242,11 @@ bool FBargeDeckTest::RunTest(const FString& Parameters)
 	// The deck's own pieces keep apart (the gantry, the stack, the coaming, the stairs, the vents, the landing's apron), no
 	// fight spot inside one; the stack, fallen, lies on the well deck clear of the hatch and the landing.
 	const TArray<TPair<FString, FBox2D>> Solids = DeckSolids();
+	// Every push's spots (BargeFightRules.h): the deck's, the droppers' landings, the stern push's.
+	TArray<FVector> PushSpots(DeckFightSpots, UE_ARRAY_COUNT(DeckFightSpots));
+	for (const FDropRope& Rope : RoofDrops) { PushSpots.Add(Rope.Feet); }
+	for (const FDropRope& Rope : TowerDrops) { PushSpots.Add(Rope.Feet); }
+	for (const FVector& Spot : SternFightSpots) { PushSpots.Add(Spot); }
 	FString Clash;
 	for (int32 Index = 0; Index < Solids.Num(); ++Index)
 	{
@@ -244,7 +257,7 @@ bool FBargeDeckTest::RunTest(const FString& Parameters)
 				Clash += Solids[Index].Key + TEXT("/") + Solids[Other].Key + TEXT(" ");
 			}
 		}
-		for (const FVector& Spot : DeckFightSpots)
+		for (const FVector& Spot : PushSpots)
 		{
 			if (Solids[Index].Value.ExpandBy(Shoulders).IsInside(FVector2D(Spot.X, Spot.Y)))
 			{
@@ -357,6 +370,47 @@ bool FBargeDeckTest::RunTest(const FString& Parameters)
 		}
 	}
 	TestTrue(TEXT("The work lamps lit, shadowless, on her, over nobody's head"), bLamps);
+	// The lanes (the PIE walk, 2026-11-04: to the walks there was only a knife-edge past the horns and the gantry): a body
+	// LaneWidth across from the plank's landing and from the deck's middle along each rail aft, then a man's way into each
+	// walk's mouth, a step every 30 cm.
+	const FVector2D LandingAt(BerthX, BerthSide * (WellDeckHalfBeam - BoardingInset));
+	const FVector2D Middle(DeckMiddle().X, DeckMiddle().Y);
+	const double Wide = LaneWidth * 0.5;
+	for (const double LaneY : { static_cast<double>(PortLaneY), static_cast<double>(StarboardLaneY) })
+	{
+		const TCHAR* Side = LaneY < 0.0 ? TEXT("port") : TEXT("starboard");
+		const FVector2D Turn(BerthX, LaneY);
+		const FVector2D Aft(LaneAftX, LaneY);
+		FString Why;
+		const bool bFromLanding = WalkLegs(World, *Barge, { LandingAt, Turn, Aft }, WellDeckZ, Wide, &Why);
+		TestTrue(FString::Printf(TEXT("A lane %.0f wide from the landing aft along the %s rail (%s)"), LaneWidth, Side, *Why), bFromLanding);
+		Why.Reset();
+		const bool bFromMiddle = WalkLegs(World, *Barge, { Middle, Turn }, WellDeckZ, Wide, &Why);
+		TestTrue(FString::Printf(TEXT("...and from the deck's middle to it (%s)"), *Why), bFromMiddle);
+		Why.Reset();
+		// The mouth's band: from the lane's inner edge out past the walk's strip by MouthBandOut.
+		const double Near = LaneY < 0.0 ? WalkPortOuter - MouthBandOut : LaneY - Wide;
+		const double Far = LaneY < 0.0 ? LaneY + Wide : WalkStarboardOuter + MouthBandOut;
+		const bool bIntoMouth = RouteOpen(World, *Barge, Aft, WalkMouthX, Near, Far, WalkZ, Shoulders, &Why);
+		TestTrue(FString::Printf(TEXT("...then a man's way into the %s walk's mouth (%s)"), Side, *Why), bIntoMouth);
+	}
+	// The horns' posts: each foot on the rim's top, nothing of hers where its 4 m pole stands.
+	FString HornWhy;
+	const FTransform HerFrame = Barge->GetActorTransform();
+	for (const FTransform& Post : Barge->GetHornSpots())
+	{
+		const FVector Foot = HerFrame.InverseTransformPosition(Post.GetLocation());
+		double RimTop = 0.0;
+		const bool bOnTop = FloorUnder(World, *Barge, Foot + FVector(0.0, 0.0, 100.0), RimTop) && FMath::IsNearlyEqual(RimTop, Foot.Z, 5.0);
+		const bool bFree = !World->OverlapAnyTestByObjectType(Post.GetLocation() + FVector(0.0, 0.0, 30.0 + 175.0), FQuat::Identity,
+			FCollisionObjectQueryParams(ECC_WorldStatic), FCollisionShape::MakeCapsule(20.f, 175.f));
+		if (!bOnTop || !bFree)
+		{
+			HornWhy += FString::Printf(TEXT("(%.0f, %.0f)%s%s "), Foot.X, Foot.Y, bOnTop ? TEXT("") : *(TEXT(" floor ") + FloorWhat(World, *Barge, Foot + FVector(0.0, 0.0, 100.0))),
+				bFree ? TEXT("") : TEXT(" its pole in her"));
+		}
+	}
+	TestTrue(FString::Printf(TEXT("The horns' posts stand on the rim, clear (%s)"), *HornWhy), HornWhy.IsEmpty());
 	// The player's lines into the fight over the cover: from the plank's landing, and from each forecastle stair's top.
 	const auto Lines = [World, Barge](const FVector& Eye)
 	{

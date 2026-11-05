@@ -33,6 +33,7 @@ import os
 import numpy as np
 
 import area_boundary
+import area_erosion
 from area_features import (GORGE_STREAM, GORGE_WALL, PAD_BANK_REACH, FeatureSteps, ramp_drop_sides,
                            seam_conflicts)
 from area_math import (Grid, Window, arc_length, blur, catmull_rom, cells, fbm, fbm_raster, gauss_smooth_1d,
@@ -129,6 +130,11 @@ def _inner_run(loop, half):
     if inside[k1:].any():
         return None
     return loop[k0:k1]
+
+
+def paint_only(road):
+    """Whether a layout road is only painted, never shaped: "paint": true, or "kind": "track"."""
+    return bool(road.get('paint')) or road.get('kind') == 'track'
 
 
 def layout_path(name):
@@ -328,13 +334,22 @@ class Area(FeatureSteps):
         h = self._gorges(h)
         h = self._relax(h)
         if self.setting == 'grounded':
-            # The rock past the playable boundary's closed edges (boundary.foot), the last of the shaping.
+            # The rock past the playable boundary's closed edges (boundary.foot), the last of the shaping. What it
+            # lifted is kept for the erosion's masks (only with an erosion block: it's a raster's worth of memory).
+            before = h if area_erosion.settings(self) is not None else None
             h = area_boundary.foot(self, h)
+            if before is not None:
+                self.foot_lift = (h - before).astype(np.float32)
+            del before
             log('terrain: seam band')
             h = self._seam(h)
         else:
             log('terrain: rim')
             h = self._rim(h)  # island setting
+        # Erosion (layout.json "erosion", area_erosion.py) last, on the finished shape, sparing what the masks keep;
+        # without the block the heights are as before. The water's surface it masks needs the heights' shape.
+        self.h = h
+        h = area_erosion.apply(self, h, log=log)
         self.h = h.astype(np.float32)
         del self.x, self.y, self.designed
         return self
@@ -594,10 +609,15 @@ class Area(FeatureSteps):
 
     def _roads(self, h):
         """Roads follow the ground, smoothed along their length, flat across and carved a little. A road with a
-        "level" (cm; a rail bed) is graded flat at that height instead."""
+        "level" (cm; a rail bed) is graded flat at that height instead. A road with "paint": true, or of "kind":
+        "track" (a wheel track into a yard, 2026-11-04 Towns plan), is only painted (area_places.py): the shape leaves it
+        out, so it carves nothing and isn't in area.roads (the macro map, layout_computed.json); the erosion keeps its
+        ground all the same."""
         self.roads = []
         self.road_gap = np.full(h.shape, np.inf, dtype=np.float32)  # meters past the nearest road's edge
         for road in self.layout['roads']:
+            if paint_only(road):
+                continue
             style = ROAD_STYLE.get(road.get('kind', 'dirt'), ROAD_STYLE['dirt'])
             pts = catmull_rom(to_m(road['path']), step=0.5)
             s = arc_length(pts)

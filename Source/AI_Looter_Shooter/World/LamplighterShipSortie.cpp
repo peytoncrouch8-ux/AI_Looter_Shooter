@@ -14,12 +14,6 @@
 #include "World/PilotSortieRules.h"
 #include "Components/BoxComponent.h"
 
-namespace
-{
-	/** Her starboard rail's middle length (BuildRails: port 0-2, starboard 3-5, each side aft, middle, fore). */
-	constexpr int32 StarboardMiddleRail = 4;
-}
-
 bool ALamplighterShip::BeginSortie(APilotSortie& Driver)
 {
 	if (bGone || !bBegun)
@@ -83,13 +77,7 @@ void ALamplighterShip::SetSortieSavesHeld(bool bHold)
 	HoldSaves(bHold);
 }
 
-void ALamplighterShip::OpenStarboardRail(bool bOpen)
-{
-	if (Rails.IsValidIndex(StarboardMiddleRail) && Rails[StarboardMiddleRail])
-	{
-		Rails[StarboardMiddleRail]->SetCollisionEnabled(bOpen ? ECollisionEnabled::NoCollision : ECollisionEnabled::QueryAndPhysics);
-	}
-}
+// OpenStarboardRail lives with her rails (LamplighterShipParts.cpp): it opens the stretches round the plank's hinge by tag.
 
 void ALamplighterShip::EndSortie()
 {

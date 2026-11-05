@@ -18,7 +18,8 @@ namespace
 	struct FQualityVariable
 	{
 		const TCHAR* Name;
-		int32 Values[4];
+		/** Whole numbers for the integer variables (a float sets them as its whole value). */
+		float Values[4];
 	};
 	const FQualityVariable QualityVariables[] = {
 		// Lumen lighting and reflections, Epic only. Even with its lighting off, Lumen's upkeep costs over 2 ms; on the
@@ -45,15 +46,20 @@ namespace
 		{ TEXT("r.AmbientOcclusionLevels"), { 0, 0, -1, -1 } },
 		{ TEXT("r.DistanceFieldAO"), { 0, 0, 0, 1 } },
 		// Texture detail (the art audit of 2026-11-03, finding 3): the engine's Medium draws every map at half its size (mip
-		// bias 1) and filters it 2x, so decks, ground and walls seen at a slant smear. Medium keeps the full maps and 8x
-		// filtering as High does, with a streaming pool to hold them (the engine's 600 MB would drop mips again): measured
-		// 2026-11-04 at 0.2 ms in a 10-spider horde, the filtering free, and the filtering is what the eye sees (the user's
-		// pick). Creature LOD0 up close stays the engine's Medium (LOD bias 1): 0.3 ms in a horde for a difference nobody
-		// saw at 3 m. Low stays the engine's own (mip bias 16, 1x, 400 MB); High's filtering rises from the engine's 4x.
+		// bias 1) and filters it 2x, so decks, ground and walls seen at a slant smear. Medium keeps the full maps, with a
+		// streaming pool to hold them (the engine's 600 MB would drop mips again), and filters 4x: 8x (the first pick, as
+		// High) cost the open views 0.1-0.4 ms (2026-11-04 evening, A/B in one run: Aerial 9.3 -> 8.9, the valley views
+		// -0.1..-0.25; the ground's ~20 texture reads a pixel, seen at a slant), over the 8.3 ms line, so the user took 4x.
+		// Creature LOD0 up close stays the engine's Medium (LOD bias 1): 0.3 ms in a horde for a difference nobody saw at
+		// 3 m. Low stays the engine's own (mip bias 16, 1x, 400 MB); High's filtering rises from the engine's 4x to 8x.
 		{ TEXT("r.Streaming.MipBias"), { 16, 0, 0, 0 } },
-		{ TEXT("r.MaxAnisotropy"), { 1, 8, 8, 8 } },
+		{ TEXT("r.MaxAnisotropy"), { 1, 4, 8, 8 } },
 		{ TEXT("r.SkeletalMeshLODBias"), { 2, 1, 0, 0 } },
 		{ TEXT("r.Streaming.PoolSize"), { 400, 1000, 1000, 1000 } },
+		// Medium switches every static mesh to its next LOD a quarter sooner (at 80% of the distance): 0-0.25 ms in the
+		// heaviest views (2026-11-04 evening: Grave and PointOverValley -0.2, the aerials -0.1), the user's yes; the
+		// engine's own distances elsewhere.
+		{ TEXT("r.StaticMeshLODDistanceScale"), { 1.f, 1.25f, 1.f, 1.f } },
 	};
 
 	/** Looter.Quality Low|Medium|High|Epic: sets and saves the preset, as the settings menu does (handy for perf runs). */
@@ -243,10 +249,10 @@ FString UGraphicsSettingsSubsystem::QualityName(EGraphicsQuality Quality)
 	return TEXT("Medium");
 }
 
-TMap<FString, int32> UGraphicsSettingsSubsystem::QualitySettings(EGraphicsQuality Quality)
+TMap<FString, float> UGraphicsSettingsSubsystem::QualitySettings(EGraphicsQuality Quality)
 {
 	const int32 Level = static_cast<int32>(Quality);
-	TMap<FString, int32> Settings;
+	TMap<FString, float> Settings;
 	for (const FQualityVariable& Variable : QualityVariables)
 	{
 		Settings.Add(Variable.Name, Variable.Values[Level]);
@@ -276,7 +282,7 @@ void UGraphicsSettingsSubsystem::ApplyQuality()
 	// Always full resolution (the engine's own levels render Medium at 71%): Medium still has time to spare at 1080p.
 	Levels.ResolutionQuality = 100.f;
 	Scalability::SetQualityLevels(Levels);
-	for (const TPair<FString, int32>& Setting : QualitySettings(Quality))
+	for (const TPair<FString, float>& Setting : QualitySettings(Quality))
 	{
 		if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*Setting.Key))
 		{

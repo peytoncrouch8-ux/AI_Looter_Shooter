@@ -200,9 +200,9 @@ namespace BargeRules
 		switch (Lamp.Mount)
 		{
 		case ELampMount::Post:
-			return Lamp.Fixed + FVector(Lamp.Out, 0.0) * WorkLampArm + FVector(0.0, 0.0, WorkLampPostUp - WorkLampIron);
+			return Lamp.Fixed + FVector(Lamp.Out, 0.0) * WorkLampArm + FVector(0.0, 0.0, Lamp.Up - WorkLampIron);
 		case ELampMount::Drop:
-			return Lamp.Fixed - FVector(0.0, 0.0, WorkLampDrop);
+			return Lamp.Fixed - FVector(0.0, 0.0, Lamp.Up);
 		default:
 			return Lamp.Fixed + FVector(0.0, 0.0, WorkLampPlate);
 		}

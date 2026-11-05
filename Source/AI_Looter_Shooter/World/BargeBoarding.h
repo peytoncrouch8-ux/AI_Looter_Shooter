@@ -46,15 +46,10 @@ enum class EBargeState : uint8
  * section 10; lane MAIN67's contract, W3): the one time she's in reach, so the Wardens board her. The Lamplighter (W2's
  * sortie) grapples her at GetBerth and lays a plank to GetBoardingPoint; from there everything of steps 3-7 is hers:
  *
- *  - Her hull: the user's Tripo SM_DredgeBarge jumboed (BARGE_LAYOUT.md): a well deck between the house and the scoop's
- *    raised floor (the forecastle, its two stairs the model's), house walks past the house to the cross walk between the
- *    house and the casing, where the hatch's coaming stands; all with its own collision. Her decks are zones
- *    (BargeRules::DeckZones); on them the kit adds only unseen rail walls on her rail line (BargeRules::RailLine), cover
- *    (REUSE's props: barrels, crates, sandbags, a pump cart, the forecastle's winch), the hose drum's gantry with
- *    ABargeHoseDrum on the well deck, the falling third stack, four horn posts the build script stands
- *    ACompanyLoudspeakers on: the BargeDeck fight's ground (nine Dredgers in two pushes: the well deck, the forecastle's
- *    high ground, the house walks' mouths). Four furnace vents in the well deck breathe in a running pattern: a second's
- *    glow through their slots, then a column of furnace fire that burns whatever stands in it.
+ *  - Her hull: the user's Tripo SM_DredgeBarge jumboed (BARGE_LAYOUT.md), its own collision: a well deck, the forecastle,
+ *    house walks to the cross walk and its hatch. Her decks are zones (BargeRules::DeckZones); the kit adds rail walls,
+ *    cover, the hose drum's gantry, the falling third stack, horn posts (on the starboard rim), work lamps, four furnace
+ *    vents breathing fire in a running pattern: the deck fight's ground, three pushes (BargeFightRules.h).
  *  - The furnace hatch (a Reach marker tagged Barge_FurnaceHatch at the stair's top) on the cross walk: its steep stair
  *    runs down through the coaming's hole onto the hall's catwalk, by the stoker's corner (the manifest lies on his desk;
  *    the radio on it carries Ned's call once the manifest is taken).
@@ -73,11 +68,7 @@ enum class EBargeState : uint8
  * She's in the world during Main 6 only (ShownWhen, and never once Pilot.BargeFell is set): hidden, without collision and
  * not ticking otherwise. A session loaded on any step finds her as that step leaves her (valves open on step 5's start,
  * all shut past it; the cage burst from step 7; dying in step 7). A player off both her and the Lamplighter during steps
- * 3-7 is put back aboard (a fall, a death's wake at a lantern post far below). Split by topic: BargeBoarding.cpp (life,
- * story, the beats), BargeBoardingSpots.cpp (the getters), BargeBoardingKit.cpp (the deck kit, the stairs, the looks),
- * BargeBoardingProps.cpp (the cover, the stoker's corner, coal, lanterns), BargeBoardingHall.cpp (the hall below the deck and
- * the hatch's stair), BargeBoardingDeck.cpp (the tick: vents, hose, keeping the player aboard, the beats' lines),
- * BargeBoardingDying.cpp (dying, the stack, the fall).
+ * 3-7 is put back aboard (a fall, a death's wake at a lantern post far below). Split by topic (BargeBoarding.cpp's head).
  *
  * The hull below the deck is a hollow with nothing inside it (and no deck over it inside the casing), so the hall builds its
  * own room in it (floor, walls, a ceiling closing it, alcoves, lintels) in the kit's iron (BargeLooks::KitIron): nobody sees
@@ -95,8 +86,12 @@ public:
 	static const FName BargeTag;
 	/** The furnace hatch's Reach marker's tag (Main 6 step 3). */
 	static const FName HatchTag;
-	/** The deck's and the hall's fights' spawner ids (their spots: GetFightSpots). */
+	/** The fights' spawner ids (their spots: GetFightSpots): the deck's three pushes (BargeFightRules.h: the deck's own, the
+	 *  roof's and the tower's droppers, the stern's), the hall's. */
 	static const FName DeckFight;
+	static const FName RoofFight;
+	static const FName TowerFight;
+	static const FName SternFight;
 	static const FName HallFight;
 	/** The reworked Tripo hull (one path; without it an iron box of its size stands in). */
 	static const TCHAR* const HullPath;
@@ -140,15 +135,20 @@ public:
 
 	// --- The build script's getters (world, from her placed transform: callable in the editor) ---
 
-	/** The fight's spawn spots: BargeDeck (nine, behind the deck's cover) or FurnaceHall (eight, four at each stokehold). */
+	/** The fight's spawn spots: BargeDeck (nine, behind the deck's cover), the droppers' landings (BargeDeckRoof, three;
+	 *  BargeDeckTower, two), the stern's (BargeDeckStern, four) or FurnaceHall (eight, four at each stokehold). */
 	UFUNCTION(BlueprintCallable, Category = "Barge")
 	TArray<FVector> GetFightSpots(FName Fight) const;
+
+	/** The droppers' ropes' tops for BargeDeckRoof or BargeDeckTower (their ARappelSpawner's RopeTops), each its landing's. */
+	UFUNCTION(BlueprintCallable, Category = "Barge")
+	TArray<FVector> GetDropRopeTops(FName Fight) const;
 
 	/** The stoker's desk top, where the manifest lies. */
 	UFUNCTION(BlueprintCallable, Category = "Barge")
 	FVector GetOfficeSpot() const;
 
-	/** The four horn posts' feet on the deck, each turned to face inboard. */
+	/** The four horn posts' feet (against the house's fore face, on the starboard rim), each turned its way. */
 	UFUNCTION(BlueprintCallable, Category = "Barge")
 	TArray<FTransform> GetHornSpots() const;
 
@@ -213,6 +213,15 @@ public:
 	const TArray<TObjectPtr<UPointLightComponent>>& GetDeckLamps() const { return DeckLamps; }
 	/** The lanterns' lights in the hall (the four under the catwalk, then the one over the stoker's desk). */
 	const TArray<TObjectPtr<UPointLightComponent>>& GetLanterns() const { return Lanterns; }
+	/** Where a player at OnHer (her frame) is for her lights: 0 on her deck or near, 1 below it, 2 far. */
+	static int32 LightViewAt(const FVector& OnHer);
+	/** Her lights for that view: the deck's for 0, the hall's and the cage's for 1, none for 2 (the tick calls it as the
+	 *  player moves; tests call it). */
+	void ShowLightsFor(int32 View);
+	/** The deck fight's pushes she has started (1: the first, which starts on its own). */
+	int32 GetPushesStarted() const { return PushesStarted; }
+	/** The fights each deck push brings (0 to NumDeckPushes - 1). */
+	static TArray<FName> PushFights(int32 Push);
 	/** True when the reworked hull is hers (not the stand-in box): its decks, rails and superstructure carry their collision. */
 	bool HasHull() const;
 
@@ -315,6 +324,10 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UInstancedStaticMeshComponent> CatwalkLook;
 
+	/** The hand rails' iron (the catwalk's inner edge, the hatch stair's sides): rails and stanchions. */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UInstancedStaticMeshComponent> HandrailLook;
+
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UInstancedStaticMeshComponent> HoseSections;
 
@@ -395,7 +408,8 @@ private:
 	/** The hall's instanced looks (its walls, alcoves and lintels as their boxes stand; the catwalk's grating). */
 	void LayHallLooks();
 
-	// --- BargeBoardingDeck.cpp ---
+	// --- BargeBoardingDeck.cpp (and Pushes.cpp) ---
+	void AdvancePushes(float DeltaSeconds);
 	void AdvanceVents(float DeltaSeconds);
 	void AdvanceHose(float DeltaSeconds);
 	void KeepPlayerAboard(float DeltaSeconds);
@@ -415,6 +429,13 @@ private:
 	bool bForced = false;
 	bool bStoryRead = false;
 	float StepClock = 0.f;
+	/** The deck fight's pushes (AdvancePushes): the step they were counted for, started, since the last began, mostly down. */
+	int32 PushStep = INDEX_NONE;
+	int32 PushesStarted = 1;
+	float PushClock = 0.f;
+	float MostlyDownClock = 0.f;
+	/** The light view last shown (ShowLightsFor; none: show it again). */
+	int32 LightView = INDEX_NONE;
 
 	// Vents (and which looks were found: the kit's vent and fire models, else engine shapes).
 	bool bVentModel = false;

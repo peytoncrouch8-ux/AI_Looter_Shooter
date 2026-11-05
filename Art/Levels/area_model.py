@@ -28,7 +28,8 @@ wrapper that calls main('<Area>'). It builds:
 
   --macro     paints the macro color map and the PCG scatter mask (T_<Area>Scatter_BC: tree, grass, flower and
               pebble densities) into Art/Textures/<Area>Macro (a couple of minutes)
-  --computed  writes Art/Levels/<Area>/layout_computed.json (heights and points the placement scripts need)
+  --computed  writes Art/Levels/<Area>/layout_computed.json (heights and points the placement scripts need) and, with a
+              layout erosion.maps, the towns' flow and low-point maps (area_erosion_maps.py)
   --preview   renders Saved/ArtPreviews/Terrain/<Area> (macro.png, scatter.png, plan.png and the layout's views)
   --save-to   writes all of that into DIR instead (layout_computed.json, the two maps, previews/) and leaves the
               repository alone: Tools/terrain_identity.py and dry runs use it
@@ -588,7 +589,10 @@ def main(name=None):
                 os.path.join(REPO, 'Saved', 'ArtPreviews', 'Terrain', area.name))
     if args.computed:
         import area_computed
+        import area_erosion_maps
         area_computed.write(area, os.path.join(save_to, 'layout_computed.json') if save_to else None, log=log)
+        # The towns' flow and low-point maps (layout erosion.maps), beside the layout (or in save_to).
+        area_erosion_maps.write_maps(area, save_to or area.folder, log=log)
     if args.macro:
         import area_macro
         import area_scatter

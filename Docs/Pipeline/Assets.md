@@ -43,7 +43,16 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
      `DetailGrainUp` 1 turns the sides' picture a quarter (grain up posts and upright boards). `DetailTopTint` lightens the
      frame's up faces over the rest at every distance (treads over risers: a step reads in shade). The barge's `_Deck`
      (round 5): plates 0.85/0.9, MetalWorn 0.3 at 0.7 m (its 1 m blotches read as dirt), Tint 1.8 (Tripo's deck paint
-     averages 0.045 linear luma), TopTint 1.25.
+     averages 0.045 linear luma), TopTint 1.25. `DetailMaskAlpha` 1: the base colour map's alpha gates the set's light and
+     dark (a paint set's chips on painted zones, none on rust; grain, roughness and plates stay); `MI_TripoDredgeBarge_Walls`
+     (PaintWorn 0.65 at 1.6 m, plates 2.0 x 1.0 m) uses it once REBAKE writes the chip weight into the walls' BC alpha.
+   - M_Terrain's Medium path (2026-11-04, `TERRAIN_NEAR` and the code beside it): Quality Switches send material quality
+     Medium (r.MaterialQualityLevel 2, EffectsQuality@1) and Low to a cheaper graph; High and Epic take Default (stats
+     unchanged: 160 VS / 972 PS / 13 samplers / 14 graph samples). Medium: no side-laid rock normals; thatch, stony and the
+     places' patterns read only within 30-40 m (their mean mip past it); the side-laid rock and strata noise only where a
+     face can be steep (983 PS, 13 samplers, 6 graph samples). Editor view at 8x filtering, the Aerial: terrain 1.20 -> 0.75 ms
+     of base pass; the valley -0.1 ms. The custom nodes' own reads use `View.MaterialTextureBilinearWrapedSampler` (each
+     texture object's own sampler took a slot: 17).
      One Custom node does it all (`Leaned` an additional output). On, object space: 442 PS, 8 samplers, 6 interpolator
      scalars; DetailWorld: 340 VS, 450 PS, 9 interpolators (the frame worked out per vertex: per pixel it cost ~0.1 ms
      more). Editor viewport (Epic, 1885x866), BasePass: barge filling the view +0.09-0.12 ms (round 1); a kit wall filling
@@ -160,24 +169,60 @@ Rules that saved time:
      larkspurTarn should get a deep zone (1.7 m deep); the island's pond (1.2 m) and the Wallow's pools none. `SWIM_DEPTH` 160 x 0.85 is
      `Looter.Swim.StartDepth` at the player's size, kept equal by hand. A full `build_area.py` build clears the waters, so it calls the
      script's `place` at the end of its gameplay part and in its `water` mode.
-12. The reworked Tripo barge (2026-11-04; why, the user's decisions, the numbers and the kit on it: `Game.md` "The barge: the reworked Tripo hull and the kit on it"). A Tripo model the player walks on is reshaped by script on the fitted
-   mesh, not replaced (the scripted replacement was dropped: Workflow.md). `SPECS['DredgeBarge']` in `Tools/Blender/looter_tripo_wardens.py` has `rework=barge.rework` and `boxes=[]` (the rework adds its own `UCX_` boxes); `build()` runs the hook
-   after the turn, scale and pivot and before the maps, sockets and LODs, so every export reproduces it. A reworked spec can't carry glow faces (their indices move).
-   - Files: `Tools/Blender/looter_tripo_barge.py` (the rework; its docstring lists the steps in order, its constants are the contract's numbers, which `BargeRules.h` shares: change both together), `looter_tripo_barge_house.py` (round 2: ribs,
-     portholes, a catwalk ring, a door frame and steps; see its docstring), `looter_tripo_rework.py` (the toolkit, in the Unreal frame in cm: `bisect`, `spanning`, `cap`, `outline`, `Build`, `Paint`, `tidy`, `ucx`; `B()` to Blender metres, front -Y).
-     Tripo's mesh is one closed skin (75,775 triangles, 37 open edges); the build logs `reworked tris`.
-   - New faces and UVs: Tripo's atlas has no tiling area, so `Paint` gives each new face a tiny square of the atlas (`PATCH` 2 px of 1024) inside the UV charts of a matching Tripo surface (`PAINTS`: the old foredeck for the deck, the midship
-     walls for the house, the casing's roof for the roof, the hull's sheer band for the bulwark and guard), where colour and normal map are flattest and the colour is that surface's usual one. Each ~3 m tile (`TILE` 300) takes one of up to 8 patches at random
-     (`SEED` 1104), so plates differ a little in tone; the detail layer draws the plates close up; the maps and `write_maps` are unchanged. A new kind of surface = a new `PAINTS` entry (normal test, x, z and |y| ranges). `tidy` keeps the
-     export's tangent check clean (nearly level faces aren't cut level, cut polygons are triangulated the best way round, hairline slivers dropped).
-   - Collision rule: the script writes the `UCX_` boxes (list in `Game.md`; each is logged as `UCX <name>: centre, size`). The kit needs the deck slab's top at exactly 2250, the bulwark round its gap, the house's walls split round the door and
-     nothing inside the house; the hull-body boxes are as wide as the skin's narrowest section over their x, less 25 cm. `Looter.World.Barge.Hull` checks the imported result.
-   - Sockets (`lm.socket`; an Unreal yaw turns the other way about Blender's Z): `Door` (-400, 0, 2250) facing +X and `Gangway` (2000, -1237.5, 2250) facing -Y from the rework; `HoseDrum`, `Stack_1`, `Stack_2` from the spec (Landfall's build reads them).
-   - Preview (bow, stern, top, the deck at eye height, the berth, the bow's end into `Saved/ArtPreviews/DredgeBargeRework/`): `$env:LOOTER_TRIPO_ONLY='DredgeBarge'; Tools\artrun.ps1 -Script Art\Models\Tripo\Wardens.py -Preview`. Export test:
-     `$env:LOOTER_TRIPO_ONLY='DredgeBarge'; Tools\artrun.ps1 -Export Wardens -Family DredgeBarge`, then `Tools\artrun.ps1 -Script Tools\Blender\tangentcheck.py -ScriptArgs Intermediate\ArtExport_DredgeBarge,--where`. Without `LOOTER_TRIPO_ONLY` a run builds all the Wardens' models.
-   - Import (editor open): `$env:LOOTER_TRIPO_ONLY='DredgeBarge'; Tools\models.ps1 -Only Wardens` overwrites `/Game/Art/Tripo/SM_DredgeBarge`, `MI_TripoDredgeBarge` and its maps. **After any re-import run**
-     `Tools\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_world_materials.py DetailInstances"`: the importer clears the instance's parameters, the `DetailOn` static switch too, and the barge would fall back to Tripo's soft atlas.
+12. The adjusted Tripo barge (2026-11-04, round 3; why, the user's calls and the numbers: `Game.md` "The barge: the reworked Tripo hull and the kit on it"). A Tripo model the player walks on is reshaped by script on the fitted mesh, never replaced:
+   round 1's scripted hull and round 2's boxed house were rejected (`Workflow.md`).
+   - Hooks: `SPECS['DredgeBarge']` in `Tools/Blender/looter_tripo_wardens.py` has `rework=barge.rework`, `slots=barge.slots`, `boxes=[]` (the rework writes its own `UCX_` hulls). `build()` runs `rework` after the turn, scale and pivot and before the
+     maps, sockets and LODs, and `slots` after the maps, so every export reproduces it. A reworked spec can't carry glow faces (their indices move). The build logs `reworked tris` (75,775 in, 135,393 out).
+   - Modules, all in `Tools/Blender/`, in the Unreal frame (cm; `B()`/`U()` turn a point into Blender metres and back, front -Y): `looter_tripo_barge.py` the rework (its docstring lists the steps in order: 0 walks cleared, 1 the squeeze, 2 the fore
+     jumbo, 3 the midship jumbo, 4 the berth gap, 5 the forecastle's stairs, 6 the hatch, 7 slots, 8 collision and sockets; its constants are the contract's numbers, which `BargeRules.h` shares: change both together; `final_x()` maps a Tripo x to the
+     final one), `looter_tripo_barge_jumbo.py` (the fore run's slabs, warp, end morph, zip), `_clear.py` (what crosses the walks, the stub posts, a copy's rail post), `_floors.py` (the walk floors and the bulwark's top per 25 cm station), `_collision.py` (the
+     `UCX_` hulls and floor boxes fitted to the final pieces), `_check.py` (below); the toolkit `looter_tripo_rework.py` (`bisect`, `spanning`, `copy`, `patch`, `trim`, `cap`, `separate`, `tidy`, `ucx`, `hull`, `close_slot`) and its paint
+     `looter_tripo_paint.py` (`Nearest`, `paint_like`, `paint_group`, `repaint`). `looter_tripo_barge_house.py` (round 2) is deleted.
+   - The rule: new faces COPY real Tripo faces with their UVs (`copy`/`patch`, cut with `bisect` where a piece moves) and a cap or fill takes the paint of the Tripo triangle nearest it or of the face beside it; never a flat atlas patch or a stretched
+     strip. A face left without UV area gets a small atlas patch (Unreal needs a tangent frame on every corner); `tidy` keeps the tangent check clean. The jumbo lays unmirrored copies of three different slabs in a searched run: mirrored copies made
+     butterfly seams, turned ones read as tiles.
+   - Slots: a Blender material `X` is the slot `X` and `/Game/Art/Materials/MI_X` (`TripoDredgeBarge_Hull/_Deck/_Super`, one atlas). `slots()` drops the unused first slot; `materials.pop()` moves the face indices itself (round 3's first export moved
+     them by hand: every face one slot off).
+   - The check: `Tools\artrun.ps1 -Script Tools\Blender\looter_tripo_barge_check.py` builds the barge, measures it with rays (every number a hit or a vertex) and writes `Docs/Work/2026-11-04-Art/BARGE_LAYOUT.md`, the kit's contract: deck zones as
+     boxes with z, the walks' clear width and headroom, the rail line and the gap, the hatch hole, the hall's cavity, footprints to keep clear of, the hulls, the sockets. It raises when a slot is wrong (a ray per region must hit its slot). Re-run it
+     after any change to the model and plug the numbers into `BargeRules.h` / `BargeHallRules.h`.
+   - Sockets (`lm.socket`; an Unreal yaw turns the other way about Blender's Z): `Gangway` and `Hatch` from the rework; `HoseDrum`, `Stack_1`, `Stack_2` from the spec (Landfall's build reads them).
+   - Preview (Tripo's angle, the spyglass side, bow, stern, top, the well deck at eye height both ways, the berth, the hatch, two close-ups, into `Saved/ArtPreviews/DredgeBargeRework3/`): `$env:LOOTER_TRIPO_ONLY='DredgeBarge'; Tools\artrun.ps1
+     -Script Art\Models\Tripo\Wardens.py -Preview`; Main judges it against `Art/Tripo/DredgeBarge/preview.png`. Export test:
+     `$env:LOOTER_TRIPO_ONLY='DredgeBarge'; Tools\artrun.ps1 -Export Wardens -Family DredgeBarge`, then `Tools\artrun.ps1 -Script Tools\Blender\tangentcheck.py -ScriptArgs Intermediate\ArtExport_DredgeBarge,--where`. Without `LOOTER_TRIPO_ONLY` a run
+     builds all the Wardens' models.
+   - Export folder rule: `Tools\models.ps1` clears the `.fbx` and `.json` files of its export folder first, so each Blender lane exports to a folder of its own (`artrun.ps1 -Export ... -Family <Lane>` -> `Intermediate\ArtExport_<Lane>`): the Wardens
+     family run `ArtExport_Tripo` (the contract's), a barge-only run `ArtExport_DredgeBarge`, BargeKit `ArtExport_Props`, the collision lane `ArtExport_Collision` and `ArtExport_CollisionWardens`. Never share one.
+   - Import (editor open): `$env:LOOTER_TRIPO_ONLY='DredgeBarge'; Tools\models.ps1 -Only Wardens` overwrites `/Game/Art/Tripo/SM_DredgeBarge`, `MI_TripoDredgeBarge` and its maps. **After any re-import run** `Tools\console.ps1 "py
+     C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_world_materials.py DetailInstances"`: the importer clears the instances' parameters, the `DetailOn` static switch too, and the barge would fall back to Tripo's soft atlas.
      Then rebuild the level if the deck or the sockets moved (`Levels.md` "The barge in the level").
+13. The barge kit's models (2026-11-04, the PROPS lane): `Art/Models/Landfall/BargeKit.py` makes 16 scripted models in our sets (the furnace and its burst, a cage shard, a grate wedge, the draft valve and its wheel, a pipe section, the deck vent, the
+   furnace vent, a fire tongue, the falling stack and its foot, the hose drum, the drum gantry, the jam lever, the radio) that the code drew as engine shapes (the audit's plan row 3). Sizes, pivots, sockets, slots, collision and how the code scales
+   each: `Docs/Work/2026-11-04-Art/BARGE_PROPS.md`; the code's paths: `World/BargeLooks.h`.
+   - The script's folder names the Unreal folder (`models.ps1`): they land at `/Game/Art/Landfall/SM_Barge*`; `Config/DefaultGame.ini` always cooks `/Game/Art/Landfall` (the code finds them by path, some outside a constructor).
+   - Materials by slot name (`MI_<slot>`): shared `IronBlack`, `BrassWorn`, `PaintOxide`, `PaintCream`, `PaintBlack`, `CinderGlow`; new `MI_BargeGunmetal` (MetalRust tinted `#6A6560`; it was `#8A98A8` and read pale beside Tripo's brown iron) and
+     `MI_HoseRubber` (Polymer `#36322E`). 1024 px/m, BargeGunmetal 512 (MetalRust's rust patches are painted for 320 px/m). A re-import overwrites the gunmetal tint.
+   - `CinderGlow` is additive, so every model is Nanite off: cold means the code overrides the `CinderGlow` slot with `MI_IronBlack`, found with `GetMaterialIndex(TEXT("CinderGlow"))` (works on ISMs); never `SetMaterial(0, ...)` (slot 0 is not the
+     glow). LODs 50/25% on most; vertex occlusion and soot baked in alpha; seeded RNG, repeatable exports.
+   - Preview: `Tools\artrun.ps1 -Script Art\Models\Landfall\BargeKit.py -Preview` (`'--only=Name,Name'` builds some) into `Saved/ArtPreviews/BargeKit/` (each model, the lineup, the pieces laid as the code lays them). Export test: `Tools\models.ps1
+     -Only BargeKit -Out Intermediate\ArtExport_Props -NoImport`. Import: `Tools\models.ps1 -Only BargeKit` (editor open).
+14. Collision that fits the Tripo looks (2026-11-04, the COLLISION lane; the art audit's finding 6, plan rows 6-7; the user's complaint: "the collisions are messed up"). Only `UCX_` hulls change, never a visible mesh; before and after, with the
+   metric: `Docs/Work/2026-11-04-Art/COLLISION.md`. `Tools/Blender/looter_tripo_collision.py`:
+   - Props and ships: `SPECS[...]['collision']=tc.<hook>` with `boxes=[]` (never `boxes=[]` without the hook: no hulls means mesh collision), called by `build()` after the `post_box` block. `fit_prop` splits the mesh's vertices into convex pieces
+     (the cut that leaves the two smallest hulls, worst piece first, at most `max_hulls` 8, each cut to 48 corners along fixed directions in its own frame). Hooks: `barricade_table`, `barricade_boards`, `barricade_sacks`, `hose_intake`,
+     `anchor_winch`, `lantern_post` (its `post_box` dropped), `company_tender` (the hull in slices along its crown).
+   - Buildings: `looter_tripo_buildings.refit_hulls` calls `refit_building` in `swap`, after the trim boards and lit windows are placed: each scripted hull's box is a region of the shell, its walls planes fitted to the faces rays meet from outside
+     (the outermost wall-wide cluster per row, so trim, sills and posts don't push a wall out: the old refit stood walls 25-50 cm proud), banded where a wall steps or bends; deck and porch roofs fitted from readings above and below; `BUILDINGS` holds
+     the farmhouse's stovepipe and back gable and the windmill as parts. Then `cover_leftovers` hulls whatever stands 10 cm or more outside (rakes, fascias, stones). `LOOTER_TRIPO_HULLS=kdop` keeps the old k-DOP refit to compare.
+   - The capsule sweep rule: after any refit, walk the player's capsule (BP_LooterCharacter radius 34, half-height 96, times `LooterPlayerSize::Scale` 0.85: radius 28.9, height 163.2; also the 34/176 case; step 45 = `MaxStepHeight`; feet on the
+     highest hull top under it, a rise over 45 is a wall) up every door's steps and porch, between the posts, round the building and along the ships' decks: it must pass wherever a player can reach and stop at the walls. The Tripo houses are not
+     enterable, so a door sweep ends at the door face (the farmhouse stops 25 cm short: its belt trim stands 23 cm proud). The sweep script (`cm.py`) lived in the lane's scratch folder and was not kept.
+   - Ships in C++: `World/LamplighterShipParts.cpp` (18 tilted deck pieces fitted to her measured crowned deck, 5 deck blocks, side rails on the measured bulwark line in tagged stretches so `ShowGangway` opens the gangway's span, spots on the
+     measured deck) and `World/CompanyTender.cpp` (`HingeTop` 300 replaces `DeckTop` 298; per-spot rifleman heights).
+   - Result (hulls, share off the look by over 10 cm, old -> new): farmhouse 13 -> 67 hulls, 71 -> 25%; barn 2 -> 45, 61 -> 9; cottage 9 -> 23, 31 -> 7; windmill 4 -> 32, 87 -> 44; the props 57-90 -> 3-25; the tender 83 -> 21; the Lamplighter's deck
+     off the collision by over 3 cm 78 -> 10%. Hull counts rose: a perf row if a fight happens round the farmhouse or barn.
+   - Left: her own `UCX_` boxes stay swollen but are unused (her Hull has NoCollision); no collision on her forecastle stair, the ring forward of the console, the overhead spars; Junie's launchers (`PilotSortieFight.cpp`) stand where the deck is 17
+     cm under `DeckTop`; the tender's `LauncherSpots` float 30-130 cm over its hull; `LamplighterShipParts.cpp` is 556 lines and `looter_tripo_collision.py` 888 (over ~500).
 
 - Exports must be repeatable. Never iterate BMesh sets (their order changes between runs). Export twice and compare; only FBX IDs
   and time stamps may differ.

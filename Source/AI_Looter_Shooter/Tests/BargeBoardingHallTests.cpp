@@ -179,7 +179,7 @@ bool FBargeHallTest::RunTest(const FString& Parameters)
 	const bool bHatchClimb = ClimbClear(World, *Barge, Hatch, Head, &HatchWhy);
 	TestTrue(FString::Printf(TEXT("Down the hatch's stair, its floor under every step, headroom all the way (%s)"), *HatchWhy), bHatchClimb);
 	const FVector OffStair = Hatch.To + FVector(Way, 0.0) * 50.0;
-	const FVector ByDesk = HallPoint(DeskAngle, CatwalkInner + Shoulders + 10.f, CatwalkUp);
+	const FVector ByDesk = HallPoint(DeskAngle, CatwalkInner + 70.f, CatwalkUp);
 	const FVector AtStair = HallPoint(FloorStairAngles[1] + 5.f, CatwalkMiddle, CatwalkUp);
 	const FVector Chest(0.0, 0.0, 100.0);
 	bool bWay = WalkClear(World, *Barge, OffStair + Chest, ByDesk + Chest) && WalkClear(World, *Barge, ByDesk + Chest, AtStair + Chest);
@@ -210,20 +210,77 @@ bool FBargeHallTest::RunTest(const FString& Parameters)
 	bEnds &= EndBlocks(HatchCatwalkEnd(), ArcTop > ArcFoot ? 1.f : -1.f);
 	TestTrue(TEXT("Down each floor stair from the catwalk, headroom all the way"), bClimb);
 	TestTrue(TEXT("...and the ring's ends walled"), bEnds);
+	// Round the ring (the PIE walk, 2026-11-04: the desk blocked it): a capsule every 30 cm along the walkway inside the hand
+	// rail, past the desk and the safe, on each run the player uses (from the hatch stair's foot to the port floor stair, from
+	// the starboard stair to the hatch's other side).
+	constexpr float RingWalk = CatwalkInner + 50.f;
+	FString RingWhy;
+	bool bRing = true;
+	const auto WalkArc = [&](float From, float To)
+	{
+		const double Length = FMath::DegreesToRadians(FMath::Abs(To - From)) * RingWalk;
+		const int32 Steps = FMath::Max(1, FMath::CeilToInt32(Length / 30.0));
+		for (int32 Step = 0; Step <= Steps; ++Step)
+		{
+			const float Angle = FMath::Lerp(From, To, static_cast<float>(Step) / Steps);
+			const FVector Feet = HallPoint(Angle, RingWalk, CatwalkUp);
+			const bool bFloored = FloorUnder(World, *Barge, Feet + FVector(0.0, 0.0, 50.0), Floor) && FMath::IsNearlyEqual(Floor, static_cast<double>(CatwalkFloor), 2.0);
+			FString Blocker;
+			const bool bClear = CapsuleClear(World, *Barge, Feet, Shoulders, Head + OverFeet, &Blocker);
+			if ((!bFloored || !bClear) && RingWhy.IsEmpty())
+			{
+				RingWhy = FString::Printf(TEXT("at %.0f degrees: %s"), Angle, bFloored ? *(TEXT("in ") + Blocker) : TEXT("no floor"));
+			}
+			bRing &= bFloored && bClear;
+		}
+	};
+	WalkArc(FloorStairAngles[1] + 4.f, 360.f + ArcFoot - 4.f);
+	WalkArc(ArcTop + 6.f, FloorStairAngles[0] - 4.f);
+	TestTrue(FString::Printf(TEXT("Round the catwalk past the desk and the safe, a man's way (%s)"), *RingWhy), bRing);
+	// Off the hatch stair's foot to the desk, a man's way the whole walk (the PIE walk: its rail's end overhung the catwalk).
+	FString FootWhy;
+	const bool bOffFoot = WalkLegs(World, *Barge, { FVector2D(OffStair.X, OffStair.Y), FVector2D(ByDesk.X, ByDesk.Y) }, CatwalkFloor, Shoulders, &FootWhy);
+	TestTrue(FString::Printf(TEXT("Off the hatch stair's foot to the desk, a man's way (%s)"), *FootWhy), bOffFoot);
+	// The hand rail: a step off the ring's inner edge meets it (knee and hand high) at every laid span; the hatch stair's
+	// sides too.
+	bool bRailed = true;
+	for (int32 Span = 0; Span < CatwalkSpans; ++Span)
+	{
+		if (!IsCatwalkSpanLaid(Span))
+		{
+			continue;
+		}
+		const float Angle = CatwalkSpanAngle(Span);
+		for (const float Up : { 50.f, 90.f })
+		{
+			bRailed &= World->LineTraceTestByChannel(Her.TransformPosition(HallPoint(Angle, RingWalk, CatwalkUp + Up)),
+				Her.TransformPosition(HallPoint(Angle, CatwalkInner - 60.f, CatwalkUp + Up)), ECC_Pawn);
+		}
+	}
+	const FVector StairMiddle = (Hatch.From + Hatch.To) * 0.5 + FVector(0.0, 0.0, 50.0);
+	for (const double Side : { -1.0, 1.0 })
+	{
+		bRailed &= World->LineTraceTestByChannel(Her.TransformPosition(StairMiddle), Her.TransformPosition(StairMiddle + FVector(Side * (HatchStairWidth * 0.5 + 40.0), 0.0, 0.0)), ECC_Pawn);
+	}
+	TestTrue(TEXT("A step off the catwalk's inner edge or the hatch stair's sides meets a hand rail"), bRailed);
 	// After the manifest she puts a player back by the hatch, on the cross walk behind its stair.
 	const FVector StartOnHer = Her.InverseTransformPosition(Barge->GetPlayerStart().GetLocation());
 	const bool bStartOpen = IsOpenDeck(FVector2D(StartOnHer.X, StartOnHer.Y));
 	const bool bStartFloored = FloorUnder(World, *Barge, StartOnHer, Floor) && FMath::IsNearlyEqual(Floor, static_cast<double>(HatchDeckZ()), 5.0);
 	TestTrue(FString::Printf(TEXT("Put back by the hatch: on open deck (at (%.0f, %.0f, %.0f)%s, floor: %s)"), StartOnHer.X, StartOnHer.Y, StartOnHer.Z,
 		bStartOpen ? TEXT("") : TEXT(", off the open deck"), *FloorWhat(World, *Barge, StartOnHer)), bStartOpen && bStartFloored);
-	// The desk as laid (the bench at its size) on the catwalk inside the wall; the manifest's spot on its top.
+	// The desk as laid (the bench at its size) on the catwalk inside the wall; the manifest on its work top (the PIE walk,
+	// 2026-11-04: it lay on the tool wall's top, 2.1 m up), seen from the walkway.
 	const FBox DeskBox = Barge->Desk ? BoxOnHer(*Barge, *Barge->Desk) : FBox(ForceInit);
 	const FVector OfficeSpot = Her.InverseTransformPosition(Barge->GetOfficeSpot());
 	const FVector DeskMiddle = DeskBox.GetCenter() - HallCenter;
-	TestTrue(TEXT("The desk on the catwalk inside the wall; the manifest on its top"), Barge->Desk
-		&& FVector2D(DeskMiddle.X, DeskMiddle.Y).Size() < HallRadius && FVector2D(DeskMiddle.X, DeskMiddle.Y).Size() > CatwalkInner
+	const double OverFoot = OfficeSpot.Z - DeskBox.Min.Z;
+	const FVector Aisle = HallPoint(DeskAngle, RingWalk, CatwalkUp + EyeUp);
+	TestTrue(FString::Printf(TEXT("The desk on the catwalk inside the wall; the manifest on its work top (%.0f cm over its foot), seen from the walkway"), OverFoot),
+		Barge->Desk && FVector2D(DeskMiddle.X, DeskMiddle.Y).Size() < HallRadius && FVector2D(DeskMiddle.X, DeskMiddle.Y).Size() > CatwalkInner
 		&& FMath::IsNearlyEqual(DeskBox.Min.Z, static_cast<double>(CatwalkFloor), 2.0)
-		&& FMath::IsNearlyEqual(OfficeSpot.Z, DeskBox.Max.Z, 1.0) && OfficeSpot.Z > CatwalkFloor + 50.0);
+		&& FMath::IsNearlyEqual(OverFoot, static_cast<double>(DeskWorkTop), 5.0) && OfficeSpot.Z <= DeskBox.Max.Z + 0.5
+		&& SeesClear(World, *Barge, Aisle, OfficeSpot + FVector(0.0, 0.0, 5.0)));
 	// The lanterns' lights: the hall's four and the one over the desk, each inside the hall.
 	bool bLit = Barge->GetLanterns().Num() == static_cast<int32>(UE_ARRAY_COUNT(HallLanternAngles)) + 1;
 	for (const UPointLightComponent* Light : Barge->GetLanterns())

@@ -2,6 +2,9 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Player/PlayerSize.h"
+#include "Tests/BargeTestWorld.h"
+#include "World/BargeRules.h"
 #include "World/CompanyTender.h"
 #include "World/LamplighterLauncher.h"
 #include "World/LamplighterShip.h"
@@ -19,7 +22,8 @@
 
 // The Lamplighter's part of Main 6, "The Pilot Light" (lane MAIN67, W2; Docs/Work/2026-10-31-Wardens/MAINS_2_7.md section
 // 10): her sortie's rules, the winch's cast off, the escorts' gas-bags, Junie's launchers and the plank, and a whole run from
-// the ledge out and home again, in a test level with no barge (the sortie's BerthWithoutBarge stands in for W3's).
+// the ledge out and home again, in a test level with no barge (the sortie's BerthWithoutBarge stands in for W3's); the walk
+// over the plank has the barge.
 
 namespace
 {
@@ -85,6 +89,68 @@ namespace
 		{
 			Ship.Advance(FMath::Min(PilotFrame, Seconds - Done));
 		}
+	}
+
+	/** The test level never ticks: what moved (her, the plank) is brought up to date in its physics scene before a trace, as a
+	 *  playing level's is every frame (BargeTestWorld::SpawnBarge does the same). */
+	void FlushPilotPhysics(UWorld* World)
+	{
+		if (FPhysScene* Scene = World ? World->GetPhysicsScene() : nullptr)
+		{
+			Scene->Flush();
+		}
+	}
+
+	/** The player's capsule (BP_LooterCharacter's 34 x 96 half-height at LooterPlayerSize::Scale 0.85) and step (cm). */
+	constexpr float WalkRadius = 34.f * LooterPlayerSize::Scale;
+	constexpr float WalkHalfHeight = 96.f * LooterPlayerSize::Scale;
+	constexpr float WalkStep = 45.f;
+
+	/**
+	 * A walk from From to To (world; their heights don't matter) as the player's capsule takes it, every 30 cm: the floor
+	 * under each point (rays down; a rise of more than a step is a wall), then the capsule, lifted a step over the floor so
+	 * the floor itself doesn't count, swept on to the next point on the pawn channel. Empty when nothing stops it, else what
+	 * did and where. Past the end of every floor (out over the side) the last floor holds.
+	 */
+	FString FirstBlock(UWorld* World, const FVector& From, const FVector& To)
+	{
+		const FVector Flat(To.X - From.X, To.Y - From.Y, 0.0);
+		const int32 Steps = FMath::Max(1, FMath::CeilToInt(Flat.Size() / 30.0));
+		const FCollisionQueryParams Params(SCENE_QUERY_STAT(PilotPlankWalk), false);
+		double LastFloor = 0.0;
+		FVector Last = From;
+		for (int32 Index = 0; Index <= Steps; ++Index)
+		{
+			const FVector At = From + Flat * (static_cast<double>(Index) / Steps);
+			FHitResult Down;
+			double Floor = LastFloor;
+			if (World->LineTraceSingleByChannel(Down, At + FVector(0.0, 0.0, 400.0), At - FVector(0.0, 0.0, 600.0), ECC_Visibility, Params))
+			{
+				Floor = Down.ImpactPoint.Z;
+			}
+			else if (Index == 0)
+			{
+				return FString::Printf(TEXT("no floor at the start, %s"), *At.ToCompactString());
+			}
+			if (Index > 0 && Floor - LastFloor > WalkStep)
+			{
+				return FString::Printf(TEXT("a rise of %.0f cm (%s) at %s"), Floor - LastFloor, *GetNameSafe(Down.GetComponent()),
+					*At.ToCompactString());
+			}
+			if (Index > 0)
+			{
+				const double Z = FMath::Max(Floor, LastFloor) + WalkStep + 1.0 + WalkHalfHeight;
+				FHitResult Hit;
+				if (World->SweepSingleByChannel(Hit, FVector(Last.X, Last.Y, Z), FVector(At.X, At.Y, Z), FQuat::Identity, ECC_Pawn,
+					FCollisionShape::MakeCapsule(WalkRadius, WalkHalfHeight), Params))
+				{
+					return FString::Printf(TEXT("%s at %s"), *GetNameSafe(Hit.GetComponent()), *At.ToCompactString());
+				}
+			}
+			LastFloor = Floor;
+			Last = At;
+		}
+		return FString();
 	}
 
 	/** A shot on Part of Victim as the bullet subsystem deals one, its actor's own events let through (a test level). */
@@ -317,6 +383,65 @@ bool FPilotSortieLaunchersTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("...the plank comes up"), Sortie->PlankFloor->GetCollisionEnabled() == ECollisionEnabled::NoCollision);
 	AdvancePilot(*Ship, PilotLight::JumpGlideSeconds);
 	TestTrue(TEXT("...and she's under the gangway"), Ship->GetActorLocation().Equals(Sortie->GetJumpBerth().GetLocation(), 40.0));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPilotSortiePlankWalkTest, "Looter.World.PilotSortie.PlankWalk",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FPilotSortiePlankWalkTest::RunTest(const FString& Parameters)
+{
+	// The player walks off her deck onto the plank and across it to the barge's landing, nothing in the way: her rail open
+	// round the plank's hinge, fore of her locker bench (solid, whole), the hinge square to the barge's rail gap. Moored, out
+	// through her gangway's span. Every 30 cm, the player's own capsule; the barge as Main 6's deck fight finds her.
+	FTestWorldWrapper TestLevel;
+	ABargeBoarding* Barge = BargeTestWorld::SpawnBarge(TestLevel, *this, BargeRules::DeckStep);
+	if (!Barge)
+	{
+		return false;
+	}
+	UWorld* World = TestLevel.GetTestWorld();
+	ALamplighterShip* Ship = SpawnPilotShip(World);
+	APilotSortie* Sortie = Ship ? SpawnPilotSortie(World, Ship, /*bTenders*/ false) : nullptr;
+	if (!TestNotNull(TEXT("The ship"), Ship) || !TestNotNull(TEXT("The sortie"), Sortie))
+	{
+		return false;
+	}
+	TestTrue(TEXT("The barge's berth knows her plank's hinge"), FMath::IsNearlyEqual(BargeRules::ShipPlankHingeX, ALamplighterShip::PlankHingeX));
+	FlushPilotPhysics(World);
+	// Moored first: from her deck out through the gangway's span, over the rail's line.
+	const float Side = Ship->GangwaySide >= 0.f ? 1.f : -1.f;
+	const FString Gangway = FirstBlock(World, Ship->DeckPoint(FVector(Ship->GangwayAt, Side * 150.0, 0.0)),
+		Ship->DeckPoint(FVector(Ship->GangwayAt, Side * (ALamplighterShip::RailOut + 40.0), 0.0)));
+	TestTrue(FString::Printf(TEXT("Moored, out through the gangway's span (%s)"), *Gangway), Gangway.IsEmpty());
+
+	// In the berth: grappled alongside, the plank down onto the barge's well deck.
+	Sortie->SetPhase(EPilotPhase::Boarded);
+	AdvancePilot(*Ship, 0.2f);
+	FlushPilotPhysics(World);
+	if (!TestTrue(TEXT("In the berth, the plank down"), Sortie->GetPhase() == EPilotPhase::Boarded
+		&& Sortie->PlankFloor->GetCollisionEnabled() == ECollisionEnabled::QueryAndPhysics))
+	{
+		return false;
+	}
+	const FVector Hinge = Ship->DeckPoint(FVector(ALamplighterShip::PlankHingeX, ALamplighterShip::RailOut, 0.0));
+	const FVector HingeOnBarge = Barge->GetActorTransform().InverseTransformPosition(Hinge);
+	TestTrue(FString::Printf(TEXT("Her plank's hinge square to the barge's rail gap (x %.0f; the gap %.0f..%.0f)"), HingeOnBarge.X,
+		BargeRules::BerthX - BargeRules::GapHalf, BargeRules::BerthX + BargeRules::GapHalf),
+		FMath::IsNearlyEqual(HingeOnBarge.X, static_cast<double>(BargeRules::BerthX), 5.0));
+	const FString Across = FirstBlock(World, Ship->DeckPoint(FVector(ALamplighterShip::PlankHingeX, 150.0, 0.0)), Barge->GetBoardingPoint());
+	TestTrue(FString::Printf(TEXT("From her deck onto the plank and across it to the barge's landing (%s)"), *Across), Across.IsEmpty());
+	// Her locker bench aft of the plank stays solid: a walk into it beside the console stops at it.
+	const FString Bench = FirstBlock(World, Ship->DeckPoint(FVector(0.0, 200.0, 0.0)), Ship->DeckPoint(FVector(0.0, ALamplighterShip::RailOut + 60.0, 0.0)));
+	TestTrue(FString::Printf(TEXT("...beside it, her locker bench solid (%s)"), *Bench), Bench.Contains(TEXT("Locker")));
+
+	// And her rail shut again once the plank is up: the same walk stops at it.
+	Sortie->SetPhase(EPilotPhase::Jump, /*bFresh*/ false);
+	AdvancePilot(*Ship, 0.2f);
+	FlushPilotPhysics(World);
+	const FString Shut = FirstBlock(World, Ship->DeckPoint(FVector(ALamplighterShip::PlankHingeX, 150.0, 0.0)),
+		Ship->DeckPoint(FVector(ALamplighterShip::PlankHingeX, ALamplighterShip::RailOut + 60.0, 0.0)));
+	TestTrue(FString::Printf(TEXT("...the rail shut behind the plank (%s)"), *Shut), Shut.Contains(TEXT("Rail_Starboard")));
 	return true;
 }
 

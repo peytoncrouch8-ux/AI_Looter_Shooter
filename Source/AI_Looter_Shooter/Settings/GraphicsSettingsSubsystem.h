@@ -132,10 +132,11 @@ public:
 	static FString QualityName(EGraphicsQuality Quality);
 
 	/**
-	 * What a preset sets besides the engine's scalability level (0 = Low ... 3 = Epic): console variable -> value.
-	 * Lumen and TSR only on Epic (TAA below), no Nanite below High; High reflects in screen space.
+	 * What a preset sets besides the engine's scalability level (0 = Low ... 3 = Epic): console variable -> value
+	 * (whole numbers for the integer variables). Lumen and TSR only on Epic (TAA below), no Nanite below High; High
+	 * reflects in screen space.
 	 */
-	static TMap<FString, int32> QualitySettings(EGraphicsQuality Quality);
+	static TMap<FString, float> QualitySettings(EGraphicsQuality Quality);
 
 	bool IsMotionBlurEnabled() const;
 	void SetMotionBlurEnabled(bool bEnabled);

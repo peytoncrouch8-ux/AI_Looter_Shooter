@@ -45,6 +45,13 @@ def _spacing(area, eps):
         if coarse is not None:
             # Gentle playable ground the layout lets spread (mesh.coarse: a hanging valley's meadow), as its bends ask.
             spacing = np.where(coarse, np.minimum(loose, area._coarse_spacing), spacing)
+    eroded = getattr(area, '_eroded', None)
+    if eroded is not None:
+        # Where erosion carved (area_erosion.py; erosion.mesh), a finer tolerance and at most mesh.spacing between
+        # the vertices, so the gullies and fans reach the mesh instead of being smoothed away by 4.8 m triangles.
+        detail, most = area._eroded_detail
+        fine = np.clip(np.sqrt(8.0 * eps * detail / np.maximum(area._curvature, 1e-6)), levels[-1], most)
+        spacing = np.where(eroded, np.minimum(spacing, fine), spacing)
     # Waterlines stay crisp: where the water meets a gentle shore, a centimeter of height moves it a hand's width.
     return np.where(area._waterline, np.minimum(spacing, LEVELS[-1]), spacing).astype(np.float32)
 
@@ -138,6 +145,7 @@ def top_surface(area, max_triangles, boundary_step=0.7, log=print):
     if area.setting == 'grounded':
         area._dense = (area.play_edge > -8.0) | (area.edge < 3.0)
         _coarse_ground(area)
+    _eroded_ground(area)
     # Pick the height error that fills the budget (triangles ~ 2 x interior points + boundary points).
     lo, hi = math.log(1e-4), math.log(1.0 if area.setting != 'grounded' else 4.0)
     for _ in range(14):
@@ -222,6 +230,26 @@ def _coarse_ground(area):
         mask |= polygon_mask(area.grid, np.asarray(spot['polygon'], dtype=np.float64) / 100.0)
     area._coarse = mask & (area.edge >= 3.0)
     area._coarse_spacing = max(spot.get('spacing', 240) for spot in spots) / 100.0
+
+
+def _eroded_ground(area):
+    """Where erosion moved the ground more than erosion.mesh.cut cm (area.erosion, area_erosion.py), grown a cell: the
+    shape cells whose vertices get the tolerance x mesh.detail and stand at most mesh.spacing cm apart, as
+    area._eroded and area._eroded_detail; nothing without erosion or unless erosion.mesh.enabled (it costs triangles:
+    Docs/Work/2026-11-04-Terrain/EROSION.md has the counts)."""
+    fields = getattr(area, 'erosion', None)
+    if not fields:
+        return
+    import area_erosion
+    spec = (area_erosion.settings(area) or {}).get('mesh', {})
+    if not spec.get('enabled', False):
+        return
+    detail = float(spec.get('detail', 1.0))
+    moved = np.abs(fields['applied']) > spec.get('cut', 15) / 100.0
+    grown = blur(moved.astype(np.float32), 1) > 1e-3
+    f = area.grid.n // grown.shape[0]
+    area._eroded = np.repeat(np.repeat(grown, f, axis=0), f, axis=1)
+    area._eroded_detail = (detail, spec.get('spacing', 240) / 100.0)
 
 
 def _cut_lines(area, step=1.2):

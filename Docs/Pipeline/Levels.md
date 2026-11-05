@@ -17,6 +17,16 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     change, once the change is committed (it compares with HEAD).
   - `Tools\terrain_compare.ps1 -Area <Area> [-Except <json>]` proves a grown or edited area kept its old ground: heights, AO and
     curvature inside HEAD's boundary, outside the `-Except` areas meant to change (Ransom's Rest's mountain: max 0.82 cm).
+  - Erosion (2026-11-04, Ransom's Rest only; `Docs/Work/2026-11-04-Terrain/EROSION.md`): layout `erosion` runs
+    `area_erosion.py` last in `Area.build()` (+~45 s): 2 m then 1 m passes of stream-power gullies, routed fans, creep and
+    talus on the free ground, the broad change held to +-2 m; every mask (`area_erosion_masks.py`: roads, paths, pads,
+    buildings, the town, obstacles, play zones, encounters, water, cliffs, the ridges' bands, the lip, the boundary line,
+    `keep` lots) keeps its heights bit for bit (47% of the core; inside the boundary only Larkspur Bench's meadow moves).
+    `erosion.enabled` false = the old shape. The macro paints gully beds and fans (`erosion.paint`); `--computed` writes
+    the towns' flow and low-point maps into `Art/Levels/RansomsRest/erosion/`. Past the boundary the mesh's 4.8 m
+    vertices smoothed it away: `erosion.mesh` (on, the user's call) keeps the eroded ground's vertices within 2.4 m, so
+    `mesh.triangles` is 222000 (215,536 made, +32k, the rest at its old 1.2 m tolerance; off again if the tour says). Layout roads with
+    `"paint": true` or `"kind": "track"` are paint-only tracks (no carving).
   - Run: `blender -b --factory-startup --python Art/Models/Terrain/<Area>.py -- --macro --computed` (~35 min at 512 m, 6.8 GB;
     `--preview` adds the look-sheet renders), then `Tools\models.ps1 -Only <Area>`.
   - Fitting terrain to art (the mountain, 2026-10-13): `pad` with `exact` (hard edge and flat top where a model's floor must meet
@@ -293,8 +303,8 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     `build_area_missionprops_valley.py`: the porch plate is a free pickup `after Main1`. `layout.json`: environment `Smog` state; level-band zones
     `landfallLedge` (polygon, levels 1-2) and `landfallPorch` (at [-4000,-5280], r 2600, levels 1-2) before `west` (then
     `create_area_assets.py`; tests `Looter.Areas.Bands`, `Looter.Creatures.AreaLevels`). `views.json`: LedgeMoored, LedgeFromStairs, SpyglassBarge,
-    FarmBarge, SinkUnderBarge before `DeckFight_Dusk` (still last); TrailFromPoint left out until `Looter.Landfall 7` is known not to move the
-    tour's camera. Tour views to check: those five plus PointOverValley, PointOverValley_FarShadow, Farm, Aerial, Aerial_Dusk, PointWest (sees
+    FarmBarge, SinkUnderBarge before `DeckFight_Dusk` (last but the deck: `BargeDeck_Landfall`, `_Stay` after it since 2026-11-04); TrailFromPoint left out until `Looter.Landfall 7` is known not to move the
+    tour's camera. Tour views to check: those five plus PointOverValley, Farm, Aerial, Aerial_Dusk, PointWest (sees
     the ship), MainStreet (speakers, plumes), SinkRim.
   - **Perf risks (margin 0.2-0.5 ms):** valley views gain the barge (1 prop; casts a shadow inside the shadow distance only), the hose,
     5 translucent plumes 18-32 m tall (overdraw looked up at from town / the Sink), the drone; the Farm view (7.8 ms, a heaviest one) gains 6
@@ -304,23 +314,28 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   - **Unchecked:** the merge API in 5.8 Python and that the merged pivot is the first part's place; whether the canyon/ring meshes (tagged Beyond)
     collide (else the course sweep can't see them); `AReadableProp`'s `shown_when` re-read when the hat flag is set; the skiff bag shape under
     the stacks and vents; the barricade stand-ins' long axes; M_Smoke's CloudTint dimming the glint.
-- **The barge in the level** (2026-11-04, `Docs/Work/2026-11-04-Art/BARGE_LEVEL.md`; model and kit: `Game.md` "The barge: the reworked Tripo hull and the kit on it"). Landfall's Sink barge and Main 6's `Barge_Pilot` both use
-  `/Game/Art/Tripo/SM_DredgeBarge` (the reworked model, same path as before the rework; the scripted `/Game/Art/Vehicles/` hull and its `SCRIPTED_BARGE` are gone). Landfall: `build_area_landfall.py` `STAND_INS['barge_hull']`, whose `barge_parts`
-  takes the Tripo branch (`is_tripo`): the hull as is, one plume per `Stack_n` socket, the hose at `HoseDrum`, a warning if the mesh lacks `Stack_1` or `HoseDrum` (the new `Door`/`Gangway` sockets are ignored); Landfall's barge is one live prop (no bake, so no
-  `SM_Landfall_Barge_*` to delete). Main 6's own barge takes the hull from C++ (`ABargeBoarding::HullPath`); `build_area_main6.py` `WRECK_MODELS` has it second (`SM_BargeWreck` first; the wreck's fallback hull, worn in `MI_GunScorched`). Both meshes are read live, so
-  a re-import needs no clearing of stale copies. Who reads the hull: Landfall's `place_barge` (the Sink barge, the plumes, the drum from `HoseDrum`, the drone path from the hull's length), Main 5's `Hose` (re-plans with `lf.barge_parts`), Main 6's wreck; Main 4's tender and Main 3's skiff use only the keel.
-  - Main 6 saves everything on the deck as the world position the C++ getters gave when it ran (`GetFightSpots GetOfficeSpot GetHornSpots GetHatchSpot GetDeckMiddle GetHallMiddle GetHoseTop GetBerth`; properties `hull`,
-    `hose_target`, `fall_target`, `boards_point`: renaming any breaks the scripts). So after any `BargeRules` change, and after the C++ build (the getters answer from the compiled class), rebuild. The C++-spawned pieces (hatch marker,
-    furnace, valves, hose drum, deck, hall, stairs, rails) follow at BeginPlay. `KitLift` stays 0: a raise stored on the placed actor would be lost at the next rebuild (it would need a C++ default).
-  - `build_area_main6.py` now runs alone (`run()`: `py .../build_area_main6.py RansomsRest`; refuses with unsaved edits elsewhere): it destroys the build-tagged actors in `Gameplay/Main6` (13: `Barge_Pilot`, `Encounter_BargeDeck`,
+- **The barge in the level** (2026-11-04; `Docs/Work/2026-11-04-Art/BARGE_LEVEL.md` lists what the level saves, its heights are round 2's; model and kit: `Game.md` "The barge: the reworked Tripo hull and the kit on it"). Landfall's Sink barge and
+  Main 6's `Barge_Pilot` both use `/Game/Art/Tripo/SM_DredgeBarge`, the user's Tripo hull adjusted piece by piece (round 3: 93.4 m long, x -3750..5590 about a pivot that is no longer its middle; the same path as the bought 75 m hull; the scripted
+  `/Game/Art/Vehicles/` hull and its `SCRIPTED_BARGE` are gone). Landfall: `build_area_landfall.py` `STAND_INS['barge_hull']`, whose `barge_parts` takes the Tripo branch (`is_tripo`, `tripo_barge`): the hull as is, one plume per `Stack_n` socket, the
+  hose at `HoseDrum`, a warning if the mesh lacks `Stack_1` or `HoseDrum` (the `Gangway` and `Hatch` sockets are ignored); the size comes from the mesh's bounds (`plan.barge_size`); Landfall's barge is one live prop (no bake, so no
+  `SM_Landfall_Barge_*` to delete). Main 6's own barge takes the hull from C++ (`ABargeBoarding::HullPath`); `build_area_main6.py` `WRECK_MODELS` has it second (`SM_BargeWreck` first; the wreck's fallback hull, worn in `MI_GunScorched`). Both meshes
+  are read live, so a re-import needs no clearing of stale copies. Who reads the hull: Landfall's `place_barge` (the Sink barge, the plumes, the drum from `HoseDrum`, the drone path from the hull's length), Main 5's `Hose` (re-plans with
+  `lf.barge_parts`), Main 6's wreck; Main 4's tender and Main 3's skiff use only the keel.
+  - Main 6 saves everything on the deck as the world position the C++ getters gave when it ran (`GetFightSpots GetOfficeSpot GetHornSpots GetHatchSpot GetDeckMiddle GetHallMiddle GetHoseTop GetBerth`; properties `hull`, `hose_target`, `fall_target`,
+    `boards_point`: renaming any breaks the scripts). So after any `BargeRules` change, and after the C++ build (the getters answer from the compiled class), rebuild. The C++-spawned pieces (hatch marker, furnace, valves, hose drum, deck kit, hall,
+    stairs, lamps) follow at BeginPlay. `KitLift` stays 0: a raise stored on the placed actor would be lost at the next rebuild (it would need a C++ default).
+  - `build_area_main6.py` runs alone (`run()`: `py .../build_area_main6.py RansomsRest`; refuses with unsaved edits elsewhere): it destroys the build-tagged actors in `Gameplay/Main6` (13: `Barge_Pilot`, `Encounter_BargeDeck`,
     `Encounter_FurnaceHall`, `Barge_Horn_1..4`, `Item_BargeManifest`, `Main6_BargeWreck`, `Main6_WreckSmoke_1..3`, `PilotSortie`), places them again, sets again the Lamplighter's `gone_when`, the winch's `cast_off_when`, `hidden_when` on
-    `Landfall_Barge*`/`Landfall_Smog*` and `gone_when` on `Intake_Sink*`, and saves. The barge's x,y comes from `get_hose_top()` (the drum lands `DRUM_BESIDE` 7 m off the chapel ridge; `KEEL_OVER` 25 m stays); the sortie's course end
-    uses `get_berth()` and warns if it fails (it used to fall back silently to the keel middle).
-  - **Rebuild order** (after the import, `build_world_materials.py DetailInstances` and `Tools\launch.ps1 -Build`): the whole `build_area.py RansomsRest gameplay` (Landfall, Mains 2-5, then Main 6; no loot or fauna rerun). Barge only: Landfall alone, THEN Main 6 alone (the other way
-    round Landfall wipes Main 6's patches and the sortie's refs); that loses Main 5's patches (the hose and three plumes stay shown after the choke) until the next gameplay pass. Main 6 alone leaves Landfall's pieces as built (the hose's start does not move while `HoseDrum` stays at (-889, 323, 0)). Last rebuilt 2026-11-04 10:02.
-  - Check the log: deck 2250 over her keel (`kit_lift` 0); BargeDeck spots 2270, spawner 2320; FurnaceHall spots 2270 (`HallFloor` 2250 + 20, the hall is at deck level now), spawner 2320; the sortie's berth 1928 (DeckTop - `BerthUnderDeck` - 422; BARGE_LEVEL.md's D - 572
-    predates -100); Landfall "2 stacks smoking" (`No socket` = the model lacks `Stack_1`/`HoseDrum`); no "can't be called from Python", "aimed at the barge's keel middle", "no ... class", "left out". The deck fight is 9 creatures on 9 spots and
-    `count=9` (`create_mission_assets.py`), the hall 8 and `count=8`: change both sides together.
+    `Landfall_Barge*`/`Landfall_Smog*` and `gone_when` on `Intake_Sink*`, and saves. The barge's x,y comes from `get_hose_top()` (the drum lands `DRUM_BESIDE` 7 m off the chapel ridge; `KEEL_OVER` 25 m stays); the sortie's course end uses
+    `get_berth()` and warns if it fails (it used to fall back silently to the keel middle).
+  - **Rebuild order** (after the import, `build_world_materials.py DetailInstances` and `Tools\launch.ps1 -Build`): the whole `build_area.py RansomsRest gameplay` (Landfall, Mains 2-5, then Main 6; no loot or fauna rerun). Barge only: Landfall alone,
+    THEN Main 6 alone (the other way round Landfall wipes Main 6's patches and the sortie's refs); that loses Main 5's patches (the hose and three plumes stay shown after the choke) until the next gameplay pass. Main 6 alone leaves Landfall's pieces
+    as built (the hose's start does not move while `HoseDrum` stays at (-889, 323, 0)). The level was last saved in `0c0750bf` (15:58); whether its Main 6 pieces were rebuilt after BARGE.md round 12 moved zone heights and spots is not recorded: rebuild from the final code and compare the log below.
+  - Check the log: the kit's deck 2256 over her keel (the hatch spot, the cross walk; `kit_lift` 0); BargeDeck 9 spots 2270..2391 (well deck 2270, walk mouths 2277, forecastle 2391), spawner 2320; FurnaceHall 8 spots 1320 (`HallFloor` 1300 + 20, the
+    hall is below deck), spawner 1370; the sortie's berth 1928 (`WellDeckZ` - `BerthUnderDeck` - 422); the manifest on the stoker's desk (the catwalk, 1880 over the keel, plus the bench); Landfall "2 stacks smoking" (`No socket` = the model lacks
+    `Stack_1`/`HoseDrum`); no "can't be called from Python", "aimed at the barge's keel middle", "no ... class", "left out". The deck fight is 9 creatures on 9 spots and `count=9` (`create_mission_assets.py`), the hall 8 and `count=8`: change both
+    sides together.
+  - To look at once: Landfall places the Sink barge by the mesh's length about the pivot, and the pivot is no longer the middle (the bow reaches 18 m past the old end, the stern the same as before): the tour's SpyglassBarge and FarmBarge views.
 
 ## The tutorial island and the older levels
 

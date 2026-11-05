@@ -50,10 +50,11 @@ namespace
 
 	// --- Her launchers and the plank (her frame, cm, Z from the deck's top) ---
 
-	/** Fore and aft of the plank's gap on her starboard rail (its middle length, -250..150). */
+	/** Fore and aft of the plank's gap on her starboard rail (x 150..450 round its hinge). */
 	const FVector LauncherSpots[] = { FVector(520.0, ALamplighterShip::RailOut - 40.0, 0.0), FVector(-560.0, ALamplighterShip::RailOut - 40.0, 0.0) };
-	/** The plank's hinge in the gap, its swing down (s), its width and its own length (SM_Skiff_Gangplank: 3 m). */
-	const FVector PlankHinge(-50.0, ALamplighterShip::RailOut, 0.0);
+	/** The plank's hinge in the gap (fore of her locker bench; the barge's berth lines it up with its rail's gap), its swing
+	 *  down (s), its width and its own length (SM_Skiff_Gangplank: 3 m). */
+	const FVector PlankHinge(ALamplighterShip::PlankHingeX, ALamplighterShip::RailOut, 0.0);
 	constexpr float PlankSwingSeconds = 0.8f;
 	constexpr float PlankWidthScale = 1.3f;
 	constexpr float PlankOwnLength = 300.f;

@@ -20,8 +20,9 @@ namespace RoostKit
 	 * Speaker; else the stand-in's numbers stand) and should keep the arm toward +X, the glass slot LanternGlow and a Light
 	 * socket. Swap it here (and nowhere else: build_area_roosts.py reads the class's default).
 	 */
-	// The user's Tripo lantern post since lane IMPORT (lanes/IMPORT.md: every socket above, LanternGlow glass); the
-	// stand-in was /Game/Art/Props/SM_KeeperLanternPost.SM_KeeperLanternPost.
+	// The user's Tripo lantern post since lane IMPORT (lanes/IMPORT.md: every socket above, LanternGlow glass; its lamp
+	// lower than the stand-in's: Beacon and Light at its glass, (110.5, 1.3, 190.8)); the stand-in was
+	// /Game/Art/Props/SM_KeeperLanternPost.SM_KeeperLanternPost.
 	inline const TCHAR* const PostPath = TEXT("/Game/Art/Tripo/SM_LanternPost.SM_LanternPost");
 
 	/**

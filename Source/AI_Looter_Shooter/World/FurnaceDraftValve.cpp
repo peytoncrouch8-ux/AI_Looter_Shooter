@@ -61,9 +61,9 @@ AFurnaceDraftValve::AFurnaceDraftValve()
 	if (!ValveMesh)
 	{
 		Pipe->SetMaterial(0, Iron);
-		// Up the wall from the floor to the ceiling, where the draught runs to the furnace's crown.
-		Pipe->SetRelativeLocation(FVector(-10.0, 0.0, 450.0));
-		Pipe->SetRelativeScale3D(FVector(0.45, 0.45, 9.0));
+		// Up the wall from the floor into the catwalk's underside, where the draught runs on to the furnace's crown.
+		Pipe->SetRelativeLocation(FVector(-10.0, 0.0, BargeRules::ValveRiserTop * 0.5));
+		Pipe->SetRelativeScale3D(FVector(0.45, 0.45, BargeRules::ValveRiserTop / 100.0));
 	}
 	Pipe->SetCollisionProfileName(TEXT("BlockAll"));
 	Pipe->SetCollisionObjectType(ECC_WorldStatic);
@@ -106,7 +106,7 @@ void AFurnaceDraftValve::BeginPlay()
 	if (Riser->GetStaticMesh())
 	{
 		TArray<FTransform> Runs;
-		BargeLooks::AddPipeRun(Runs, RiserFoot, BargeRules::HallHeight - RiserFoot.Z, BargeRules::ValveRiserWidth);
+		BargeLooks::AddPipeRun(Runs, RiserFoot, BargeRules::ValveRiserTop - RiserFoot.Z, BargeRules::ValveRiserWidth);
 		Riser->ClearInstances();
 		Riser->AddInstances(Runs, /*bShouldReturnIndices*/ false);
 	}

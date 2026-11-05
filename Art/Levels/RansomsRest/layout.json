@@ -12,7 +12,7 @@
   },
   "mesh": {
     "tiles": 6,
-    "triangles": 190000,
+    "triangles": 222000,
     "coarse": [
       {
         "polygon": [[14100,-8600],[12800,10800],[22600,10800],[22600,-9000]],
@@ -32,7 +32,49 @@
         "note": "Tilly's cellar stair: the workshop's floor and walls frame it, the cellar's stone stair under it"
       }
     ],
-    "about": "The top in 6 x 6 tiles over the map square (the macro map's windows' edges are tiles' edges), about 190k triangles; coarse lets Larkspur Bench's gentle meadow spread its vertices to 2.4 m where it barely bends, so the valley keeps its 1.2 m (Art/Levels/area_mesh.py); holes leaves the top open where an interior goes into the ground: the Providence's mouth in Larkspur High's band, framed by the portal model."
+    "about": "The top in 6 x 6 tiles over the map square (the macro map's windows' edges are tiles' edges), about 215k triangles (222000 since 2026-11-04: 190000 plus erosion's mesh pass, erosion.mesh, at the old 1.2 m tolerance); coarse lets Larkspur Bench's gentle meadow spread its vertices to 2.4 m where it barely bends, so the valley keeps its 1.2 m (Art/Levels/area_mesh.py); holes leaves the top open where an interior goes into the ground: the Providence's mouth in Larkspur High's band, framed by the portal model."
+  },
+  "erosion": {
+    "about": "Hydraulic and thermal erosion of the finished shape (Art/Levels/area_erosion.py, its masks area_erosion_masks.py; Docs/Work/2026-11-04-Terrain/EROSION.md): rain gathers down the slopes (stochastic D8), stream power cuts gullies where it gathers, the soil routed down lays fans where they meet gentler ground, soil creeps off the ridgelines, ground over the angle of repose slumps into talus. In passes from coarse to fine (cell cm), seeded, the shape held (hold: the change's broad part over reach cm at most keep cm), never past maxCut / maxFill (cm), and nowhere the masks keep (roads and shoulders, paths, pads, buildings, the town, obstacles, zones of play, encounters, spots, water, cliffs, the ridges' bands, the lip, the boundary's line, keep, townZones with masks.townSkirt): those cells keep their heights bit for bit, feather (cm) eases it in past them. keep: more ground kept as it is ({id, polygon [[X, Y] cm]}; the towns lanes send theirs as patches). paint: gully beds and fans in the macro map. mesh: the top mesh's pass where erosion carved (vertices at most spacing cm apart; it costs triangles: mesh.triangles). maps: the flow and low-point maps written with --computed into folder beside this layout, one pair per window (X, Y cm). enabled false builds the shape as before.",
+    "enabled": true,
+    "seed": 1,
+    "strength": 1.0,
+    "passes": [
+      {"cell": 200, "iterations": 150, "maxCut": 500, "roughness": {"amplitude": 60, "wavelength": 2500}, "rain": {"wavelength": 3000, "variation": 0.5}, "hydraulic": {"incision": 0.0003, "areaExponent": 1.2, "spread": 1.5, "creep": 0.02, "maxStep": 10}, "note": "the ravines and fans: 2 m cells (past the boundary the mesh keeps 2.4-4.8 m between its vertices)"},
+      {"cell": 100, "iterations": 60, "maxCut": 150, "hydraulic": {"incision": 0.0001, "creep": 0.03}, "note": "the gullies' detail: 1 m cells, mild"}
+    ],
+    "rain": {"amount": 1.0, "variation": 0.4, "wavelength": 7000},
+    "hydraulic": {"incision": 0.0002, "areaExponent": 1.0, "threshold": 0, "saturate": 1500, "transport": 0.03, "transportExponent": 1.0, "settle": 0.3, "spread": 2.0, "creep": 0.01, "maxStep": 4, "rockWear": 0.35},
+    "thermal": {"repose": 42, "rock": 58, "rate": 0.05},
+    "hold": {"reach": 2000, "keep": 200},
+    "maxCut": 600,
+    "maxFill": 250,
+    "feather": 600,
+    "paint": true,
+    "mesh": {"enabled": true, "cut": 30, "spacing": 240, "detail": 1.0, "note": "the user's call (2026-11-04, measured on the tour before it is kept): where erosion moved the ground over 30 cm, vertices at most 2.4 m apart: +32k triangles, so mesh.triangles 222000 keeps the rest's 1.2 m tolerance (215,536 triangles); EROSION.md"},
+    "townZones": ["mainStreet", "depot"],
+    "keep": [
+      {"id": "lotFeedStore", "polygon": [[800, 7600], [1500, 7600], [1500, 9000], [800, 9000]], "note": "Towns plan 4.4 lot 1: the yard road's east side, RR_FeedStore"},
+      {"id": "lotSmithy", "polygon": [[-1200, 7800], [-600, 7800], [-600, 8800], [-1200, 8800]], "note": "lot 2: the yard road's west side, RR_Smithy_Town"},
+      {"id": "lotBackLaneNorth", "polygon": [[1900, 2500], [2700, 2500], [2700, 5500], [1900, 5500]], "note": "lot 3: the back lane behind the north side"},
+      {"id": "lotSouthBack", "polygon": [[-2500, 4600], [-1900, 4600], [-1900, 6100], [-2500, 6100]], "note": "lot 4: the south back, between the fields path and the workshop pad"},
+      {"id": "lotPenLaneEnd", "polygon": [[-3300, 3700], [-2600, 3700], [-2600, 4300], [-3300, 4300]], "note": "lot 5: Pen Lane's far end"},
+      {"id": "lotWestEnd", "polygon": [[-1800, -900], [-1400, -900], [-1400, 200], [-1800, 200]], "note": "lot 6: the west end behind Home_J"},
+      {"id": "backPenLane", "polygon": [[-3800, 1900], [-2200, 1900], [-2200, 4000], [-3800, 4000]], "note": "the back-lot no-tree box PenLane (Tools/Unreal/build_area_town_rr.py NO_TREES)"},
+      {"id": "backWorkshopYard", "polygon": [[-3600, 5400], [-1800, 5400], [-1800, 7400], [-3600, 7400]], "note": "no-tree box WorkshopYard"},
+      {"id": "backDugout", "polygon": [[1650, -2200], [3050, -2200], [3050, -600], [1650, -600]], "note": "no-tree box Dugout"},
+      {"id": "backAmosHouse", "polygon": [[-7750, 950], [-6350, 950], [-6350, 2350], [-7750, 2350]], "note": "no-tree box AmosHouse"},
+      {"id": "backCoalStage", "polygon": [[-920, 10340], [-20, 10340], [-20, 11140], [-920, 11140]], "note": "no-tree box CoalStage"}
+    ],
+    "maps": {
+      "folder": "erosion",
+      "windows": [
+        {"id": "town", "X": [-3200, 2400], "Y": [-1600, 14800]},
+        {"id": "farm", "X": [-5600, -1800], "Y": [-7400, -4400]},
+        {"id": "whitlock", "X": [-7800, -5600], "Y": [2800, 4800]}
+      ],
+      "note": "the Towns plan's three wear windows (section 4.3); the GROUND lane places puddles and wet ground by them"
+    }
   },
   "macro": {
     "about": "The macro maps' ground: lateSummer paints the meadow as a mosaic of late summer's grass tones keyed to the ground (Art/Levels/area_mosaic.py), bleached straw on the rises through gold and olive to the green of the creek bottoms, in place of the island's meadow graded gold, which read as one flat ochre from the lookout (2026-10-08). shade: the living tree stands (obstacle ids) whose ground is darker and greener (every forest and orchard zone too); hayfields: the openGround polygons mowed into stubble, rows the mowing's heading (degrees, 0 north, 90 east); zones: moisture added by zone kind (a watered farm and orchard greener, the town, the depot and the wind-blasted point dustier). blooms colors the wildflower drifts by zone kind (hue: where on the mosaic's flower ramp, larkspur blue about 0.04; pull toward it; more: the drifts' density times this): the alpine meadow's blue larkspur.",

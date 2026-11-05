@@ -14,7 +14,7 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
   distance field AO only on Epic (TAA otherwise); High = Nanite + virtual shadow maps + SSAO + screen-space reflections; Nanite
   off below High (it costs the RX 580 about 2.5 ms). All presets render at full resolution (the engine's own Medium renders at
   71%). A fresh install starts on Medium. Since 2026-11-04 (the art audit's step 1) Medium keeps its full-size textures
-  (r.Streaming.MipBias 0, was 1), 8x anisotropy (was 2), creature LOD0 (r.SkeletalMeshLODBias 0, was 1) and a 1000 MB streaming
+  (r.Streaming.MipBias 0, was 1), 8x anisotropy (was 2; 4x since that evening, the PERF rule below), creature LOD0 (r.SkeletalMeshLODBias 0, was 1) and a 1000 MB streaming
   pool (was 600), as High; Low stays the engine's own. Measured 2026-11-04 (PC not quiet: agents running): the 42-view Ransom's
   Rest tour mean 7.19 -> 7.35 ms (PointOverValley left out: a 57 ms streaming hitch on the first view after the change), every
   view +0.3..0.8 ms, the heaviest Aerial_Dusk 8.69 -> 9.40, Aerial 8.58 -> 9.38, PointOverValley_FarShadow 8.73 -> 9.08 (seven
@@ -32,16 +32,26 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
   rejected too); the horde 8.4 ms, LMG fire 8.6 ("Art round 1 final" rows; the earlier "scripted barge hull" rows measured the
   hull the user dropped first). Round 3 (15:38, the Tripo hull adjusted piece by piece and lengthened: 135k triangles, 152
   hulls, three detail slots; the kit's 16 models; 9 work lamps without shadows): ON the barge's well deck (`Looter.Landfall 4,
-  Looter.Barge.Show 3 aboard, Looter.Pilot.State Grappled`; the first perf row there) 9.2 ms / 108 fps, render thread bound
-  (render 9.2, GPU 8.0, game 4.2): her deck is 47 m over the town, an aerial view like the tour's Aerial (9.36); the town horde
-  8.5. Not yet split: the lamps', the hull's and the detail's shares of the deck view.
+  Looter.Barge.Show 3 aboard, Looter.Pilot.State Grappled`; the first perf row there) 9.2 ms / 108 fps, GPU-bound (render 9.2
+  is the throttle below, GPU 8.0, game 4.2): her deck is 47 m over the town; the town horde 8.5. Split by the PERF lane
+  (`Docs/Work/2026-11-04-Art/PERF.md`): the barge's point lights 1.65 ms of the deck's frame (lights pass 2.04 GPU).
+- **Medium is GPU-bound per pixel in every heavy view (PERF lane, 2026-11-04 evening, six A/B tours):** at 70% screen the
+  frame drops 1.4-1.9 ms; every GPU saving shows 1:1 in the frame (frame = GPU busy + 1.2-1.6 ms, a gap not yet explained:
+  not the occlusion read, not desktop composition). The render thread's 4-6 ms `EventWait/Visibility` is a throttle, not
+  work: it waits for the GPU's last-frame occlusion results; HZB occlusion takes the render thread to 3.4 ms and the frame
+  stays (GPU +0.3-0.5); `r.NumBufferedOcclusionQueries 2` changes nothing but adds 4-9 ms of input latency. So draw calls cost
+  through the GPU, and what costs is pixels: the barge's lamps at her deck 1.65, `M_Terrain` in the aerials 1.5 (~20 texture
+  reads a pixel), Beyond 0.4-0.8, scatter 0.3-0.7, cliffs 0.3-0.4, 8x filtering 0.1-0.4. The user's yes (2026-11-04 evening):
+  Medium filters 4x (was 8x) and takes static mesh LODs a quarter sooner (`r.StaticMeshLODDistanceScale` 1.25), measured
+  together Aerial 9.3 -> 8.7, PointOverValley 8.6 -> 8.26, Farm 8.6 -> 8.37, Grave 8.3 -> 7.96. The tour's two `_FarShadow`
+  views went (they measured the far cascade turned down on 2026-10-07); `BargeDeck_Landfall` (+`_Stay`) measures her deck.
 - Small instanced scatter (meshes under 1.5 m radius) stays out of Lumen and the distance fields (`ULumenScatterSubsystem`):
   Ransom's Rest's ~66k grass/flower/pebble instances made Lumen's surface cache recapture ~6,900 tiny cards
   (`LumenSceneUpdate` 400+ ms, frames of 1.3 s alternating with normal ones, even standing still).
 - Presets on Ransom's Rest, RX 580, 10 heavy views (2026-10-14, after the fix): Low 4.8-7.9 ms, Medium 6.1-8.1, High 14.2-19.7
   (51-70 fps), Epic 35.6-44.7 (22-28 fps, Lumen's steady cost: screen probe gather ~13 ms, scene lighting ~6). Before: High
   21-657 ms, Epic 37-714 ms. Medium is GPU-bound (frame = GPU + ~1.4 ms; the render thread's 5 ms "EventWait/Visibility" is
-  waiting on occlusion results: HZB occlusion removes it but costs the GPU more, frame slower).
+  its throttle, waiting on the GPU's occlusion results: HZB occlusion removes it but costs the GPU more, frame slower).
 - Medium's GPU at the heaviest views (Farm, PointOverValley, Aerial; 6.3-6.8 ms): base pass 1.7-1.9, prepass 0.75-0.9, post 0.6,
   unaccounted 0.55, TAA 0.47, shadow depths 0.35-0.52, lights 0.34, reflection environment 0.3-0.4, translucency 0.2. What
   groups cost (hidden, frame): scatter 0.3-0.9 ms, cliffs 0.4-0.5 (204 pieces, already merged into ~40 draws by the engine's
@@ -64,15 +74,15 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
   under 0.05 ms; facing the player while circling the ring (`CreatureFace`) 0.3 ms for 10. The spawn horde
   (`Looter.Perf.Horde Spider 8 Basic`) stands in the farm's safe zone and never fights: measure fights in town.
 
-- Noon re-measure (2026-10-22, eea24a97, quiet PC, ArtPause on): 37-view RR tour all under 8.3 ms; heaviest Aerial 8.1, Aerial_Dusk 8.1, PointOverValley_FarShadow 8.1 (1,849 draws), Farm 7.8, Grave 7.7; render-thread bound. Worst-frame hitches only at Aerial_Dusk 32 ms and MineDrift 34 ms (as before). Spawn 7.8 (p95 8.5); 8 spiders in town 7.6 (p95 8.7); 8 Unpaid in town 7.7 (p95 9.4); Slag Bomb every 4 s 7.8 (p95 9.4). Draws up ~250-400 since 10-14 (world variety, char art): margin ~0.2 ms.
+- Noon re-measure (2026-10-22, eea24a97, quiet PC, ArtPause on): 37-view RR tour all under 8.3 ms; heaviest Aerial 8.1, Aerial_Dusk 8.1, PointOverValley_FarShadow 8.1 (1,849 draws), Farm 7.8, Grave 7.7; GPU-bound (read then as render-thread bound; see the PERF rule above). Worst-frame hitches only at Aerial_Dusk 32 ms and MineDrift 34 ms (as before). Spawn 7.8 (p95 8.5); 8 spiders in town 7.6 (p95 8.7); 8 Unpaid in town 7.7 (p95 9.4); Slag Bomb every 4 s 7.8 (p95 9.4). Draws up ~250-400 since 10-14 (world variety, char art): margin ~0.2 ms.
 - Ransom's Rest after the polish (2026-10-14, fc7363a: cliff life, town dressing with its clutter culled at ~30 m, animals,
   combat FX): 46 views, the heaviest 8.1 ms (PointOverValley_FarShadow 1,574 draws), Aerial 8.05, Aerial_Dusk 8.05, Farm
-  8.0, PointOverValley 7.7; render thread = frame, GPU 6.8 at most. Margin ~0.2 ms: the next dressing must save draws first.
+  8.0, PointOverValley 7.7; render thread = frame (its throttle on the GPU), GPU 6.8 at most. Margin ~0.2 ms.
 - Ransom's Rest after the mountain (2026-10-14, 75708bb): all 37 views at 128-206 fps, the heaviest 7.8 ms (Farm,
-  PointOverValley_FarShadow, Aerial_Dusk), spawn 7.7 ms (GPU 6.4, render thread 7.7: render-thread bound, ~1,250-1,450 draws
+  PointOverValley_FarShadow, Aerial_Dusk), spawn 7.7 ms (GPU 6.4, render thread 7.7: GPU-bound, ~1,250-1,450 draws
   in the valley's open views, up from ~1,000). New views: DepotWaiting 6.9, WatchtowerValley 7.2 (taken from the yard below the deck: the view stood off it), LiftHeadBench 7.0,
   MineGallery 6.1 (13 lights, 26 lanterns: fine), MineDrift 5.4, MineStope 5.2. Hitches (worst frame ~30 ms) at MineDrift and
-  Aerial_Dusk only. Margin to 8.3 ms is ~0.5 ms: new dressing must come instanced (draw calls are the cost).
+  Aerial_Dusk only. Margin to 8.3 ms is ~0.5 ms.
 - Ransom's Rest (2026-10-08): all 28 views at 149-216 fps (6.7 ms at the heaviest); spawn 6.3 ms; base pass 1.1-1.2 ms, prepass
   0.5-0.7, shadows at most 0.5; no single art asset is a real cost.
 - Skyreach with Crossroads Town round 1 (2026-10-08): 160-226 fps at every view (heaviest, above the town, 6.3 ms).

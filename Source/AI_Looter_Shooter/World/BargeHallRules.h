@@ -91,6 +91,17 @@ namespace BargeRules
 	inline constexpr float CatwalkRailUp = 100.f;
 	inline constexpr float CatwalkRailWidth = 6.f;
 	inline constexpr float CatwalkRailDepth = 8.f;
+	/** The hand rail stops pawns (the PIE walk, 2026-11-04: off the inner edge it was a 5.8 m fall): an unseen wall along
+	 *  every laid span's inner edge (not over the floor stairs' openings), the rail's height and its look's width; its
+	 *  stanchions and a mid rail this high (the kit's iron). The hatch's stair has the same on both its sides, this far in
+	 *  from its edges. */
+	inline constexpr float CatwalkRailMidUp = 50.f;
+	inline constexpr float CatwalkStanchion = 5.f;
+	inline constexpr float HatchRailIn = 3.f;
+	/** The rails' unseen walls stand higher than their looks (no jumping over them): the ring's to the hall's ceiling (the
+	 *  ends' height), the hatch stair's this high over its treads in this many upright pieces (no overhang past its foot). */
+	inline constexpr float HatchRailWallUp = 200.f;
+	inline constexpr int32 HatchRailPieces = 8;
 	/** The stokehold doors (the FurnaceHall pushes come through them), across her. */
 	inline constexpr float StokeholdAngles[] = { 90.f, 270.f };
 	/** A stokehold's alcove: as deep past the hall's wall as the skin allows (1.2 m at most), as wide as its door
@@ -164,24 +175,30 @@ namespace BargeRules
 	AI_LOOTER_SHOOTER_API void HatchStairArc(float& OutFoot, float& OutTop);
 	/**
 	 * The stoker's corner on the catwalk between the hatch stair's foot and the port floor stair's top (the way the player
-	 * walks): his desk (the gunsmith's bench at its own size; without it a block of this half size) against the wall at this
-	 * angle, this far off it, its long side along the ring; the radio on its corner (its middle this far in from the desk's
-	 * top's middle, along the ring, up: half its height), this big. His safe across the hall on the ring's other side of the
+	 * walks): his desk (the gunsmith's bench at its own size; without it a block of this half size) at this angle, its back
+	 * (the bench's tool wall) to the hall's wall this far off it, its work top into the hall's walkway (the PIE walk, 2026-11-04:
+	 * turned the other way the tool wall faced the aisle and the manifest lay on its top, 2.1 m up), its long side along the
+	 * ring; the manifest on the work top (the bench's Gun socket, the clear middle of its top: GunsmithBench.py's TOP 0.95 m,
+	 * the socket this far over it), the radio on its back corner (its middle this far in from the top's middle, along the ring,
+	 * up: half its height), this big. His safe across the hall on the ring's other side of the
 	 * hatch (by the stair's foot the player steps off toward the wall), this far off the wall (without its mesh a block this
 	 * big).
 	 */
 	inline constexpr float DeskAngle = 316.f;
-	inline const FVector DeskFallbackHalf(45.0, 90.0, 41.0);
-	inline constexpr float DeskGap = 10.f;
-	inline const FVector RadioOnDesk(30.0, -50.0, 15.0);
+	inline const FVector DeskFallbackHalf(45.0, 90.0, 47.5);
+	inline constexpr float DeskGap = 2.f;
+	inline constexpr float DeskWorkTop = 95.f;
+	inline FName DeskTopSocket() { return FName(TEXT("Gun")); }
+	inline constexpr float DeskSocketOverTop = 3.f;
+	inline const FVector RadioOnDesk(-20.0, 60.0, 15.0);
 	inline const FVector RadioSize(30.0, 45.0, 30.0);
 	inline constexpr float SafeAngle = 40.f;
 	inline constexpr float SafeGap = 10.f;
 	inline const FVector SafeFallbackHalf(41.0, 41.0, 41.0);
 	/** The catwalk's walking height (the corner's floor). */
 	inline constexpr float CatwalkFloor = HallFloor + CatwalkUp;
-	/** The desk's foot's middle for a desk HalfDepth deep (off the wall), its yaw (its local X out to the wall), the block's
-	 *  top's middle (the bench reads its own top: ABargeBoarding::GetOfficeSpot), the radio's spot on a desk whose top's
+	/** The desk's foot's middle for a desk HalfDepth deep (off the wall), its yaw (its local X, its work side, into the hall),
+	 *  its work top's middle (the bench reads its own: ABargeBoarding::GetOfficeSpot), the radio's spot on a desk whose top's
 	 *  middle is OnDesk and its yaw (dials into the hall), and the safe's foot. */
 	AI_LOOTER_SHOOTER_API FVector DeskSpot(float HalfDepth);
 	AI_LOOTER_SHOOTER_API float DeskYaw();
@@ -198,9 +215,11 @@ namespace BargeRules
 	inline constexpr float FurnaceHeight = 600.f;
 	inline constexpr float CageUp = 250.f;
 	inline constexpr float PipeUnderCrown = 25.f;
-	/** The furnace's three pipes this thick; a draft valve's riser to the ceiling this thick. */
+	/** The furnace's three pipes this thick; a draft valve's riser this thick, up into the catwalk's underside (the ring runs
+	 *  over every valve: the PIE walk saw one through the grating by the port stair). */
 	inline constexpr float FurnacePipeWidth = 55.f;
 	inline constexpr float ValveRiserWidth = 45.f;
+	inline constexpr float ValveRiserTop = CatwalkUp - CatwalkThick;
 	/** The floor grate ring: twelve wedges from this far past the furnace (the safe floor by it) to this far inside the wall
 	 *  (the safe floor under the catwalk, where the stairs land). */
 	inline constexpr int32 Grates = 12;

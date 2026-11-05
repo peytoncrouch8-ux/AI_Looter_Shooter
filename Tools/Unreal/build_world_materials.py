@@ -515,7 +515,8 @@ DETAIL_WORLD = 'DetailWorld'
 # The layer's numbers (group Detail): meters a tile; how much of the set's light and dark, normal and roughness; the
 # distance (cm, from the camera) where it starts to fade and where it is gone.
 DETAIL_DEFAULTS = {'DetailScale': 1.0, 'DetailStrength': 0.6, 'DetailNormal': 0.7, 'DetailRoughness': 0.6,
-                   'DetailNear': 200.0, 'DetailFar': 1500.0, 'DetailGrainUp': 0.0, 'DetailTopTint': 1.0}
+                   'DetailNear': 200.0, 'DetailFar': 1500.0, 'DetailGrainUp': 0.0, 'DetailTopTint': 1.0,
+                   'DetailMaskAlpha': 0.0}
 # Riveted plates drawn by the layer (none of our sets has plate seams): DetailPlates x a plate's length (m, along the
 # side's u: a top's runs along the mesh's X), y its width (m), z how dark its seams are (0: no plates, nothing worked out),
 # w the rivets' strength; DetailPlateShape x a seam's half width (cm), y the rivets' pitch (cm), z a rivet's radius (cm),
@@ -527,7 +528,9 @@ DETAIL_PLATE_DEFAULTS = {'DetailPlates': (0.0, 0.0, 0.0, 0.0), 'DetailPlateShape
 DETAIL_SETS = {'MetalWorn': {'DetailMeanLuma': 0.5076, 'DetailMeanRough': 0.3741},
                'MetalRust': {'DetailMeanLuma': 0.2051, 'DetailMeanRough': 0.6295},
                # Wood grain with no plank seams (Art/Textures/ToolWood, the melee tools' wood): over Tripo's own boards.
-               'ToolWood': {'DetailMeanLuma': 0.6073, 'DetailMeanRough': 0.6007}}
+               'ToolWood': {'DetailMeanLuma': 0.6073, 'DetailMeanRough': 0.6007},
+               # Worn white paint with dark chips (Art/Textures/PaintWorn; REBAKE measured 0.654 Rec709).
+               'PaintWorn': {'DetailMeanLuma': 0.6517, 'DetailMeanRough': 0.5330}}
 DETAIL_DEFAULT_SET = 'MetalWorn'
 BARGE_MI = '/Game/Art/Materials/MI_TripoDredgeBarge'
 
@@ -565,6 +568,14 @@ DETAIL_INSTANCES = {
     '/Game/Art/Materials/MI_TripoDredgeBarge_Hull': {
         'set': 'MetalRust', 'like': BARGE_MI,
         'numbers': {'DetailScale': 1.5, 'DetailStrength': 0.5, 'DetailNormal': 0.6, 'DetailRoughness': 0.5}},
+    # The house's and the casing's walls (Round 4: their own slot TripoDredgeBarge_Walls and set TripoDredgeBargeWalls,
+    # REWORK and REPACK; made here first so the import fills it by name): PaintWorn's chips at 1.6 m, at 0.65, gated by the
+    # walls' colour map alpha (DetailMaskAlpha: REBAKE writes the paint zones' chip weight there, 0 on rust, so rust keeps
+    # the grain only; an RGB map reads 1 everywhere), with plate seams and rivets on the strakes, 2.0 x 1.0 m.
+    '/Game/Art/Materials/MI_TripoDredgeBarge_Walls': {
+        'set': 'PaintWorn', 'like': BARGE_MI, 'plates': (2.0, 1.0, 0.5, 0.6), 'shape': (0.8, 12.0, 1.2, 0.05),
+        'numbers': {'DetailStrength': 0.65, 'DetailScale': 1.6, 'DetailNormal': 0.6, 'DetailRoughness': 0.5,
+                    'DetailMaskAlpha': 1.0}},
     # The house, casing, stacks, tank, fittings and rails: MetalWorn lighter, so Tripo's paint leads.
     '/Game/Art/Materials/MI_TripoDredgeBarge_Super': {
         'set': 'MetalWorn', 'like': BARGE_MI,
@@ -574,7 +585,9 @@ DETAIL_INSTANCES = {
     KIT_IRON_MI: {
         'set': 'MetalWorn', 'world': True, 'plates': (1.8, 1.2, 0.55, 0.5),
         'base': {'Tint': (0.0823, 0.0648, 0.0513, 1.0), 'RoughnessOffset': -0.15},
-        'numbers': {'DetailStrength': 1.0, 'DetailNormal': 1.0, 'DetailRoughness': 0.8}},
+        # Strength 0.55 at 0.7 m (was 1.0 at 1 m): at full strength MetalWorn's blotches tiled visibly over the hall's walls
+        # (the PIE walk of 2026-11-04, BargeRound3Final/11b_hall_wide.png); the plates carry the read, the blotches only grain.
+        'numbers': {'DetailStrength': 0.55, 'DetailScale': 0.7, 'DetailNormal': 1.0, 'DetailRoughness': 0.8}},
     # Its darker variant (the hall's floor and the furnace's surround): the same detail, inherited.
     '/Game/Art/Materials/MI_BargeKitIronDark': {
         'parent': KIT_IRON_MI, 'base': {'Tint': (0.0284, 0.0242, 0.0213, 1.0)}},
@@ -716,7 +729,9 @@ float4 Result = float4(Color, 0.0);
 if (Ws > 0.0)
 {
     float Shade = L / (Ws * max(MeanLuma, 0.01));
-    Result.rgb = Color * max(lerp(1.0, Shade, Strength * Fade), 0.0);
+    // MaskAlpha 1: the base colour map's alpha says where the set's light and dark belong (a paint set's chips on the
+    // painted zones, none on rust); its grain (the normal), roughness and plates stay everywhere. An RGB map reads 1.
+    Result.rgb = Color * max(lerp(1.0, Shade, Strength * Fade * lerp(1.0, Alpha, MaskAlpha)), 0.0);
     Result.a = Rough ? (R / Ws - MeanRough) * RoughAmount * Fade : 0.0;
 }
 // The plates over it: dark seams with grime in them (rougher), each plate its own tone, rivet heads dark at the rim and
@@ -819,7 +834,7 @@ def detail_map(set_name, kind, fallback):
     return fallback
 
 
-def detail_layer(g, color, x, y):
+def detail_layer(g, color, base_color, x, y):
     """The detail layer's colour (rgb, with the roughness offset in a) from the shaded colour, and its normal in the
     tangent frame (DETAIL_SETUP; the docstring says what each parameter is)."""
     # The mesh's own position (cm) and normal from the vertex shader (pre-skinned: a static mesh's own space), handed
@@ -864,6 +879,8 @@ def detail_layer(g, color, x, y):
         ('MeanLuma', number('DetailMeanLuma', means['DetailMeanLuma'], x, y + 1100), ''),
         ('MeanRough', number('DetailMeanRough', means['DetailMeanRough'], x, y + 1200), ''),
         ('TopTint', number('DetailTopTint', DETAIL_DEFAULTS['DetailTopTint'], x - 300, y + 1200), ''),
+        ('Alpha', base_color, 'A'),
+        ('MaskAlpha', number('DetailMaskAlpha', DETAIL_DEFAULTS['DetailMaskAlpha'], x - 300, y + 1300), ''),
         ('NormalMap', texture_object('DetailNormalMap', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL,
                                      detail_map(DETAIL_DEFAULT_SET, 'N', FLAT_NORMAL), y + 1300), ''),
         ('Amount', number('DetailNormal', DETAIL_DEFAULTS['DetailNormal'], x, y + 1400), ''),
@@ -947,7 +964,7 @@ def build_world(orm_default):
     bc, nrm, orm, vc, ao = textured_inputs(g, orm_default)
     shaded = shaded_color(g, bc, ao)
     # The detail layer (DetailOn, off by default: then the switches below pass the graph without it, exactly).
-    detailed, detail_normal = detail_layer(g, shaded, -2400, 2600)
+    detailed, detail_normal = detail_layer(g, shaded, bc, -2400, 2600)
     detailed_rgb = g.node(unreal.MaterialExpressionComponentMask, -1600, 2600, r=True, g=True, b=True, a=False)
     g.link(detailed, '', detailed_rgb, '')
     detailed_rough = g.node(unreal.MaterialExpressionComponentMask, -1600, 2700, r=False, g=False, b=False, a=True)
@@ -1784,7 +1801,7 @@ PW *= 1.0 - PCues.w * smoothstep(0.55, 0.85, H);
 // The pattern's own reads only near the eye (within 60 m, faded out from 40 m): past it the place shows its
 // pattern's mean through its ramp, and the wide views pay only for the place map (measured 2026-10-22: the places'
 // reads everywhere cost the Aerial view 0.15 ms of GPU).
-float PNear = 1.0 - smoothstep(4000.0, 6000.0, Depth);
+float PNear = 1.0 - smoothstep(PNearCut.x, PNearCut.y, Depth);
 """
 
 TERRAIN_CODE = ROAD_WEIGHTS + GROUND_WEIGHTS + PLACE_WEIGHTS + """// From afar the ground keeps the brightness it always had: the old grass and rock detail at their true means
@@ -2094,6 +2111,85 @@ def steep_vector(name):
     return value + (1.0,) * (4 - len(value))
 
 
+# --- M_Terrain's Medium path (2026-11-04; Docs/Work/2026-11-04-Art/PERF.md: Medium is GPU-bound per pixel, and the terrain
+# took ~20 texture reads a pixel at every distance: 1.5-1.6 ms of base pass in the aerials, 0.4-0.6 in the valley).
+# Quality Switches pick it at material quality Medium (r.MaterialQualityLevel 2: Medium's EffectsQuality@1) and Low; High
+# and Epic (level 1) take the Default inputs: the graph as it was. On Medium: no side-laid rock normals; the thatch's and
+# the stony ground's maps and the places' patterns read only near the eye (TERRAIN_NEAR); the steep faces' side-laid
+# rock and its strata noise read only where a face can be steep. Far ground pays the macro map, the grass and the rock.
+TERRAIN_NEAR = (3000.0, 4000.0)   # cm: Medium's near layers fade out from 30 to 40 m and aren't read past it
+TERRAIN_PLACES_NEAR = {'default': (4000.0, 6000.0), 'medium': TERRAIN_NEAR}
+
+# The thatch's and the stony ground's maps and normals (Medium): read near the eye with the gradients taken before the
+# branch; past TERRAIN_NEAR the colour maps' smallest mip (one texel: their mean, which is what a far mip shows anyway)
+# and flat normals. On the view's shared wrap sampler, as the graph's own reads of them are (each texture object's own
+# sampler would take a slot: 17 then).
+NEAR_LAYERS_CODE = """float Near = 1.0 - smoothstep(Cut.x, Cut.y, Depth);
+float2 TDx = ddx(UVT), TDy = ddy(UVT), SDx = ddx(UVS), SDy = ddy(UVS);
+float4 T4 = Texture2DSampleLevel(ThatchMap, View.MaterialTextureBilinearWrapedSampler, UVT, 15.0);
+float4 S4 = Texture2DSampleLevel(StonyMap, View.MaterialTextureBilinearWrapedSampler, UVS, 15.0);
+float3 TN = float3(0.0, 0.0, 1.0), SN = float3(0.0, 0.0, 1.0);
+[branch] if (Near > 0.001)
+{
+    T4 = lerp(T4, Texture2DSampleGrad(ThatchMap, View.MaterialTextureBilinearWrapedSampler, UVT, TDx, TDy), Near);
+    S4 = lerp(S4, Texture2DSampleGrad(StonyMap, View.MaterialTextureBilinearWrapedSampler, UVS, SDx, SDy), Near);
+    TN = normalize(lerp(TN, UnpackNormalMap(Texture2DSampleGrad(ThatchNMap, View.MaterialTextureBilinearWrapedSampler, UVT, TDx, TDy)).xyz, Near));
+    SN = normalize(lerp(SN, UnpackNormalMap(Texture2DSampleGrad(StonyNMap, View.MaterialTextureBilinearWrapedSampler, UVS, SDx, SDy)).xyz, Near));
+}
+Stony = S4;
+ThatchN = TN;
+StonyN = SN;
+return T4;"""
+
+# The steep faces' side-laid rock (Medium): SIDE_UV_CODE's two projections, the band noise and the rock map's two reads,
+# worked out only where the steep edge (STEEP_EDGE_CODE) can come out above 0 whatever the rock's light and dark; elsewhere
+# the rock's true mean (no breakup), and nothing is read. Its gradients from the projections' straight part, before the
+# branch (the bend's own is small).
+SIDE_ROCK_CODE = """float S0 = (SteepRaw - 0.5) * Sharp + 0.5 + (Select - 0.5) * Pull;
+float3 Dx = ddx(P), Dy = ddy(P);
+float K = Scale * 0.01;
+float2 XDx = float2(Dx.y, -Dx.z) * K, XDy = float2(Dy.y, -Dy.z) * K;
+float2 YDx = float2(Dx.x, -Dx.z) * K, YDy = float2(Dy.x, -Dy.z) * K;
+float3 RX = float3(RockTrue, RockTrue, RockTrue), RY = RX;
+UVX = float2(0.0, 0.0);
+UVY = float2(0.0, 0.0);
+Band = 0.5;
+[branch] if (S0 + 0.5 * abs(Breakup) > 0.0)
+{
+    float FlatZ = P.z * 2.0 * (1.0 - Flat);
+    float WX = sin(P.y * 0.0011 + 1.3) * 0.14 + sin(P.y * 0.0037 + P.z * 0.0007) * 0.05 + P.y * 0.00002;
+    WX += (Texture2DSampleLevel(Noise, NoiseSampler, float2(P.y, FlatZ) * 0.01 / max(Wave, 1.0), Smooth).r - 0.5) * 2.0 * Warp * Scale;
+    float WY = sin(P.x * 0.0011 + 1.3) * 0.14 + sin(P.x * 0.0037 + P.z * 0.0007) * 0.05 + P.x * 0.00002;
+    WY += (Texture2DSampleLevel(Noise, NoiseSampler, float2(P.x, FlatZ) * 0.01 / max(Wave, 1.0), Smooth).r - 0.5) * 2.0 * Warp * Scale;
+    UVX = float2(P.y * K, -P.z * K + WX);
+    UVY = float2(P.x * K, -P.z * K + WY);
+    RX = Texture2DSampleGrad(RockMap, View.MaterialTextureBilinearWrapedSampler, UVX, XDx, XDy).rgb;
+    RY = Texture2DSampleGrad(RockMap, View.MaterialTextureBilinearWrapedSampler, UVY, YDx, YDy).rgb;
+    Band = Texture2DSampleLevel(Noise, NoiseSampler, float2((P.x + P.y) / 12000.0, P.z / 2500.0), 0).r;
+}
+RockY = RY;
+return RX;"""
+
+
+def low_quality(g, default, cheap, x, y, default_out='', cheap_out=''):
+    """A Quality Switch: Low and Medium take cheap, High and Epic (and everything else) the default input."""
+    switch = g.node(unreal.MaterialExpressionQualitySwitch, x, y)
+    g.link(default, default_out, switch, 'Default')
+    for level in ('Low', 'Medium'):
+        g.link(cheap, cheap_out, switch, level)
+    return switch
+
+
+def terrain_object(g, name, sampler, default, x, y, wrap=False):
+    """A texture object parameter with the name of one of M_Terrain's samples, for the Medium path's own reads (an
+    instance's map then reaches both)."""
+    node = g.node(unreal.MaterialExpressionTextureObjectParameter, x, y, parameter_name=name, sampler_type=sampler,
+                  texture=unreal.load_asset(default))
+    if wrap:
+        node.set_editor_property('sampler_source', unreal.SamplerSourceMode.SSM_WRAP_WORLD_GROUP_SETTINGS)
+    return node
+
+
 def build_terrain():
     mat = material('M_Terrain')
     g = Graph(mat)
@@ -2135,13 +2231,9 @@ def build_terrain():
     # The face's edge (STEEP_EDGE_CODE): what every steep blend below uses; with the master's defaults it is the
     # steepness unchanged.
     rock_true = sparam(g, 'Ground', 'RockTrueLuma', ROCK_TRUE_LUMA, -1300, -940)
-    steep = g.custom(STEEP_EDGE_CODE, [
-        ('Steep', steep_raw, ''), ('Normal', vertex_normal, ''), ('RockX', rock_x, 'RGB'), ('RockY', rock_y, 'RGB'),
-        ('RockTrue', rock_true, ''), ('Select', macro, 'A'),
-        ('Sharp', g.scalar('SteepSharp', STEEP_DEFAULTS['SteepSharp'], -1700, 1950), ''),
-        ('Breakup', g.scalar('SteepBreakup', STEEP_DEFAULTS['SteepBreakup'], -1700, 2000), ''),
-        ('Pull', g.scalar('SteepPull', STEEP_DEFAULTS['SteepPull'], -1700, 2050), ''),
-    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -1200, 1850, 'Steep face edge')
+    steep_sharp = g.scalar('SteepSharp', STEEP_DEFAULTS['SteepSharp'], -1700, 1950)
+    steep_breakup = g.scalar('SteepBreakup', STEEP_DEFAULTS['SteepBreakup'], -1700, 2000)
+    steep_pull = g.scalar('SteepPull', STEEP_DEFAULTS['SteepPull'], -1700, 2050)
     vc = g.node(unreal.MaterialExpressionVertexColor, -1400, 1000)
     # The ground layers (GROUND_WEIGHTS): GroundNoise over GroundNoiseTile meters, the thatch and the stony ground on
     # UV 1 at their own repeats, slid apart by the noise's drift. They're the master's own textures (no instance sets
@@ -2170,6 +2262,55 @@ def build_terrain():
                                   ground_texture('GroundStony', 'BC'), layer_uvs['Stony'], -2000, -500))
     stony_n = shared_wrap(g.texture('StonyNormalMap', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL,
                                     ground_texture('GroundStony', 'N'), layer_uvs['Stony'], -2000, -400))
+    # Medium (TERRAIN_NEAR): the same four maps read in one node, only near the eye.
+    near = g.custom(NEAR_LAYERS_CODE, [
+        ('UVT', layer_uvs['Thatch'], ''), ('UVS', layer_uvs['Stony'], ''),
+        ('Depth', g.node(unreal.MaterialExpressionPixelDepth, -3300, -800), ''),
+        ('Cut', g.node(unreal.MaterialExpressionConstant2Vector, -3300, -750, r=TERRAIN_NEAR[0], g=TERRAIN_NEAR[1]), ''),
+        ('ThatchMap', terrain_object(g, 'ThatchBaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR,
+                                     ground_texture('GroundThatch', 'BC'), -3300, -700, wrap=True), ''),
+        ('StonyMap', terrain_object(g, 'StonyBaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR,
+                                    ground_texture('GroundStony', 'BC'), -3300, -650, wrap=True), ''),
+        ('ThatchNMap', terrain_object(g, 'ThatchNormalMap', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL,
+                                      ground_texture('GroundThatch', 'N'), -3300, -600, wrap=True), ''),
+        ('StonyNMap', terrain_object(g, 'StonyNormalMap', unreal.MaterialSamplerType.SAMPLERTYPE_NORMAL,
+                                     ground_texture('GroundStony', 'N'), -3300, -550, wrap=True), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT4, -2800, -750, 'Near layers (Medium)',
+        outputs=[('Stony', unreal.CustomMaterialOutputType.CMOT_FLOAT4),
+                 ('ThatchN', unreal.CustomMaterialOutputType.CMOT_FLOAT3),
+                 ('StonyN', unreal.CustomMaterialOutputType.CMOT_FLOAT3)])
+    thatch_in = low_quality(g, thatch, near, -1700, -700, 'RGBA', '')
+    stony_in = low_quality(g, stony, near, -1700, -500, 'RGBA', 'Stony')
+    thatch_n_in = low_quality(g, thatch_n, near, -1700, -600, 'RGB', 'ThatchN')
+    stony_n_in = low_quality(g, stony_n, near, -1700, -400, 'RGB', 'StonyN')
+    # Medium: the side-laid rock only where a face can be steep.
+    side_rock = g.custom(SIDE_ROCK_CODE, [
+        ('P', world, ''), ('Scale', rock_scale, ''), ('Noise', noise, ''), ('Warp', warp, ''), ('Wave', wave, ''),
+        ('Smooth', smooth, ''), ('Flat', flat, ''),
+        ('RockMap', terrain_object(g, 'RockBaseColorMap', unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, WHITE,
+                                   -2400, 1700), ''),
+        ('SteepRaw', steep_raw, ''), ('Sharp', steep_sharp, ''), ('Breakup', steep_breakup, ''), ('Pull', steep_pull, ''),
+        ('Select', macro, 'A'), ('RockTrue', rock_true, ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -2000, 1800, 'Side-laid rock (Medium)',
+        outputs=[('RockY', unreal.CustomMaterialOutputType.CMOT_FLOAT3),
+                 ('UVX', unreal.CustomMaterialOutputType.CMOT_FLOAT2),
+                 ('UVY', unreal.CustomMaterialOutputType.CMOT_FLOAT2),
+                 ('Band', unreal.CustomMaterialOutputType.CMOT_FLOAT1)])
+    rock_x_in = low_quality(g, rock_x, side_rock, -1100, 1300, 'RGB', '')
+    rock_y_in = low_quality(g, rock_y, side_rock, -1100, 1550, 'RGB', 'RockY')
+    side_uv_x_in = low_quality(g, side_uvs[0], side_rock, -1100, 1400, '', 'UVX')
+    side_uv_y_in = low_quality(g, side_uvs[1], side_rock, -1100, 1450, '', 'UVY')
+    band_in = low_quality(g, band, side_rock, -1100, 1600, '', 'Band')
+    places_near = low_quality(
+        g, g.node(unreal.MaterialExpressionConstant2Vector, -3300, -1800, r=TERRAIN_PLACES_NEAR['default'][0],
+                  g=TERRAIN_PLACES_NEAR['default'][1]),
+        g.node(unreal.MaterialExpressionConstant2Vector, -3300, -1750, r=TERRAIN_PLACES_NEAR['medium'][0],
+               g=TERRAIN_PLACES_NEAR['medium'][1]), -3000, -1780)
+    steep = g.custom(STEEP_EDGE_CODE, [
+        ('Steep', steep_raw, ''), ('Normal', vertex_normal, ''), ('RockX', rock_x_in, ''), ('RockY', rock_y_in, ''),
+        ('RockTrue', rock_true, ''), ('Select', macro, 'A'),
+        ('Sharp', steep_sharp, ''), ('Breakup', steep_breakup, ''), ('Pull', steep_pull, ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -1200, 1850, 'Steep face edge')
     # The Ground group's parameters: GROUND_DEFAULTS says what each number is.
     grass_mean = g.scalar('GrassMeanLuma', 0.3, -1000, 900)
     rock_mean = g.scalar('RockMeanLuma', STEEP_DEFAULTS['RockMeanLuma'], -1000, 1000)
@@ -2177,7 +2318,7 @@ def build_terrain():
     weights = [
         ('Macro', macro, 'RGB'), ('Select', macro, 'A'), ('Noise', ground_noise, 'RGBA'), ('Occlusion', vc, 'A'),
         ('Depth', g.node(unreal.MaterialExpressionPixelDepth, -1300, -1100), ''),
-        ('Grass', grass, 'RGB'), ('Thatch', thatch, 'RGBA'), ('Stony', stony, 'RGBA'),
+        ('Grass', grass, 'RGB'), ('Thatch', thatch_in, ''), ('Stony', stony_in, ''), ('PNearCut', places_near, ''),
         ('Cues', svector(g, ground, 'GroundCues', GROUND_DEFAULTS['GroundCues'], -1300, -1300), 'RGBA'),
         ('Cues2', svector(g, ground, 'GroundCues2', GROUND_DEFAULTS['GroundCues2'], -1300, -1240), 'RGBA'),
         ('DampP', svector(g, ground, 'GroundDamp', GROUND_DEFAULTS['GroundDamp'], -1300, -1180), 'RGBA'),
@@ -2197,13 +2338,13 @@ def build_terrain():
         ('Layers', svector(g, ground, 'GroundLayers', GROUND_DEFAULTS['GroundLayers'], -1300, -820), 'RGBA'),
         ('LeafTint', svector(g, ground, 'LeafTint', GROUND_DEFAULTS['LeafTint'], -1300, -760), ''),
         ('DiffuseAO', g.scalar('DiffuseAO', STEEP_DEFAULTS['DiffuseAO'], -1000, 1200), ''),
-        ('RockX', rock_x, 'RGB'), ('RockY', rock_y, 'RGB'), ('Normal', vertex_normal, ''), ('Steep', steep, ''),
+        ('RockX', rock_x_in, ''), ('RockY', rock_y_in, ''), ('Normal', vertex_normal, ''), ('Steep', steep, ''),
         ('SteepDetail', g.scalar('SteepDetail', STEEP_DEFAULTS['SteepDetail'], -1000, 1300), ''),
         ('SteepTint', g.vector('SteepTint', steep_vector('SteepTint'), -1000, 1400), ''),
-        ('Band', band, ''),
+        ('Band', band_in, ''),
         ('SteepVariation', g.scalar('SteepVariation', STEEP_DEFAULTS['SteepVariation'], -1000, 1500), ''),
         # The cliff kit's rock on steep faces (SteepRock; TERRAIN_CODE says what each is), off by default.
-        ('SideUVX', side_uvs[0], ''), ('SideUVY', side_uvs[1], ''), ('RockScale', rock_scale, ''),
+        ('SideUVX', side_uv_x_in, ''), ('SideUVY', side_uv_y_in, ''), ('RockScale', rock_scale, ''),
         ('SteepRock', g.scalar('SteepRock', STEEP_DEFAULTS['SteepRock'], -1000, 1600), ''),
         ('SteepRockTint', g.vector('SteepRockTint', steep_vector('SteepRockTint'), -1000, 1650), ''),
         ('SteepMacroKeep', g.scalar('SteepMacroKeep', STEEP_DEFAULTS['SteepMacroKeep'], -1000, 1700), ''),
@@ -2217,7 +2358,7 @@ def build_terrain():
     g.out(styled(g, SUNBLEACHED, base_b, color, 0, -200), '', unreal.MaterialProperty.MP_BASE_COLOR)
     g.out(styled(g, SUNBLEACHED, light_b, black(g, 0, -400), 200, -400), '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     normal = g.custom(GROUND_NORMAL_CODE, weights + [
-        ('GrassN', grass_n, 'RGB'), ('ThatchN', thatch_n, 'RGB'), ('StonyN', stony_n, 'RGB'), ('RockN', rock_n, 'RGB'),
+        ('GrassN', grass_n, 'RGB'), ('ThatchN', thatch_n_in, ''), ('StonyN', stony_n_in, ''), ('RockN', rock_n, 'RGB'),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -900, 400, 'Ground normal')
     flatten = g.node(unreal.MaterialExpressionLinearInterpolate, -600, 400)
     g.link(g.node(unreal.MaterialExpressionConstant3Vector, -900, 600, constant=unreal.LinearColor(0.0, 0.0, 1.0, 1.0)), '', flatten, 'A')
@@ -2258,7 +2399,7 @@ def build_terrain():
                           transform_type=unreal.MaterialVectorCoordTransform.TRANSFORM_TANGENT)
     g.link(road_tilt, '', road_tangent, '')
     ground_relief = g.custom('return normalize(N + T * (1.0 - Steep));', [
-        ('N', relief, ''), ('T', road_tangent, ''), ('Steep', steep, ''),
+        ('N', low_quality(g, relief, flatten, -300, 750), ''), ('T', road_tangent, ''), ('Steep', steep, ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -150, 600, 'Ground relief with the ruts')
     g.out(ground_relief, '', unreal.MaterialProperty.MP_NORMAL)
     rough = g.custom(GROUND_ROUGHNESS_CODE, weights + [('Steep', steep, '')],

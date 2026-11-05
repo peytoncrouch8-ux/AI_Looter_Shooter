@@ -104,7 +104,8 @@ Main 7. Main 5's turn-in says why the mine comes first and points at the lift; M
                    pieces), offered by Captain Holloway at the Lamplighter's wheel after Back Pay (met first: her talk starts
                    it and fades the Rest to dusk): 0 cast off (Landfall_AnchorWinch, held), 1 the Company's tenders fought
                    off (Pilot.TendersDown), 2 the barge grappled (Lamplighter_GrappleLauncher, 2 holds), 3 her top deck
-                   (BargeDeck, 9) and the furnace hatch (Barge_FurnaceHatch) + optional the hose drum jammed (Barge_HoseDrum,
+                   (BargeDeck 9, then the pushes she starts herself: BargeDeckRoof 4 and BargeDeckTower 2 down ropes,
+                   BargeDeckStern 4 from the stern; all four cleared) and the furnace hatch (Barge_FurnaceHatch) + optional the hose drum jammed (Barge_HoseDrum,
                    held: Pilot.DrumJammed) + optional her four horns (Barge_Horn), 4 the manifest (Item_BargeManifest: Paid on
                    Delivery's BargeManifest, carried from here), 5 the three draft valves (Furnace_DraftValve, held) and the
                    Chief Stoker's crew (FurnaceHall, 8), 6 the soul cage (Furnace_SoulCage, held; scene CageBurst), 7 the jump
@@ -762,6 +763,11 @@ LAUNCHER_TAG = 'Lamplighter_GrappleLauncher'
 SHIP_DECK = 'Lamplighter_Deck'
 TENDERS_DOWN = 'Pilot.TendersDown'
 BARGE_DECK = 'BargeDeck'
+# The deck fight's later pushes (the user's "Bigger", 2026-11-04; BargeRules::DeckPushDredgers {9, 6, 4}; build_area_main6.py
+# places a spawner of each id, and ABargeBoarding::AdvancePushes starts them in step 3).
+BARGE_DECK_ROOF = 'BargeDeckRoof'
+BARGE_DECK_TOWER = 'BargeDeckTower'
+BARGE_DECK_STERN = 'BargeDeckStern'
 FURNACE_HATCH = 'Barge_FurnaceHatch'
 HOSE_DRUM = 'Barge_HoseDrum'
 BARGE_HORN = 'Barge_Horn'
@@ -797,11 +803,27 @@ def main6_steps(asset):
         step(objective(asset, unreal.MissionInteractObjective,
                        "Grapple the barge: hold {Interact} on both launchers on the starboard rail.",
                        short='Fire the grapple launchers', target=actor_filter(tag=LAUNCHER_TAG), count=2, hold=True)),
-        # 3. The top deck: its fight counted from the spawner, the furnace hatch reached (height counted: not from the hall
-        # under it); the drum's jam (sets Pilot.DrumJammed: Delia's turn-in knows it) and the horns, optional.
+        # 3. The top deck: its fight counted from the spawners, the furnace hatch reached (height counted: not from the hall
+        # under it); the drum's jam (sets Pilot.DrumJammed: Delia's turn-in knows it) and the horns, optional. The fight is four
+        # encounters (a clear objective names one spawner, so one each, all required: the step ends only when all four are
+        # cleared): the deck's own nine, then the pushes the barge sends herself (BargeFightRules.h): the droppers off the house's
+        # roof (4) and the bow tower (2), and the stern deck's four up the walks. The three later ones carry no arrow (the
+        # hatch's and the deck's lead) and pass at once in a level without their spawners (an old build, a missing class).
         step(objective(asset, unreal.MissionClearObjective,
                        "Fight across the barge's top deck. Mind the furnace vents.",
                        short="Fight across the barge's deck", spawner_id=unreal.Name(BARGE_DECK), count=9),
+             objective(asset, unreal.MissionClearObjective,
+                       "Dredgers slide down ropes off the house's roof. Put them down.",
+                       short='Put down the roof droppers', spawner_id=unreal.Name(BARGE_DECK_ROOF), count=4,
+                       waypoint=waypoint.NONE, pass_without_targets=True),
+             objective(asset, unreal.MissionClearObjective,
+                       "More Dredgers slide down ropes off the bow tower. Put them down.",
+                       short='Put down the tower droppers', spawner_id=unreal.Name(BARGE_DECK_TOWER), count=2,
+                       waypoint=waypoint.NONE, pass_without_targets=True),
+             objective(asset, unreal.MissionClearObjective,
+                       "A third push comes up both walks from the stern deck. Put it down.",
+                       short='Put down the stern push', spawner_id=unreal.Name(BARGE_DECK_STERN), count=4,
+                       waypoint=waypoint.NONE, pass_without_targets=True),
              objective(asset, unreal.MissionReachObjective, 'Get to the furnace hatch. Her pilot light burns below.',
                        short='Get to the furnace hatch', place=place(tag=FURNACE_HATCH, radius=300.0, ignore_height=False)),
              objective(asset, unreal.MissionInteractObjective,

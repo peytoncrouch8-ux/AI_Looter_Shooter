@@ -105,9 +105,16 @@ bool FRoostLookTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("...at their back as they wake, facing out (%.0f degrees off the arrow)"), Bearing), FMath::Abs(Bearing) > 120.0);
 	}
 	const FVector Beacon = Roost->GetBeaconLocation();
-	// At the lamp, hung from the arm: over the player's head, its light beside the post.
-	TestTrue(TEXT("The beacon at the post's lamp, over the player's head"), Beacon.Z - Roost->GetActorLocation().Z > 200.0
-		&& Beacon.Z - Roost->GetActorLocation().Z < 400.0);
+	// At the lamp, hung from the arm: the post's Beacon socket (its Light's, or the stand-in's lantern), over the player's
+	// head (the 0.85 player stands about 1.5 m) and under the post's top. The Tripo post's lamp hangs lower than the
+	// stand-in's: its glass at 1.91 m over the foot (SM_LanternPost's Beacon and Light sockets at (110.5, 1.3, 190.8)), the
+	// stand-in's at 2.36 (the old 2-4 m band was the stand-in's, 2026-11-04).
+	constexpr double OverHead = 170.0;
+	constexpr double UnderTop = 400.0;
+	FTransform Lamp;
+	const double Up = Beacon.Z - Roost->GetActorLocation().Z;
+	TestTrue(FString::Printf(TEXT("The beacon at the post's lamp, over the player's head (%.0f cm up)"), Up),
+		Roost->GetRoostSocket(RoostKit::BeaconSocket(), Lamp) && FVector::Dist(Lamp.GetLocation(), Beacon) < 1.0 && Up > OverHead && Up < UnderTop);
 	TestTrue(TEXT("...its light there with it"), FVector::Dist(Roost->BeaconLight->GetComponentLocation(), Beacon) < 1.0);
 	const TArray<FTransform> Perches = Roost->GetPerches();
 	TestEqual(TEXT("Six perches for Hob's crows"), Perches.Num(), RoostKit::PerchCount);

@@ -194,17 +194,18 @@ namespace BargeRules
 
 	float DeskYaw()
 	{
-		return OfficeAngle + DeskAngle;
+		// The bench's front (its local +X, where the stoker stands) faces the hall's middle, its tool wall the hall's wall.
+		return OfficeAngle + DeskAngle + 180.f;
 	}
 
 	FVector DeskTop()
 	{
-		return DeskSpot(DeskFallbackHalf.X) + FVector(0.0, 0.0, DeskFallbackHalf.Z * 2.0);
+		return DeskSpot(DeskFallbackHalf.X) + FVector(0.0, 0.0, DeskWorkTop);
 	}
 
 	FVector RadioSpot(const FVector& OnDesk)
 	{
-		// On the desk's corner: in from the wall (toward the walkway), along the ring.
+		// On the work top's back corner (toward the tool wall), along the ring: the clear middle stays the manifest's.
 		return OnDesk - OutAt(DeskAngle) * RadioOnDesk.X + AlongAt(DeskAngle) * RadioOnDesk.Y + FVector(0.0, 0.0, RadioOnDesk.Z);
 	}
 
