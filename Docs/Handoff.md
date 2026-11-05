@@ -3,7 +3,21 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
-## START HERE (2026-11-05 02:40: the PLAYTEST BUILD is ready; overnight round 7 on the towns runs next)
+## START HERE (2026-11-05 08:20: TWO playtest builds ready; the user hasn't played either)
+**Builds:** build 2 `Builds\Playtest6-11-05_0800\Windows\AI_Looter_Shooter.exe` (commit dffbb14a, smoke PASS, full cook
+5573) = build 1 (`2026-11-05_0158`, 9052a9dc) + round 7: the town dressed by rules (338 pieces; town_rules.py), the smithy, bathhouse
+and Home L placed, PERF2's fight fixes (hit zones once a frame; Abel's lines held), the tour's warm pass fixed. Page (v3):
+https://claude.ai/artifact/CCLjmC72XB8wg7wGfDE41k (scratchpad `changes_page/`). Build 2's clean warm tour: ALL 53 views <= 8.3 ms
+(Aerial_Dusk 8.16, Farm 8.15, Aerial 8.13; town views 7.8-7.9; Abel deck fight 7.15; horde 7.9; deck 7.9).
+**Ask the user (two failed fixes, their call):** the barge's starboard walk (Looter.World.Barge.Fight; the cause is open:
+Bugs.md "OPEN: the barge's starboard walk"); the 13 of 16 new buildings without a site (LEVEL: the town core is full; new ground
+such as a back street on a pad, or sites outside the core).
+**After build 2 (committed, not in a package):** the dredge hose under Landfall's barge was 8 of 13 sections since 11-01 (BAKE off;
+fallback_most=8): now all 13 (`build_area_landfall.py`; checked in a shot). Next round: the bathhouse's north-wall handbill 2 cm into
+the wall (DEMO3), the boiler fire unseen, the Unpaid's crit is the CHEST COAL (MORNING.md corrected; the page too). Lessons:
+Workflow.md (big test filters crash the RX 580's driver at ~196 tests; watchdog every chain's tests), Bugs.md.
+
+## Earlier: the first playtest build (2026-11-05 02:40)
 **For the user (morning):** the build `Builds\Playtest6-11-05_0158\Windows\AI_Looter_Shooter.exe` (commit 9052a9dc, smoke PASS,
 1.79 GB, full cook) and the what-changed page https://claude.ai/artifact/CCLjmC72XB8wg7wGfDE41k (scratchpad `changes_page/`: Phase 3's
 12 feel changes, before/after sliders from `Saved/ArtPreviews/Step1/before` vs clean shots of 02:32, the frame table, the honest list).

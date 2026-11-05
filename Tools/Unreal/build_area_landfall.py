@@ -1412,7 +1412,9 @@ def place_barge(build, plan):
     made = baked_or_parts(build, 'Barge', parts, 'Landfall_Barge', shown, tags=(NAMES['barge_tag'],), cast_shadow=True,
                           fallback_most=5)
     hose = hose_parts(build, plan)
-    baked_or_parts(build, 'Hose', hose, 'Landfall_BargeHose', shown, cast_shadow=False, fallback_most=8)
+    # Every section: with BAKE off since 2026-11-01 a cap of 8 placed every other section of the ~16, so the hose hung over the
+    # Sink as loose pieces with gaps (seen from the back lots, 2026-11-05). A section is one StoryProp: a few draws more.
+    baked_or_parts(build, 'Hose', hose, 'Landfall_BargeHose', shown, cast_shadow=False, fallback_most=0)
     plume = load(STAND_INS['smog_plume'])
     smog, glint = material('smog'), material('glint')
     if plume is not None:
