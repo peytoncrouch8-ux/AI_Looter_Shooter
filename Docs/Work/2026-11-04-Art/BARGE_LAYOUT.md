@@ -1,7 +1,7 @@
 # Dredge barge layout (measured)
 
 SM_DredgeBarge after the round-5 rework (Tools/Blender/looter_tripo_barge.py), measured with rays by Tools/Blender/looter_tripo_barge_check.py. UE frame, cm: pivot bottom-centre, bow +X, berth side -Y, Z up.
-Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 148950.
+Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 161973.
 
 ## Well deck
 
@@ -21,14 +21,14 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 
 ## Side walks (casing and house)
 
-- +Y casing walk, x -3325..-675 (107 stations): floor z 2253..2265, from the wall's foot |y| 427..783 to the bulwark's inner face |y| 752..980; clear width (z +20..+180) 150 at least (x -2050; by height +20: 150, +100: 152, +180: 152), median 195; headroom 222 at least, under 220 at 0 stations. Nowhere under 120. Measured on their neighbours' floor (none found under a low cut stub): x -2250. A capsule (radius 34, half-height 88) along its middle: no collision hull in its way.
-- +Y house walk, x -100..2125 (90 stations): floor z 2253..2266, from the wall's foot |y| 587..744 to the bulwark's inner face |y| 815..976; clear width (z +20..+180) 167 at least (x 1000; by height +20: 167, +100: 221, +180: 229), median 251; headroom 878 at least, under 220 at 0 stations. Nowhere under 150. A capsule (radius 34, half-height 88) along its middle: no collision hull in its way.
-- -Y casing walk, x -3325..-675 (107 stations): floor z 2254..2268, from the wall's foot |y| 351..826 to the bulwark's inner face |y| 708..941; clear width (z +20..+180) 126 at least (x -725; by height +20: 126, +100: 144, +180: 139), median 187; headroom 221 at least, under 220 at 0 stations. Nowhere under 120. Measured on their neighbours' floor (none found under a low cut stub): x -2250. A capsule (radius 34, half-height 88) along its middle: no collision hull in its way.
-- -Y house walk, x -100..2125 (90 stations): floor z 2254..2262, from the wall's foot |y| 558..718 to the bulwark's inner face |y| 792..940; clear width (z +20..+180) 170 at least (x 1375; by height +20: 170, +100: 224, +180: 223), median 244; headroom 380 at least, under 220 at 0 stations. Nowhere under 150. A capsule (radius 34, half-height 88) along its middle: no collision hull in its way.
+- +Y casing walk, x -3325..-675 (107 stations): floor z 2253..2265, from the wall's foot |y| 427..929 to the bulwark's inner face |y| 752..980; clear width (z +20..+180) 157 at least (x -675; by height +20: 157, +100: 284, +180: 290), median 203; headroom 222 at least, under 220 at 0 stations. Nowhere under 120. A capsule (radius 34, half-height 88) along its middle: no collision hull in its way.
+- +Y house walk, x -100..2125 (90 stations): floor z 2253..2264, from the wall's foot |y| 592..756 to the bulwark's inner face |y| 815..976; clear width (z +20..+180) 217 at least (x 2125; by height +20: 217, +100: 258, +180: 263), median 257; headroom 389 at least, under 220 at 0 stations. Nowhere under 150. A capsule (radius 34, half-height 88) along its middle: no collision hull in its way.
+- -Y casing walk, x -3325..-675 (107 stations): floor z 2254..2264, from the wall's foot |y| 351..840 to the bulwark's inner face |y| 708..941; clear width (z +20..+180) 160 at least (x -675; by height +20: 160, +100: 190, +180: 284), median 194; headroom 219 at least, under 220 at 2 stations: x -1875 (219), x -1850 (219). Nowhere under 120. Measured on their neighbours' floor (none found under a low cut stub): x -2250. A capsule (radius 34, half-height 88) along its middle: no collision hull in its way.
+- -Y house walk, x -100..2125 (90 stations): floor z 2252..2261, from the wall's foot |y| 560..731 to the bulwark's inner face |y| 788..945; clear width (z +20..+180) 223 at least (x 2050; by height +20: 223, +100: 240, +180: 244), median 251; headroom 883 at least, under 220 at 0 stations. Nowhere under 150. A capsule (radius 34, half-height 88) along its middle: no collision hull in its way.
 
 ## Collision convex
 
-- 194 UCX, every one convex.
+- 196 UCX, every one convex.
 
 ## The stern push's way (as Looter.World.Barge.Fight walks it: looter_tripo_barge_route)
 
@@ -55,13 +55,15 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 
 ## Material slots
 
-- TripoDredgeBarge_Hull 48638, TripoDredgeBarge_Deck 15201, TripoDredgeBarge_Super 65180, TripoDredgeBarge_Walls 19841.
+- TripoDredgeBarge_Hull 48637, TripoDredgeBarge_Deck 18872, TripoDredgeBarge_Super 73839, TripoDredgeBarge_Walls 20535.
 - well deck: TripoDredgeBarge_Deck
 - forecastle floor: TripoDredgeBarge_Deck
 - cross walk: TripoDredgeBarge_Deck
 - hull below the strake: TripoDredgeBarge_Hull
 - house wall: TripoDredgeBarge_Walls
 - casing wall: TripoDredgeBarge_Walls
+- house walk plates: TripoDredgeBarge_Walls
+- casing walk plates: TripoDredgeBarge_Walls
 - stack: TripoDredgeBarge_Super
 - the well deck bulwark: TripoDredgeBarge_Super
 
@@ -103,43 +105,45 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 - casing 1 cabin: x -2458..-1562, y -341..371, z 3202..3759
 - casing 1 high: x -2459..-1564, y -627..644, z 2700..3200
 - casing 1 low: x -3208..-3061, y -475..518, z 2268..2695
-- casing 10 low: x -1854..-1711, y -729..756, z 2261..2694
-- casing 11 low: x -1708..-1560, y -725..753, z 2294..2680
-- casing 12 low: x -1560..-1424, y -716..752, z 2309..2689
-- casing 13 low: x -1402..-1267, y -726..752, z 2279..2678
-- casing 14 low: x -1223..-1110, y -727..751, z 2314..2697
-- casing 15 low: x -1110..-967, y -726..751, z 2317..2690
-- casing 16 low: x -942..-810, y -726..754, z 2327..2696
-- casing 17 low: x -808..-669, y -753..755, z 2266..2700
+- casing 10 low: x -1854..-1711, y -729..751, z 2258..2694
+- casing 11 low: x -1708..-1561, y -728..751, z 2307..2680
+- casing 12 low: x -1560..-1424, y -725..751, z 2310..2689
+- casing 13 low: x -1402..-1262, y -725..755, z 2309..2678
+- casing 14 low: x -1247..-1110, y -728..754, z 2271..2697
+- casing 15 low: x -1110..-963, y -729..751, z 2306..2690
+- casing 16 low: x -951..-810, y -729..751, z 2260..2696
+- casing 17 low: x -808..-669, y -753..762, z 2262..2700
 - casing 2 cabin: x -1556..-843, y -236..264, z 3204..3412
 - casing 2 high: x -1557..-671, y -616..638, z 2700..3198
-- casing 2 low: x -3059..-2911, y -603..629, z 2305..2699
-- casing 3 low: x -2910..-2766, y -690..698, z 2272..2700
-- casing 4 low: x -2758..-2611, y -719..717, z 2271..2697
-- casing 5 low: x -2608..-2461, y -709..736, z 2326..2700
-- casing 6 low: x -2459..-2312, y -745..750, z 2343..2678
-- casing 7 low: x -2308..-2203, y -757..756, z 2259..2698
-- casing 9 low: x -2009..-1860, y -727..757, z 2264..2697
+- casing 2 low: x -3059..-2911, y -622..650, z 2264..2699
+- casing 3 low: x -2910..-2770, y -649..678, z 2268..2700
+- casing 4 low: x -2758..-2611, y -680..714, z 2274..2697
+- casing 5 low: x -2609..-2461, y -711..739, z 2273..2700
+- casing 6 low: x -2459..-2312, y -727..744, z 2292..2678
+- casing 7 low: x -2309..-2162, y -757..750, z 2259..2698
+- casing 8 low: x -2159..-2011, y -730..761, z 2279..2676
+- casing 9 low: x -2003..-1860, y -730..783, z 2257..2697
 - cradle: x -1788..-10, y -524..1032, z 0..950
 - house 0 high: x -358..506, y -852..876, z 2700..3199
 - house 0 low: x -315..-219, y -555..581, z 2257..2695
 - house 1 high: x 508..1371, y -858..884, z 2701..3198
-- house 1 low: x -183..-76, y -587..607, z 2261..2682
-- house 11 low: x 1290..1436, y -643..670, z 2317..2695
-- house 12 low: x 1463..1583, y -635..662, z 2261..2631
-- house 13 low: x 1605..1734, y -610..595, z 2260..2319
-- house 14 low: x 1743..1857, y -611..638, z 2260..2666
-- house 15 low: x 1908..2032, y -594..622, z 2261..2698
-- house 16 low: x 2076..2160, y -578..598, z 2265..2696
+- house 1 low: x -183..-70, y -587..614, z 2259..2682
+- house 10 low: x 1141..1289, y -732..692, z 2262..2675
+- house 11 low: x 1290..1438, y -663..689, z 2265..2695
+- house 12 low: x 1447..1590, y -636..668, z 2257..2634
+- house 13 low: x 1590..1739, y -624..652, z 2259..2700
+- house 14 low: x 1748..1882, y -612..637, z 2261..2677
+- house 15 low: x 1891..2025, y -595..625, z 2264..2698
+- house 16 low: x 2040..2160, y -588..614, z 2265..2696
 - house 2 high: x 1382..2238, y -826..853, z 2701..3200
-- house 2 low: x -57..90, y -681..709, z 2261..2692
-- house 3 low: x 90..240, y -711..742, z 2300..2699
-- house 4 low: x 243..387, y -671..749, z 2290..2671
-- house 5 low: x 409..538, y -674..700, z 2316..2634
-- house 6 low: x 540..687, y -679..704, z 2261..2700
-- house 7 low: x 693..836, y -682..706, z 2261..2699
-- house 8 low: x 841..986, y -679..704, z 2333..2692
-- house 9 low: x 992..1134, y -681..700, z 2386..2689
+- house 2 low: x -57..89, y -617..644, z 2261..2698
+- house 3 low: x 93..239, y -634..668, z 2346..2699
+- house 4 low: x 247..388, y -643..675, z 2264..2603
+- house 5 low: x 394..529, y -665..701, z 2264..2634
+- house 6 low: x 540..690, y -675..709, z 2258..2700
+- house 7 low: x 697..840, y -676..701, z 2263..2694
+- house 8 low: x 841..986, y -676..706, z 2262..2692
+- house 9 low: x 992..1137, y -677..713, z 2259..2692
 - scoop bow: x 5090..5520, y -668..700, z 2373..3129
 - scoop wall +Y 0: x 4155..4416, y 566..664, z 2377..2564
 - scoop wall +Y 1: x 4420..4718, y 516..682, z 2377..2780
@@ -162,45 +166,45 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 - stairs -Y: x 3969..4119, y -450..-150, z 2254..2371
 - scoop frame (tubes and posts over the forecastle, 32 chunks of 40 cm): x 4090..4518, y -456..558, z 2376..2558
 
-## Collision (UCX_), 194 hulls
+## Collision (UCX_), 196 hulls
 
 - bulwark +Y 1: centre (-3489, 669, 2334), size 192 x 302 x 190
-- bulwark +Y 10: centre (-856, 1050, 2356), size 317 x 191 x 204
-- bulwark +Y 11: centre (-543, 1062, 2340), size 309 x 168 x 219
-- bulwark +Y 12: centre (-256, 1086, 2292), size 312 x 214 x 126
-- bulwark +Y 13: centre (41, 1104, 2275), size 307 x 266 x 96
-- bulwark +Y 14: centre (349, 1045, 2339), size 326 x 156 x 175
-- bulwark +Y 15: centre (651, 1028, 2292), size 325 x 143 x 79
-- bulwark +Y 16: centre (953, 1014, 2338), size 324 x 124 x 223
-- bulwark +Y 17: centre (1250, 1010, 2339), size 328 x 218 x 225
-- bulwark +Y 18: centre (1543, 998, 2338), size 314 x 242 x 226
-- bulwark +Y 19: centre (1846, 918, 2332), size 320 x 150 x 209
+- bulwark +Y 10: centre (-851, 1053, 2355), size 306 x 187 x 204
+- bulwark +Y 11: centre (-544, 1062, 2340), size 312 x 168 x 219
+- bulwark +Y 12: centre (-255, 1084, 2292), size 314 x 217 x 126
+- bulwark +Y 13: centre (50, 1104, 2275), size 325 x 267 x 96
+- bulwark +Y 14: centre (349, 1044, 2339), size 326 x 157 x 176
+- bulwark +Y 15: centre (651, 1028, 2291), size 325 x 143 x 81
+- bulwark +Y 16: centre (951, 1006, 2338), size 328 x 139 x 223
+- bulwark +Y 17: centre (1250, 1010, 2301), size 328 x 218 x 151
+- bulwark +Y 18: centre (1549, 996, 2338), size 327 x 248 x 226
+- bulwark +Y 19: centre (1849, 919, 2332), size 326 x 156 x 209
 - bulwark +Y 2: centre (-3251, 834, 2328), size 327 x 269 x 202
-- bulwark +Y 20: centre (2158, 867, 2284), size 313 x 216 x 116
+- bulwark +Y 20: centre (2157, 867, 2284), size 314 x 216 x 116
 - bulwark +Y 21: centre (2464, 837, 2285), size 301 x 202 x 116
 - bulwark +Y 22: centre (2750, 830, 2285), size 330 x 188 x 116
 - bulwark +Y 23: centre (3050, 830, 2285), size 330 x 188 x 116
 - bulwark +Y 24: centre (3350, 830, 2285), size 329 x 188 x 116
 - bulwark +Y 25: centre (3649, 830, 2285), size 328 x 188 x 116
 - bulwark +Y 26: centre (3949, 830, 2285), size 326 x 188 x 119
-- bulwark +Y 3: centre (-2952, 954, 2284), size 300 x 155 x 85
-- bulwark +Y 4: centre (-2654, 986, 2282), size 318 x 147 x 97
-- bulwark +Y 5: centre (-2341, 1003, 2337), size 307 x 145 x 223
-- bulwark +Y 6: centre (-2057, 1005, 2336), size 316 x 136 x 221
-- bulwark +Y 7: centre (-1744, 1006, 2339), size 310 x 136 x 227
-- bulwark +Y 8: centre (-1454, 1014, 2326), size 292 x 134 x 155
-- bulwark +Y 9: centre (-1149, 1020, 2342), size 317 x 137 x 192
+- bulwark +Y 3: centre (-2945, 954, 2284), size 315 x 155 x 85
+- bulwark +Y 4: centre (-2650, 987, 2282), size 325 x 146 x 97
+- bulwark +Y 5: centre (-2350, 1005, 2273), size 325 x 142 x 94
+- bulwark +Y 6: centre (-2049, 1004, 2273), size 324 x 138 x 94
+- bulwark +Y 7: centre (-1750, 1008, 2273), size 328 x 131 x 94
+- bulwark +Y 8: centre (-1456, 1012, 2282), size 287 x 138 x 67
+- bulwark +Y 9: centre (-1150, 1018, 2283), size 329 x 140 x 74
 - bulwark -Y 1: centre (-3470, -658, 2359), size 168 x 264 x 197
 - bulwark -Y 10: centre (-852, -1012, 2354), size 325 x 196 x 211
-- bulwark -Y 11: centre (-543, -1027, 2337), size 304 x 172 x 220
-- bulwark -Y 12: centre (-249, -1076, 2290), size 321 x 272 x 130
-- bulwark -Y 13: centre (49, -1084, 2275), size 305 x 307 x 99
-- bulwark -Y 14: centre (345, -1014, 2339), size 319 x 167 x 174
-- bulwark -Y 15: centre (654, -997, 2291), size 313 x 145 x 74
-- bulwark -Y 16: centre (952, -974, 2338), size 313 x 129 x 221
-- bulwark -Y 17: centre (1249, -983, 2337), size 322 x 207 x 222
-- bulwark -Y 18: centre (1548, -969, 2340), size 327 x 236 x 226
-- bulwark -Y 19: centre (1845, -888, 2333), size 317 x 135 x 205
+- bulwark -Y 11: centre (-548, -1027, 2337), size 314 x 172 x 220
+- bulwark -Y 12: centre (-249, -1075, 2290), size 322 x 273 x 130
+- bulwark -Y 13: centre (50, -1087, 2275), size 325 x 301 x 99
+- bulwark -Y 14: centre (349, -1017, 2340), size 327 x 163 x 172
+- bulwark -Y 15: centre (650, -997, 2291), size 325 x 145 x 74
+- bulwark -Y 16: centre (952, -973, 2338), size 316 x 131 x 221
+- bulwark -Y 17: centre (1252, -983, 2337), size 317 x 208 x 222
+- bulwark -Y 18: centre (1549, -962, 2340), size 328 x 250 x 226
+- bulwark -Y 19: centre (1846, -884, 2333), size 320 x 152 x 205
 - bulwark -Y 2: centre (-3256, -802, 2336), size 316 x 256 x 206
 - bulwark -Y 20: centre (2152, -828, 2284), size 324 x 197 x 115
 - bulwark -Y 21: centre (2450, -805, 2284), size 329 x 206 x 118
@@ -213,13 +217,13 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 - bulwark -Y 25: centre (3706, -798, 2284), size 212 x 193 x 118
 - bulwark -Y 25 fore of the gap: centre (3543, -795, 2288), size 114 x 186 x 111
 - bulwark -Y 26: centre (3948, -798, 2285), size 326 x 195 x 120
-- bulwark -Y 3: centre (-2943, -918, 2305), size 315 x 165 x 46
-- bulwark -Y 4: centre (-2648, -953, 2296), size 324 x 146 x 75
-- bulwark -Y 5: centre (-2348, -967, 2355), size 325 x 145 x 210
-- bulwark -Y 6: centre (-2052, -970, 2347), size 326 x 140 x 195
-- bulwark -Y 7: centre (-1748, -970, 2348), size 302 x 134 x 188
-- bulwark -Y 8: centre (-1453, -979, 2326), size 313 x 134 x 142
-- bulwark -Y 9: centre (-1142, -986, 2339), size 308 x 144 x 198
+- bulwark -Y 3: centre (-2943, -918, 2291), size 315 x 165 x 73
+- bulwark -Y 4: centre (-2649, -952, 2294), size 323 x 150 x 77
+- bulwark -Y 5: centre (-2348, -967, 2339), size 325 x 145 x 178
+- bulwark -Y 6: centre (-2052, -970, 2327), size 326 x 140 x 155
+- bulwark -Y 7: centre (-1750, -969, 2347), size 306 x 136 x 190
+- bulwark -Y 8: centre (-1450, -977, 2326), size 320 x 138 x 142
+- bulwark -Y 9: centre (-1147, -986, 2339), size 321 x 144 x 198
 - cabin 0: centre (290, 14, 3606), size 1295 x 1740 x 811
 - cabin 1: centre (1588, 17, 3608), size 1292 x 1727 x 815
 - casing -1 high: centre (-3390, 16, 2862), size 49 x 520 x 296
@@ -230,43 +234,45 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 - casing 1 cabin: centre (-2010, 15, 3481), size 896 x 712 x 557
 - casing 1 high: centre (-2012, 8, 2950), size 895 x 1271 x 500
 - casing 1 low: centre (-3134, 21, 2482), size 147 x 993 x 427
-- casing 10 low: centre (-1783, 13, 2477), size 142 x 1486 x 433
-- casing 11 low: centre (-1634, 14, 2487), size 147 x 1478 x 386
-- casing 12 low: centre (-1492, 18, 2499), size 136 x 1468 x 380
-- casing 13 low: centre (-1335, 13, 2479), size 135 x 1478 x 399
-- casing 14 low: centre (-1167, 12, 2506), size 113 x 1479 x 383
-- casing 15 low: centre (-1038, 13, 2503), size 143 x 1478 x 373
-- casing 16 low: centre (-876, 14, 2512), size 132 x 1480 x 369
-- casing 17 low: centre (-738, 1, 2483), size 139 x 1508 x 434
+- casing 10 low: centre (-1783, 11, 2476), size 142 x 1480 x 436
+- casing 11 low: centre (-1634, 11, 2494), size 147 x 1479 x 373
+- casing 12 low: centre (-1492, 13, 2499), size 136 x 1476 x 379
+- casing 13 low: centre (-1332, 15, 2494), size 140 x 1480 x 369
+- casing 14 low: centre (-1179, 13, 2484), size 136 x 1482 x 426
+- casing 15 low: centre (-1036, 11, 2498), size 147 x 1480 x 383
+- casing 16 low: centre (-880, 11, 2478), size 141 x 1480 x 436
+- casing 17 low: centre (-738, 5, 2481), size 139 x 1515 x 438
 - casing 2 cabin: centre (-1199, 14, 3308), size 713 x 500 x 208
 - casing 2 high: centre (-1114, 11, 2949), size 886 x 1254 x 498
-- casing 2 low: centre (-2985, 13, 2502), size 148 x 1232 x 394
-- casing 3 low: centre (-2838, 4, 2486), size 144 x 1388 x 428
-- casing 4 low: centre (-2684, -1, 2484), size 147 x 1436 x 426
-- casing 5 low: centre (-2534, 14, 2513), size 148 x 1446 x 374
-- casing 6 low: centre (-2386, 2, 2510), size 147 x 1495 x 334
-- casing 7 low: centre (-2255, -0, 2479), size 105 x 1513 x 438
-- casing 9 low: centre (-1935, 15, 2480), size 149 x 1484 x 433
+- casing 2 low: centre (-2985, 14, 2482), size 148 x 1272 x 436
+- casing 3 low: centre (-2840, 14, 2484), size 140 x 1327 x 432
+- casing 4 low: centre (-2684, 17, 2486), size 147 x 1394 x 423
+- casing 5 low: centre (-2535, 14, 2487), size 149 x 1450 x 427
+- casing 6 low: centre (-2386, 9, 2484), size 147 x 1471 x 386
+- casing 7 low: centre (-2236, -4, 2478), size 147 x 1506 x 439
+- casing 8 low: centre (-2085, 16, 2478), size 148 x 1491 x 397
+- casing 9 low: centre (-1932, 27, 2477), size 143 x 1512 x 440
 - cradle: centre (-899, 254, 475), size 1778 x 1556 x 950
 - house 0 high: centre (74, 12, 2950), size 864 x 1728 x 499
 - house 0 low: centre (-267, 13, 2476), size 96 x 1135 x 438
 - house 1 high: centre (940, 13, 2950), size 863 x 1742 x 497
-- house 1 low: centre (-129, 10, 2471), size 107 x 1194 x 421
-- house 11 low: centre (1363, 13, 2506), size 145 x 1313 x 378
-- house 12 low: centre (1523, 14, 2446), size 120 x 1296 x 370
-- house 13 low: centre (1670, -8, 2290), size 130 x 1205 x 60
-- house 14 low: centre (1800, 14, 2463), size 114 x 1248 x 405
-- house 15 low: centre (1970, 14, 2479), size 123 x 1216 x 437
-- house 16 low: centre (2118, 10, 2481), size 84 x 1177 x 431
+- house 1 low: centre (-127, 14, 2470), size 113 x 1201 x 423
+- house 10 low: centre (1215, -20, 2468), size 148 x 1424 x 413
+- house 11 low: centre (1364, 13, 2480), size 148 x 1351 x 430
+- house 12 low: centre (1519, 16, 2446), size 143 x 1305 x 377
+- house 13 low: centre (1664, 14, 2479), size 149 x 1276 x 441
+- house 14 low: centre (1815, 13, 2469), size 134 x 1249 x 416
+- house 15 low: centre (1958, 15, 2481), size 135 x 1220 x 434
+- house 16 low: centre (2100, 13, 2481), size 119 x 1202 x 431
 - house 2 high: centre (1810, 14, 2950), size 856 x 1679 x 498
-- house 2 low: centre (16, 14, 2477), size 147 x 1390 x 431
-- house 3 low: centre (165, 15, 2499), size 149 x 1453 x 399
-- house 4 low: centre (315, 39, 2480), size 144 x 1419 x 382
-- house 5 low: centre (474, 13, 2475), size 129 x 1374 x 317
-- house 6 low: centre (613, 12, 2480), size 146 x 1383 x 439
-- house 7 low: centre (764, 12, 2480), size 143 x 1388 x 438
-- house 8 low: centre (913, 13, 2513), size 145 x 1383 x 359
-- house 9 low: centre (1063, 10, 2538), size 141 x 1382 x 303
+- house 2 low: centre (16, 13, 2480), size 146 x 1261 x 437
+- house 3 low: centre (166, 17, 2522), size 145 x 1302 x 353
+- house 4 low: centre (318, 16, 2433), size 141 x 1318 x 340
+- house 5 low: centre (461, 18, 2449), size 135 x 1366 x 370
+- house 6 low: centre (615, 17, 2479), size 149 x 1384 x 442
+- house 7 low: centre (768, 13, 2478), size 143 x 1376 x 431
+- house 8 low: centre (913, 15, 2477), size 146 x 1382 x 431
+- house 9 low: centre (1065, 18, 2476), size 145 x 1390 x 433
 - hull 0: centre (-3576, 17, 1686), size 349 x 1670 x 1077
 - hull 1: centre (-3100, 15, 1617), size 599 x 2171 x 1216
 - hull 10: centre (2300, 23, 1563), size 599 x 1936 x 1324
@@ -310,10 +316,10 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 - well deck 4: centre (3595, 0, 2204), size 300 x 1474 x 100
 - well deck 5: centre (3895, 0, 2204), size 300 x 1474 x 100
 - well deck 6: centre (4082, 0, 2204), size 74 x 1458 x 100
-- forecastle 0: centre (4269, 0, 2314), size 300 x 1183 x 120
-- forecastle 1: centre (4569, 0, 2314), size 300 x 1140 x 120
-- forecastle 2: centre (4869, 0, 2314), size 300 x 970 x 120
-- forecastle 3: centre (5055, 0, 2314), size 71 x 863 x 120
+- forecastle 0: centre (4269, 0, 2314), size 300 x 1183 x 119
+- forecastle 1: centre (4569, 0, 2314), size 300 x 1140 x 119
+- forecastle 2: centre (4869, 0, 2314), size 300 x 970 x 119
+- forecastle 3: centre (5055, 0, 2314), size 71 x 863 x 119
 - walk -Y: centre (-558, -704, 2239), size 5605 x 707 x 37
 - walk +Y: centre (-558, 689, 2239), size 5605 x 582 x 38
 - cross walk aft of the hatch: centre (-658, 0, 2240), size 85 x 2115 x 40

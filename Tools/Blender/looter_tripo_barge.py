@@ -37,6 +37,10 @@ The rework, in order (every number a constant below):
    every 0.5-0.8 m.)
 3. Jumbo, midship: the same with MID_SLAB (the cross walk from the casing's fore face to under the house's overhang)
    MID_COPIES times (their own paint), opening the cross walk to 3.8 m for the hatch. The cradle and drum stay whole.
+3b. The side walks' passages (looter_tripo_barge_passage, round 6): along all four walks the shards the squeeze and
+   the corridors left at a pawn's eye are cut away and the walk built as a ship's passage of Tripo's own plates: the
+   wall carried plumb to the floor in its own plating with a rubbing strake and a head flashing, the bulwark's inner
+   face in its riveted band with a capping strip, the cut stubs on the capping taken off.
 4. The berth: a GAP_W gap in the -Y bulwark rim of the well deck at GAP_X, cut at the sill's height first, its cut ends
    and sill filled in the paint next to them.
 5. The forecastle's stairs (looter_tripo_barge_stairs): two flights (STAIR_Y) from the well deck up to the scoop's
@@ -113,7 +117,7 @@ HULL_TOP = 2170.0                      # below the rubbing strake
 DECK_Z = (2230.0, 2390.0)
 UV_THIN = 0.05                         # a stairs face with under this share of its plates' UV per area is repainted
 # Parts (the face tag)
-TRIPO, FORE, MID, STAIRS, COAMING, FILL, KEEP, STRUT_PART = 0, 1, 2, 3, 4, 5, 6, 7
+TRIPO, FORE, MID, STAIRS, COAMING, FILL, KEEP, STRUT_PART, PASSAGE = 0, 1, 2, 3, 4, 5, 6, 7, 8
 
 UCX = []
 
@@ -134,6 +138,7 @@ def smooth(a, b, t):
 def rework(obj, report, maps):
     import looter_tripo_barge_collision as collision   # here, not at the top: they import this module's constants
     import looter_tripo_barge_jumbo as jumbo
+    import looter_tripo_barge_passage as passage
     import looter_tripo_barge_stairs as flights
     UCX.clear()
     bm = bmesh.new()
@@ -151,6 +156,7 @@ def rework(obj, report, maps):
     fore = jumbo.insert(bm, tag, FORE_SLAB, FORE_COPIES, FORE, nearest, still=(KEEP, STRUT_PART), extrude=True)
     skin.paint(bm, tag, FORE, source, FORE_CUT, FORE_DX / FORE_COPIES, fore)
     mid = jumbo.insert(bm, tag, MID_SLAB, MID_COPIES, MID, nearest, still=(KEEP,), trim=MID_POST)
+    passages = passage.build(bm, tag, nearest, FILL)
     gap = _gap(bm, tag, nearest)
     stairs = flights.build(bm, tag)
     hatch = _hatch(bm, tag)
@@ -158,21 +164,21 @@ def rework(obj, report, maps):
     log(f'forecastle: {posts} stub posts ({post_faces} faces) taken off its floor')
     split = rw.tidy(bm, lambda f: f[tag] != STAIRS)
     # Every fill painted again on its final shape (the cuts after it moved its neighbours), the jumbo's keel line as
-    # one strip, any face left without UV area; the stairs' plates triangulated (a corner on a straight edge made the
-    # exporter cut a zero-area triangle there).
+    # one strip, any face left without UV area; the stairs' and the passages' plates triangulated (a corner on a
+    # straight edge made the exporter cut a zero-area triangle there).
     keel = [f for f in bm.faces if FORE_CUT - 5.0 < ue_centre(f)[0] < final_x(FORE_CUT) + FORE_DX + 5.0
             and any(U(v.co)[2] < KEEL_LINE[0] and abs(U(v.co)[1]) < KEEL_LINE[1] for v in f.verts)]
-    bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if f[tag] == STAIRS and len(f.verts) > 3], quad_method='BEAUTY',
-                          ngon_method='BEAUTY')
+    pressed = [f for f in bm.faces if f[tag] in (STAIRS, PASSAGE) and len(f.verts) > 3]
+    bmesh.ops.triangulate(bm, faces=pressed, quad_method='BEAUTY', ngon_method='BEAUTY')
     rw.repaint(bm, tag, FILL, nearest, keel)            # after: a triangle split off a plate can have no UV area
     rw.tidy(bm, lambda f: False)
     for f in bm.faces:                                  # and what the last tidy split
         if rw.uv_flat(uv, f):
             nearest.paint(f)
-    # The stairs' plates pressed from the stock: a sliver whose paint is a line (far less UV for its size than its
-    # plate's) has no tangent in Unreal: its own small patch.
+    # The stairs' and the passages' plates pressed from their stock: a sliver whose paint is a line (far less UV for
+    # its size than its plate's) has no tangent in Unreal: its own small patch.
     density = lambda f: _uv_area(uv, f) / max(f.calc_area(), 1e-12)
-    plates = [f for f in bm.faces if f[tag] == STAIRS]
+    plates = [f for f in bm.faces if f[tag] in (STAIRS, PASSAGE)]
     if plates:
         typical = float(np.median([density(f) for f in plates]))
         for f in plates:
@@ -195,7 +201,7 @@ def rework(obj, report, maps):
         report.setdefault('sockets', {})[name] = p
     report['socket_at'] = {f'Stack_{k + 1}': (sx, sq(sy)) for k, (sx, sy) in enumerate(STACKS)}
     report['rework'] = {'fore copies': fore, 'mid copies': mid, 'gap': gap, 'stairs faces': stairs,
-                        'coaming faces': hatch, 'triangulated, slivers': split, 'ucx': len(UCX)}
+                        'coaming faces': hatch, 'passages': passages, 'triangulated, slivers': split, 'ucx': len(UCX)}
     for name, centre, size, _ in UCX:
         log(f'UCX {name}: centre {centre} size {size}')
 

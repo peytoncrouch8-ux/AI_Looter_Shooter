@@ -213,6 +213,15 @@ Rules that saved time:
    - Import (editor open): `$env:LOOTER_TRIPO_ONLY='DredgeBarge'; Tools\models.ps1 -Only Wardens` overwrites `/Game/Art/Tripo/SM_DredgeBarge`, `MI_TripoDredgeBarge` and its maps. **After any re-import run** `Tools\console.ps1 "py
      C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_world_materials.py DetailInstances"`: the importer clears the instances' parameters, the `DetailOn` static switch too, and the barge would fall back to Tripo's soft atlas.
      Then rebuild the level if the deck or the sockets moved (`Levels.md` "The barge in the level").
+  - The side walks are ship's passages (round 6, 2026-11-05; `looter_tripo_barge_passage.py`, `_cut.py`, `_plates.py`): each walk's
+    wall and bulwark lines read from Tripo's faces station by station, straightened; between them up to 200 cm the squeezed skirt,
+    the pipe roots and the corridors' raw caps are cut away (a box cut through her lumpy surface left jagged black and brown shards at
+    eye level: DEMO4, 2026-11-05); the wall carried straight down in plates of her own plating (they land in the Walls slot and its
+    set), a rubbing strake at 95 cm and a head flashing at 200; the bulwark's inner face in its riveted band with a capping strip.
+    Rules: the cut stays under the corridors' 222 cm tops (deleting their caps leaves open shells over the walk); headroom is tested
+    with five rays a station (a thin strap between two stations was missed by one); the in-build stern-route check fails the build
+    if either walk shuts. Never run two full barge builds at once: both write the same texture PNGs and one reads the other's
+    half-written map.
 13. The barge kit's models (2026-11-04, the PROPS lane): `Art/Models/Landfall/BargeKit.py` makes 16 scripted models in our sets (the furnace and its burst, a cage shard, a grate wedge, the draft valve and its wheel, a pipe section, the deck vent, the
    furnace vent, a fire tongue, the falling stack and its foot, the hose drum, the drum gantry, the jam lever, the radio) that the code drew as engine shapes (the audit's plan row 3). Sizes, pivots, sockets, slots, collision and how the code scales
    each: `Docs/Work/2026-11-04-Art/BARGE_PROPS.md`; the code's paths: `World/BargeLooks.h`.

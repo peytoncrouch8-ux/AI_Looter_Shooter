@@ -46,6 +46,9 @@ SLOT_SAMPLES = (('well deck', (3200.0, 0.0, 2400.0), (0.0, 0.0, -1.0), 'Deck'),
                 ('hull below the strake', (3000.0, -2000.0, 1600.0), (0.0, 1.0, 0.0), 'Hull'),
                 ('house wall', (1000.0, -2000.0, 2900.0), (0.0, 1.0, 0.0), 'Walls'),
                 ('casing wall', (-2000.0, -2000.0, 2800.0), (0.0, 1.0, 0.0), 'Walls'),
+                # The passages' wall plates (looter_tripo_barge_passage), from the walk's middle under the strake.
+                ('house walk plates', (800.0, -800.0, 2300.0), (0.0, 1.0, 0.0), 'Walls'),
+                ('casing walk plates', (-1500.0, 800.0, 2300.0), (0.0, -1.0, 0.0), 'Walls'),
                 ('stack', (-1107.0, -2000.0, 4000.0), (0.0, 1.0, 0.0), 'Super'),
                 ('the well deck bulwark', (2700.0, -2000.0, 2320.0), (0.0, 1.0, 0.0), 'Super'))
 HATCH_DROP = 1880.0           # the kit's catwalk under the hatch: nothing may stand in the hole above it
