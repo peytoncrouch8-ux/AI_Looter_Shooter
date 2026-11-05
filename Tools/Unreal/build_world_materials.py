@@ -21,6 +21,10 @@
                   DETAIL_INSTANCES turns it on per instance (the DetailInstances step,
                   run after M_World): the model importer clears an instance's parameters on a re-import, so after
                   re-importing one of their models run this script with DetailInstances (rebuilding M_World keeps them).
+                  TrimRecolor (static, off; on MI_HouseTrim, TRIM_INSTANCES, also set by the DetailInstances step): the house
+                  trim sheet's roof shakes (strip E), weathered siding (strip A, with a whitewash lerp) and H1/H2 trim boards
+                  (swapped on a flag) recoloured from the actor's custom primitive data 0-7 (TRIM_DATA; defaults change
+                  nothing); build_area_town_looks.py sets them per building from town_looks.json.
   M_Gun           M_World's maps for gun parts, plus per-gun wear: Wear (0 fresh to 1 battered) comes from each part's
                   custom primitive data 0 (set by UWeaponModelComponent, no material copies per gun): scuffs where the
                   finish is rubbed through to a paler layer, grime in the creases, a duller finish. No moss. Its notches
@@ -74,6 +78,11 @@
                   packed and lighter (RoadBed), worn darker edges (RoadVerge), wheel ruts drawn from the map's across
                   coordinate (RoadRuts), sunk in by the relief (RoadRelief, two more reads near the eye only); read
                   within RoadReach meters. apply_roads() sets them from layout.json macro.roads.
+                  Medium (2026-11-04, Quality Switches; TERRAIN_NEAR): material quality Medium and Low skip the side-laid
+                  rock normals and read the thatch, stony and places' patterns only within 30-40 m and the side-laid rock
+                  only where a face can be steep; High and Epic draw the graph above. FarGround (static, off; the
+                  TerrainFar step sets it on FAR_GROUND_INSTANCES, the Beyond ring's): unreachable far ground drawn from
+                  the macro map alone at the layers' far brightness, with the steep faces' tint and banding (FAR_GROUND_CODE).
   M_SkyClouds     unlit, translucent: painted clouds on a sky dome (Coverage, Softness, Scale, wind), each lit from
                   the sun's side (the sky atmosphere's sun): a warm LitColor where it thins toward the sun, a cool
                   ShadeColor where it thickens, darker cores against the sun and thin edges glowing near it.
@@ -317,10 +326,10 @@ def textured_inputs(g, orm_default):
     return bc, nrm, orm, vc, ao
 
 
-def shaded_color(g, bc, ao, tint=None):
+def shaded_color(g, bc, ao, tint=None, bc_out='RGB'):
     """Base color x Tint (or the given tint node), darkened by DiffuseAO of the occlusion."""
     tint = tint or g.vector('Tint', (1.0, 1.0, 1.0, 1.0), -1100, -500)
-    tinted = g.mul(bc, 'RGB', tint, '', -800, -400)
+    tinted = g.mul(bc, bc_out, tint, '', -800, -400)
     lerp = g.node(unreal.MaterialExpressionLinearInterpolate, -800, -150, const_a=1.0)
     g.link(ao, '', lerp, 'B')
     g.link(g.scalar('DiffuseAO', 0.4, -1100, -150), '', lerp, 'Alpha')
@@ -902,10 +911,11 @@ def detail_layer(g, color, base_color, x, y):
 
 
 def apply_detail():
-    """Turns the detail layer on in DETAIL_INSTANCES (the set's maps and means, DETAIL_DEFAULTS and the instance's own
+    """(And TrimRecolor on TRIM_INSTANCES: apply_trim_recolor.) Turns the detail layer on in DETAIL_INSTANCES (the set's maps and means, DETAIL_DEFAULTS and the instance's own
     numbers), so a re-import's cleared instance gets it back when M_World is built."""
     mel = unreal.MaterialEditingLibrary
     library = unreal.EditorAssetLibrary
+    apply_trim_recolor()
 
     def put(instance, name, value):
         if isinstance(value, str):
@@ -958,11 +968,84 @@ def apply_detail():
         unreal.log(f'M_World detail on {path}: {said or "inherited from " + spec.get("parent", "M_World")}')
 
 
+# --- M_World's trim recolour (2026-11-04; Docs/Work/2026-11-04-Towns/PLAN.md 4.2 item 1: the town's 17 buildings re-finished
+# with no new draw) ---
+# The static switch TrimRecolor (group Trim, off: the graph as it was) on MI_HouseTrim only (TRIM_INSTANCES). The house trim
+# sheet's strips (looter_textures TRIM_STRIPS, in Blender's V, which runs up: 1 - UV0 V here, the FBX import flips it) take
+# the actor's custom primitive data: 0-2 the roof tint on strip E (the shakes, a multiplier), 3 a flag that swaps the H1
+# (teal) and H2 (oxide-red) trim boards, 4-6 the siding tint on strip A (the weathered boards) and 7 how far the siding is
+# lerped to whitewash cream after it (TRIM_CREAM). The defaults (1, 1, 1, 0) change nothing: every other prop on HouseTrim
+# looks as it did. Set per building by Tools/Unreal/build_area_town_looks.py from Art/Levels/<Area>/town_looks.json.
+TRIM_SWITCH = 'TrimRecolor'
+TRIM_CREAM = (0.7913, 0.7011, 0.5395)          # 0xe6dac2, linear
+TRIM_DATA = {'roof': 0, 'swap': 3, 'siding': 4, 'wash': 7}   # custom primitive data indices (build_area_town_looks.py)
+TRIM_INSTANCES = ('/Game/Art/Materials/MI_HouseTrim',)
+TRIM_RECOLOR_CODE = """float Vb = 1.0 - UV.y;
+float3 C = Color;
+// H1 and H2 swapped (Roof.a): the other board's texel, a strip (1/32) away; the gradients taken before the branch.
+float2 Dx = ddx(UV), Dy = ddy(UV);
+[branch] if (Roof.a > 0.5 && Vb >= 0.0625 && Vb < 0.125)
+    C = Texture2DSampleGrad(Map, View.MaterialTextureBilinearWrapedSampler, UV + float2(0.0, Vb >= 0.09375 ? 0.03125 : -0.03125), Dx, Dy).rgb;
+if (Vb >= 0.375 && Vb < 0.5)
+    C *= Roof.rgb;
+else if (Vb >= 0.875)
+    C = lerp(C * Siding.rgb, Cream, saturate(Siding.a));
+return C;"""
+
+
+def trim_recolor(g, bc, x, y):
+    """TRIM_RECOLOR_CODE's node: the base colour map's colour by the trim sheet's strips and the actor's custom data."""
+    coords = g.node(unreal.MaterialExpressionTextureCoordinate, x - 600, y, coordinate_index=0)
+    uv = g.mul(coords, '', g.scalar('UVScale', 1.0, x - 600, y + 100), '', x - 400, y)
+
+    def data(name, index, default, py):
+        node = g.node(unreal.MaterialExpressionVectorParameter, x - 400, py, parameter_name=name,
+                      default_value=unreal.LinearColor(*default), use_custom_primitive_data=True, primitive_data_index=index)
+        node.set_editor_property('group', 'Trim')
+        return node
+
+    trim_map = g.node(unreal.MaterialExpressionTextureObjectParameter, x - 400, y + 400, parameter_name='BaseColorMap',
+                      sampler_type=unreal.MaterialSamplerType.SAMPLERTYPE_COLOR, texture=unreal.load_asset(WHITE))
+    return g.custom(TRIM_RECOLOR_CODE, [
+        ('Color', bc, 'RGB'), ('UV', uv, ''),
+        ('Roof', data('TrimRoof', TRIM_DATA['roof'], (1.0, 1.0, 1.0, 0.0), y + 200), ''),
+        ('Siding', data('TrimSiding', TRIM_DATA['siding'], (1.0, 1.0, 1.0, 0.0), y + 300), ''),
+        ('Map', trim_map, ''),
+        ('Cream', g.node(unreal.MaterialExpressionConstant3Vector, x - 400, y + 500,
+                         constant=unreal.LinearColor(*TRIM_CREAM, 1.0)), ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, x, y, 'Trim recolour (TrimRecolor)')
+
+
+def trim_switch(g, on, off, x, y, on_out='', off_out=''):
+    """TrimRecolor's static switch (off by default)."""
+    switch = g.node(unreal.MaterialExpressionStaticSwitchParameter, x, y, parameter_name=TRIM_SWITCH, default_value=False)
+    switch.set_editor_property('group', 'Trim')
+    g.link(on, on_out, switch, 'True')
+    g.link(off, off_out, switch, 'False')
+    return switch
+
+
+def apply_trim_recolor():
+    """TrimRecolor on in TRIM_INSTANCES (the house trim's instance is the model importer's: a re-import clears it)."""
+    for path in TRIM_INSTANCES:
+        if not unreal.EditorAssetLibrary.does_asset_exist(path):
+            unreal.log_warning(f'M_World trim recolour: no {path}; skipped')
+            continue
+        instance = unreal.load_asset(path)
+        if not MEL.get_material_instance_static_switch_parameter_value(instance, TRIM_SWITCH):
+            MEL.set_material_instance_static_switch_parameter_value(instance, TRIM_SWITCH, True)
+            MEL.update_material_instance(instance)
+            unreal.EditorAssetLibrary.save_loaded_asset(instance)
+        unreal.log(f'M_World trim recolour on {path}')
+
+
 def build_world(orm_default):
     mat = material('M_World')
     g = Graph(mat)
     bc, nrm, orm, vc, ao = textured_inputs(g, orm_default)
-    shaded = shaded_color(g, bc, ao)
+    # TrimRecolor (its switch, off by default): the trim sheet's roof, siding and trim boards recoloured per actor.
+    shaded = shaded_color(g, trim_switch(g, trim_recolor(g, bc, -1800, -1400), bc, -1300, -600, off_out='RGB'), ao,
+                          bc_out='')
     # The detail layer (DetailOn, off by default: then the switches below pass the graph without it, exactly).
     detailed, detail_normal = detail_layer(g, shaded, bc, -2400, 2600)
     detailed_rgb = g.node(unreal.MaterialExpressionComponentMask, -1600, 2600, r=True, g=True, b=True, a=False)
@@ -2111,6 +2194,63 @@ def steep_vector(name):
     return value + (1.0,) * (4 - len(value))
 
 
+# --- M_Terrain's far ground (2026-11-04, round 7; PERF.md "The content list for a LODS lane": the Beyond ring costs
+# 0.4-0.7 ms of frame in every open view, all pixels, for reads it can never show at its range) ---
+# The static switch FarGround (group Ground, off: the graph as it was, every quality) on an instance worn only by
+# unreachable far ground. At the ring's range the detail maps' tiles (2-4 m) are under a pixel, so their mips are their
+# means: the colour is the macro map's at the brightness the layers keep from afar (K, from their measured means, as
+# TERRAIN_CODE keeps it), the hollows' damp at its far share, the steep faces' tint, banding and rock brightness (the
+# side-laid rock at its mean); flat normals; no places, roads, layers or side-laid reads. Its only reads: the macro map,
+# and the band noise on steep faces where SteepVariation is set. SteepRock (the cliff kit's rock) isn't drawn far.
+FAR_GROUND = 'FarGround'
+# The instances that wear it (set by the TerrainFar step, and as M_Terrain is built): the ring's, as the level wears it
+# (level.swaps puts MI_RansomsRestRingMacro_Steep on the ring's actors; build_area.py makes it from layout.json
+# level.materials, which carries no static switch, and never clears it; the ring's re-import clears only its parent).
+FAR_GROUND_INSTANCES = ('/Game/Art/Materials/MI_RansomsRestRingMacro_Steep',)
+FAR_GROUND_CODE = """const float3 Wl = float3(0.299, 0.587, 0.114);
+float Mean = max(lerp(GrassMean, RockMean, Select), 0.05);
+float K = lerp(1.0, lerp(GrassStats.a, RockTrue, Select) / Mean, Strength);
+float RockAmt = smoothstep(0.55, 0.9, Select);
+float Damp = (1.0 - smoothstep(DampP.y, DampP.x, Occlusion)) * DampP.w * Fade.z;
+float3 Color = Macro * K * lerp(lerp(1.0, DampP.z, Damp), 1.0, RockAmt);
+float SteepRaw = 1.0 - smoothstep(cos(radians(Full)), cos(radians(Start)), normalize(Normal).z);
+float Steep = saturate((SteepRaw - 0.5) * Sharp + 0.5 + (Select - 0.5) * Pull);
+float Band = 0.5;
+[branch] if (Steep * abs(SteepVariation) > 0.001)
+    Band = Texture2DSampleLevel(Noise, NoiseSampler, float2((P.x + P.y) / 12000.0, P.z / 2500.0), 0).r;
+float B = (Band - 0.5) * 2.0 * SteepVariation;
+float3 Banding = (1.0 - 0.5 * max(-B, 0.0)) * lerp(float3(1.0, 1.0, 1.0), float3(1.1, 0.9, 0.78), max(B, 0.0));
+float3 OldSteep = Macro * SteepTint * Banding * lerp(1.0, RockTrue / max(RockMean, 0.05), SteepDetail);
+Color = lerp(Color, OldSteep, Steep);
+float Occ = lerp(Occlusion, 1.0, Steep * SteepAOLift);
+Rough = lerp(lerp(0.93, Fade.w, Damp * (1.0 - RockAmt)), 0.82, max(RockAmt, Steep));
+AO = Occ;
+return Color * lerp(1.0, Occ, DiffuseAO);"""
+
+
+def far_switch(g, on, off, x, y, on_out='', off_out=''):
+    """FarGround's static switch (off by default): on, the far ground's cheap graph; off, the graph as it was."""
+    switch = g.node(unreal.MaterialExpressionStaticSwitchParameter, x, y, parameter_name=FAR_GROUND, default_value=False)
+    switch.set_editor_property('group', 'Ground')
+    g.link(on, on_out, switch, 'True')
+    g.link(off, off_out, switch, 'False')
+    return switch
+
+
+def apply_terrain_far():
+    """FarGround on in FAR_GROUND_INSTANCES (an instance not made yet is left out, with a warning)."""
+    for path in FAR_GROUND_INSTANCES:
+        if not unreal.EditorAssetLibrary.does_asset_exist(path):
+            unreal.log_warning(f'M_Terrain far ground: no {path} yet; left out')
+            continue
+        instance = unreal.load_asset(path)
+        if not MEL.get_material_instance_static_switch_parameter_value(instance, FAR_GROUND):
+            MEL.set_material_instance_static_switch_parameter_value(instance, FAR_GROUND, True)
+            MEL.update_material_instance(instance)
+            unreal.EditorAssetLibrary.save_loaded_asset(instance)
+        unreal.log(f'M_Terrain far ground on {path}')
+
+
 # --- M_Terrain's Medium path (2026-11-04; Docs/Work/2026-11-04-Art/PERF.md: Medium is GPU-bound per pixel, and the terrain
 # took ~20 texture reads a pixel at every distance: 1.5-1.6 ms of base pass in the aerials, 0.4-0.6 in the valley).
 # Quality Switches pick it at material quality Medium (r.MaterialQualityLevel 2: Medium's EffectsQuality@1) and Low; High
@@ -2355,7 +2495,25 @@ def build_terrain():
     # Sunbleached (its switch, off by default): the ground graded toward sun-baked sand and shaded lavender, and its
     # light as emissive: the sheen toward the sun and the glitter, a faint rim, bounce and glow.
     base_b, light_b = bleached(g, color, '', vc, 'A', style_numbers('sunbleached').GROUND_DEFAULTS, -300, 2600)
-    g.out(styled(g, SUNBLEACHED, base_b, color, 0, -200), '', unreal.MaterialProperty.MP_BASE_COLOR)
+    # FarGround (its switch, off by default; FAR_GROUND_CODE): the far ground's colour, roughness and occlusion in one node.
+    far = g.custom(FAR_GROUND_CODE, [
+        ('Macro', macro, 'RGB'), ('Select', macro, 'A'), ('Occlusion', vc, 'A'), ('Normal', vertex_normal, ''),
+        ('Start', g.scalar('SteepStart', STEEP_DEFAULTS['SteepStart'], -800, 3000), ''),
+        ('Full', g.scalar('SteepFull', STEEP_DEFAULTS['SteepFull'], -800, 3050), ''),
+        ('Sharp', steep_sharp, ''), ('Pull', steep_pull, ''),
+        ('GrassStats', shared['GrassStats'], 'RGBA'), ('RockTrue', rock_true, ''), ('GrassMean', grass_mean, ''),
+        ('RockMean', rock_mean, ''), ('Strength', g.scalar('DetailStrength', 0.6, -800, 3100), ''),
+        ('DampP', shared['DampP'], 'RGBA'), ('Fade', shared['Fade'], 'RGBA'),
+        ('SteepTint', g.vector('SteepTint', steep_vector('SteepTint'), -800, 3150), ''),
+        ('SteepVariation', g.scalar('SteepVariation', STEEP_DEFAULTS['SteepVariation'], -800, 3200), ''),
+        ('SteepDetail', g.scalar('SteepDetail', STEEP_DEFAULTS['SteepDetail'], -800, 3250), ''),
+        ('DiffuseAO', g.scalar('DiffuseAO', STEEP_DEFAULTS['DiffuseAO'], -800, 3300), ''),
+        ('SteepAOLift', ao_lift, ''), ('P', world, ''), ('Noise', noise, ''),
+    ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -400, 3000, 'Far ground (FarGround)',
+        outputs=[('Rough', unreal.CustomMaterialOutputType.CMOT_FLOAT1),
+                 ('AO', unreal.CustomMaterialOutputType.CMOT_FLOAT1)])
+    g.out(far_switch(g, far, styled(g, SUNBLEACHED, base_b, color, 0, -200), 200, -200), '',
+          unreal.MaterialProperty.MP_BASE_COLOR)
     g.out(styled(g, SUNBLEACHED, light_b, black(g, 0, -400), 200, -400), '', unreal.MaterialProperty.MP_EMISSIVE_COLOR)
     normal = g.custom(GROUND_NORMAL_CODE, weights + [
         ('GrassN', grass_n, 'RGB'), ('ThatchN', thatch_n_in, ''), ('StonyN', stony_n_in, ''), ('RockN', rock_n, 'RGB'),
@@ -2401,18 +2559,20 @@ def build_terrain():
     ground_relief = g.custom('return normalize(N + T * (1.0 - Steep));', [
         ('N', low_quality(g, relief, flatten, -300, 750), ''), ('T', road_tangent, ''), ('Steep', steep, ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT3, -150, 600, 'Ground relief with the ruts')
-    g.out(ground_relief, '', unreal.MaterialProperty.MP_NORMAL)
+    flat_normal = g.node(unreal.MaterialExpressionConstant3Vector, -150, 750, constant=unreal.LinearColor(0.0, 0.0, 1.0, 1.0))
+    g.out(far_switch(g, flat_normal, ground_relief, 100, 600), '', unreal.MaterialProperty.MP_NORMAL)
     rough = g.custom(GROUND_ROUGHNESS_CODE, weights + [('Steep', steep, '')],
                      unreal.CustomMaterialOutputType.CMOT_FLOAT1, -900, 950, 'Ground roughness')
-    g.out(rough, '', unreal.MaterialProperty.MP_ROUGHNESS)
+    g.out(far_switch(g, far, rough, -600, 950, on_out='Rough'), '', unreal.MaterialProperty.MP_ROUGHNESS)
     # The baked occlusion, lifted on steep faces by SteepAOLift as TERRAIN_CODE lifts it (0 by default: unchanged).
     ambient = g.custom('return lerp(Occlusion, 1.0, Steep * Lift);', [
         ('Occlusion', vc, 'A'), ('Steep', steep, ''), ('Lift', ao_lift, ''),
     ], unreal.CustomMaterialOutputType.CMOT_FLOAT1, -600, 1100, 'Ambient occlusion')
-    g.out(ambient, '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
+    g.out(far_switch(g, far, ambient, -300, 1100, on_out='AO'), '', unreal.MaterialProperty.MP_AMBIENT_OCCLUSION)
     finish(mat, [unreal.MaterialUsage.MATUSAGE_NANITE])
     apply_places()
     apply_roads()
+    apply_terrain_far()
     return mat
 
 
@@ -3929,7 +4089,8 @@ def build_character_hair(orm_default):
 
 
 # DetailInstances (M_World's detail layer on DETAIL_INSTANCES) makes no master: it returns nothing.
-BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'DetailInstances': apply_detail, 'M_Gun': lambda: build_gun(DEFAULT_ORM),
+# TerrainFar (M_Terrain's FarGround on FAR_GROUND_INSTANCES) makes no master either.
+BUILDERS = {'M_World': lambda: build_world(DEFAULT_ORM), 'DetailInstances': apply_detail, 'TerrainFar': apply_terrain_far, 'M_Gun': lambda: build_gun(DEFAULT_ORM),
             'M_Character': lambda: build_character(DEFAULT_ORM), 'M_CharacterCloth': lambda: build_character_cloth(DEFAULT_ORM),
             'M_CharacterSkin': lambda: build_character_skin(DEFAULT_ORM),
             'M_CharacterHair': lambda: build_character_hair(DEFAULT_ORM), 'M_CharacterGlow': build_character_glow,

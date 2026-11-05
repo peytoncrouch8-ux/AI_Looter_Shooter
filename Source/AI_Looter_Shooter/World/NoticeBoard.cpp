@@ -276,7 +276,7 @@ TArray<FNoticeBoardPosting> ANoticeBoard::GatherPostings(const UMissionRunner& R
 			// The first objective still to do, as the tracker counts it.
 			for (const FMissionObjectiveView& View : Runner.GetObjectiveViews(MissionId))
 			{
-				if (!View.bDone)
+				if (!View.bDone && !View.bHidden)
 				{
 					Posting.Progress = View.Progress;
 					break;

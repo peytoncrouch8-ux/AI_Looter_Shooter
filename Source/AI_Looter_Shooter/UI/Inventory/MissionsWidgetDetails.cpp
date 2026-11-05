@@ -201,7 +201,9 @@ void UMissionsWidget::AddSteps(const UMissionDefinition& Mission, EMissionStatus
 	}
 
 	// The step being played: each objective with how far along it is (running here), or as it reads (elsewhere).
-	const TArray<FMissionObjectiveView> Views = bRunning ? MissionRunner->GetObjectiveViews(MissionId) : TArray<FMissionObjectiveView>();
+	TArray<FMissionObjectiveView> Views = bRunning ? MissionRunner->GetObjectiveViews(MissionId) : TArray<FMissionObjectiveView>();
+	// One hidden until it starts (a push still to come) shows once it has, here and below.
+	Views.RemoveAll([](const FMissionObjectiveView& View) { return View.bHidden; });
 	if (!Views.IsEmpty())
 	{
 		for (const FMissionObjectiveView& View : Views)
@@ -220,11 +222,11 @@ void UMissionsWidget::AddSteps(const UMissionDefinition& Mission, EMissionStatus
 	{
 		for (const TObjectPtr<UMissionObjective>& Objective : Mission.Steps[Reached].Objectives)
 		{
-			if (Objective && Objective->bOptional)
+			if (Objective && Objective->bOptional && !Objective->bHiddenUntilStarted)
 			{
 				AddOptionalLine(Objective->GetDisplayText(GetWorld()), FString(), /*bDone*/ false, /*bMissed*/ false);
 			}
-			else if (Objective)
+			else if (Objective && !Objective->bHiddenUntilStarted)
 			{
 				AddObjectiveLine(Objective->GetDisplayText(GetWorld()), FString(), 1, 0.f, false);
 			}

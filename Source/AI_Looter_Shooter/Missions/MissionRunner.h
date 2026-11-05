@@ -67,6 +67,9 @@ struct FMissionObjectiveView
 	bool bDone = false;
 	/** Optional (UMissionObjective::bOptional): the step goes on without it. */
 	bool bOptional = false;
+	/** Hidden until it starts (UMissionObjective::bHiddenUntilStarted) and not started: nothing lists it yet (it's kept in the
+	 *  list so the views stay side by side with the step's objectives). */
+	bool bHidden = false;
 };
 
 /**

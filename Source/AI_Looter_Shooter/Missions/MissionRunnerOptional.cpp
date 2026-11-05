@@ -52,6 +52,7 @@ void UMissionRunner::PrepareReadyStates(FRun& Run)
 		}
 		Objective->Begin(Context, State);
 		Objective->Update(Context, State, 0.f);
+		Objective->NoteStarted(Context, State);
 		if (RefreshDone(*Objective, Context, State))
 		{
 			// Run.bReady is set: the key is the last step's.
@@ -85,6 +86,7 @@ TArray<FMissionObjectiveView> UMissionRunner::GetOptionalViews(FName MissionId) 
 		View.Fraction = Objective->GetFraction(State);
 		View.bDone = State.bDone;
 		View.bOptional = true;
+		View.bHidden = !Objective->IsShown(State);
 	}
 	return Views;
 }
@@ -107,11 +109,11 @@ void UMissionRunner::FillOptionalParts(const FRun& Run, FMissionTrackerParts& Tr
 	for (int32 Index = 0; Index < Run.States.Num(); ++Index)
 	{
 		const UMissionObjective* Objective = Mission->GetObjective(Step, Index);
-		if (!Objective || !Objective->bOptional)
+		const FMissionObjectiveState& State = Run.States[Index];
+		if (!Objective || !Objective->bOptional || !Objective->IsShown(State))
 		{
 			continue;
 		}
-		const FMissionObjectiveState& State = Run.States[Index];
 		FMissionTrackerOptional& Optional = Tracker.Optionals.AddDefaulted_GetRef();
 		Optional.Line = Objective->GetShortText(World);
 		Optional.bDone = State.bDone;

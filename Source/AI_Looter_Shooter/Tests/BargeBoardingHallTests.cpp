@@ -213,7 +213,8 @@ bool FBargeHallTest::RunTest(const FString& Parameters)
 	// Round the ring (the PIE walk, 2026-11-04: the desk blocked it): a capsule every 30 cm along the walkway inside the hand
 	// rail, past the desk and the safe, on each run the player uses (from the hatch stair's foot to the port floor stair, from
 	// the starboard stair to the hatch's other side).
-	constexpr float RingWalk = CatwalkInner + 50.f;
+	// The walkway's middle: a man's shoulders and a hand off the rail's straight boxes, as far off the desk's front.
+	constexpr float RingWalk = CatwalkInner + 60.f;
 	FString RingWhy;
 	bool bRing = true;
 	const auto WalkArc = [&](float From, float To)
@@ -234,16 +235,21 @@ bool FBargeHallTest::RunTest(const FString& Parameters)
 			bRing &= bFloored && bClear;
 		}
 	};
-	WalkArc(FloorStairAngles[1] + 4.f, 360.f + ArcFoot - 4.f);
+	WalkArc(FloorStairAngles[1] + 4.f, 360.f + ArcFoot - 6.f);
 	WalkArc(ArcTop + 6.f, FloorStairAngles[0] - 4.f);
 	TestTrue(FString::Printf(TEXT("Round the catwalk past the desk and the safe, a man's way (%s)"), *RingWhy), bRing);
 	// Off the hatch stair's foot to the desk, a man's way the whole walk (the PIE walk: its rail's end overhung the catwalk).
 	FString FootWhy;
-	const bool bOffFoot = WalkLegs(World, *Barge, { FVector2D(OffStair.X, OffStair.Y), FVector2D(ByDesk.X, ByDesk.Y) }, CatwalkFloor, Shoulders, &FootWhy);
+	// (Off the foot he stands out by the wall, at the desk's radius: he turns in to the walkway by the stair's end, then on past
+	// the desk; straight at it from the foot ran into its corner.)
+	const FVector TurnIn = HallPoint(360.f + ArcFoot - 8.f, RingWalk, CatwalkUp);
+	const FVector PastDesk = HallPoint(DeskAngle, RingWalk, CatwalkUp);
+	const bool bOffFoot = WalkLegs(World, *Barge, { FVector2D(OffStair.X, OffStair.Y), FVector2D(TurnIn.X, TurnIn.Y), FVector2D(PastDesk.X, PastDesk.Y) },
+		CatwalkFloor, Shoulders, &FootWhy);
 	TestTrue(FString::Printf(TEXT("Off the hatch stair's foot to the desk, a man's way (%s)"), *FootWhy), bOffFoot);
 	// The hand rail: a step off the ring's inner edge meets it (knee and hand high) at every laid span; the hatch stair's
 	// sides too.
-	bool bRailed = true;
+	FString Unrailed;
 	for (int32 Span = 0; Span < CatwalkSpans; ++Span)
 	{
 		if (!IsCatwalkSpanLaid(Span))
@@ -253,16 +259,23 @@ bool FBargeHallTest::RunTest(const FString& Parameters)
 		const float Angle = CatwalkSpanAngle(Span);
 		for (const float Up : { 50.f, 90.f })
 		{
-			bRailed &= World->LineTraceTestByChannel(Her.TransformPosition(HallPoint(Angle, RingWalk, CatwalkUp + Up)),
-				Her.TransformPosition(HallPoint(Angle, CatwalkInner - 60.f, CatwalkUp + Up)), ECC_Pawn);
+			if (!World->LineTraceTestByChannel(Her.TransformPosition(HallPoint(Angle, RingWalk, CatwalkUp + Up)),
+				Her.TransformPosition(HallPoint(Angle, CatwalkInner - 60.f, CatwalkUp + Up)), ECC_Pawn))
+			{
+				Unrailed += FString::Printf(TEXT("%.0f deg at %.0f; "), Angle, Up);
+			}
 		}
 	}
-	const FVector StairMiddle = (Hatch.From + Hatch.To) * 0.5 + FVector(0.0, 0.0, 50.0);
+	// Two fifths of the way down (inside a piece, off their seams), knee high over the treads, out past each side.
+	const FVector OnStair = Hatch.From + (Hatch.To - Hatch.From) * 0.4 + FVector(0.0, 0.0, 50.0);
 	for (const double Side : { -1.0, 1.0 })
 	{
-		bRailed &= World->LineTraceTestByChannel(Her.TransformPosition(StairMiddle), Her.TransformPosition(StairMiddle + FVector(Side * (HatchStairWidth * 0.5 + 40.0), 0.0, 0.0)), ECC_Pawn);
+		if (!World->LineTraceTestByChannel(Her.TransformPosition(OnStair), Her.TransformPosition(OnStair + FVector(Side * (HatchStairWidth * 0.5 + 40.0), 0.0, 0.0)), ECC_Pawn))
+		{
+			Unrailed += FString::Printf(TEXT("the hatch stair's %s side; "), Side < 0.0 ? TEXT("aft") : TEXT("fore"));
+		}
 	}
-	TestTrue(TEXT("A step off the catwalk's inner edge or the hatch stair's sides meets a hand rail"), bRailed);
+	TestTrue(FString::Printf(TEXT("A step off the catwalk's inner edge or the hatch stair's sides meets a hand rail (%s)"), *Unrailed), Unrailed.IsEmpty());
 	// After the manifest she puts a player back by the hatch, on the cross walk behind its stair.
 	const FVector StartOnHer = Her.InverseTransformPosition(Barge->GetPlayerStart().GetLocation());
 	const bool bStartOpen = IsOpenDeck(FVector2D(StartOnHer.X, StartOnHer.Y));

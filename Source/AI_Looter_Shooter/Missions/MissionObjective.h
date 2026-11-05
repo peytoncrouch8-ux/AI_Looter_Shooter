@@ -102,6 +102,9 @@ struct FMissionObjectiveState
 
 	/** The things already counted, so each counts once (the posters torn down). */
 	TArray<FName> Used;
+
+	/** A hidden-until-started objective's thing has begun (UMissionObjective::NoteStarted): noted once, it stays shown. */
+	bool bStarted = false;
 };
 
 /**
@@ -171,6 +174,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Objective")
 	bool bOptional = false;
 
+	/**
+	 * Off the tracker, the Missions page, the arrow and the highlight until its thing starts (HasStarted: a clear
+	 * objective's encounter first spawns), then shown and counted as any other. It holds its step all the while (the barge's
+	 * later pushes on Main 6's deck, the user's call 2026-11-04: "Hide until it starts"). With bPassWithoutTargets, one
+	 * whose targets aren't in the level passes unseen.
+	 */
+	UPROPERTY(EditAnywhere, Category = "Objective|Tracker")
+	bool bHiddenUntilStarted = false;
+
 	// --- The rule (the runner calls these; State is this objective's progress in the running mission) ---
 
 	/** The count that finishes it (kills, hits, things; whole seconds for holding out). */
@@ -215,10 +227,19 @@ public:
 	/** It's done in the inventory (opening a page of it), so the HUD's tracker stays up over the inventory to show it tick. */
 	virtual bool IsDoneInInventory() const { return false; }
 
+	/** Its thing has begun (a clear objective's encounter has spawned), for bHiddenUntilStarted. Always, by default. */
+	virtual bool HasStarted(const FMissionContext& Context, const FMissionObjectiveState& State) const { return true; }
+
 	// --- For the runner and the Missions page ---
 
 	/** Where the minimap's arrow points now, by the Waypoint setting; unset: nowhere. */
 	TOptional<FVector> FindWaypoint(const FMissionContext& Context, const FMissionObjectiveState& State) const;
+
+	/** On show (the tracker, the Missions page, the arrow): not hidden until it starts, or started. */
+	bool IsShown(const FMissionObjectiveState& State) const { return !bHiddenUntilStarted || State.bStarted; }
+
+	/** A hidden-until-started one notes in State that its thing has begun (once: it stays shown). True when it just did. */
+	bool NoteStarted(const FMissionContext& Context, FMissionObjectiveState& State) const;
 
 	/** Its words with the player's keys in them, no count. */
 	FString GetDisplayText(const UWorld* World) const;

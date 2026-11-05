@@ -193,8 +193,8 @@ namespace
 				Mission->Area.IsNone() ? TEXT("anywhere") : *Mission->Area.ToString(), *Where, Tracked == MissionId ? TEXT("  <- tracked") : TEXT(""));
 			for (const FMissionObjectiveView& View : Runner->GetObjectiveViews(MissionId))
 			{
-				UE_LOG(LogLooter, Log, TEXT("      [%s] %s%s"), View.bDone ? TEXT("x") : TEXT(" "), *View.Text,
-					View.Progress.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(" (%s)"), *View.Progress));
+				UE_LOG(LogLooter, Log, TEXT("      [%s] %s%s%s"), View.bDone ? TEXT("x") : TEXT(" "), *View.Text,
+					View.Progress.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(" (%s)"), *View.Progress), View.bHidden ? TEXT(" (hidden till it starts)") : TEXT(""));
 			}
 		}
 		const FCampaignRecord& Campaign = Runner->GetCampaign();

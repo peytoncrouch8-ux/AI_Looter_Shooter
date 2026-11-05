@@ -85,3 +85,27 @@ public:
 	/** The states' names, in order. */
 	TArray<FName> GetStateNames() const;
 };
+
+/**
+ * How lit a town's lamps and windows are in a lighting state, one rule for everything that lights the town for the
+ * states (AHouseLights, UWindowLifeSubsystem, AmbientAirRules; ATownFire): add a new state in LightingStates::Kind and
+ * nowhere else. Plain names, no world, so the tests ask it directly.
+ */
+enum class ELightKind : uint8
+{
+	/** Day, and a level without states: street lamps and porch lanterns out, a glimmer in the halls, windows at day glow. */
+	Day,
+	/** Smog, SmogThin (Mains 1-6 and after): the town lights its lamps against the smog, dim, the windows warm. */
+	Gloom,
+	/** Dusk, DuskSmog (the cold open, Mains 6-7): lamps and windows at their dusk values. */
+	Dusk,
+};
+
+namespace LightingStates
+{
+	/** The kind of light a state (by name, ignoring case) gives the town; None and a state it doesn't know are Day. */
+	AI_LOOTER_SHOOTER_API ELightKind Kind(FName State);
+
+	/** "Day", "Gloom" or "Dusk", for logs and test messages. */
+	AI_LOOTER_SHOOTER_API const TCHAR* KindName(ELightKind Kind);
+}

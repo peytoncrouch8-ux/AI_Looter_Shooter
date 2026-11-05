@@ -120,6 +120,13 @@ bool UMissionClearObjective::HasTargets(const FMissionContext& Context) const
 	return FindSpawner(Context) != nullptr;
 }
 
+bool UMissionClearObjective::HasStarted(const FMissionContext& Context, const FMissionObjectiveState& State) const
+{
+	const AEncounterSpawner* Spawner = FindSpawner(Context);
+	return Spawner && (Spawner->GetTotalSpawned() > 0 || Spawner->GetState() == EEncounterState::Engaged
+		|| Spawner->GetState() == EEncounterState::Cleared);
+}
+
 TOptional<FVector> UMissionClearObjective::GetAutoWaypoint(const FMissionContext& Context, const FMissionObjectiveState& State) const
 {
 	const AEncounterSpawner* Spawner = FindSpawner(Context);

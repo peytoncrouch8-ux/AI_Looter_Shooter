@@ -191,6 +191,18 @@ void UMissionObjective::FillTrackerParts(const UWorld* World, const FMissionObje
 	Out.bDone = State.bDone;
 }
 
+bool UMissionObjective::NoteStarted(const FMissionContext& Context, FMissionObjectiveState& State) const
+{
+	// Only a hidden one asks (a clear objective's look is a search of the level's spawners); once begun, never again, so a
+	// fight that resets doesn't take its line back off the tracker.
+	if (!bHiddenUntilStarted || State.bStarted || !HasStarted(Context, State))
+	{
+		return false;
+	}
+	State.bStarted = true;
+	return true;
+}
+
 float UMissionObjective::GetFraction(const FMissionObjectiveState& State) const
 {
 	if (State.bDone)

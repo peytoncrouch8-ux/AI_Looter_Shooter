@@ -11,6 +11,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/World.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "Tests/AutomationCommon.h"
 
@@ -18,6 +19,8 @@ namespace
 {
 	const FName Dusk(TEXT("Dusk"));
 	const FName Day(TEXT("Day"));
+	const FName DuskSmog(TEXT("DuskSmog"));
+	const FName Smog(TEXT("Smog"));
 
 	/** One event seen in a run: its kind, where, when. */
 	struct FSeen
@@ -320,6 +323,67 @@ bool FWindowLifeShutterTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("...and shut"), Shutter->IsShut());
 	TestEqual(TEXT("Shut, it's never chosen again"), Watch(*Life, Eyes, Look, 2000.0, 300.0).Num(), 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FWindowLifeLightingTest, "Looter.World.WindowLife.Lighting",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FWindowLifeLightingTest::RunTest(const FString& Parameters)
+{
+	// The window life reads the town's light through the one helper: DuskSmog (Mains 6-7) is dusk, shadows and all; the
+	// smog (Smog, SmogThin: Mains 1-6) keeps the day's curtains though its windows are lit.
+	FTestWorldWrapper TestLevel;
+	if (!TestTrue(TEXT("Test level made"), TestLevel.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = TestLevel.GetTestWorld();
+	UWindowLifeSubsystem* Life = UWindowLifeSubsystem::Get(World);
+	UStaticMesh* Saltbox = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Art/Buildings/SM_RR_Home_A.SM_RR_Home_A"));
+	if (!TestNotNull(TEXT("Window life"), Life) || !TestNotNull(TEXT("SM_RR_Home_A"), Saltbox))
+	{
+		return false;
+	}
+	Life->SetRandomSeed(20261104);
+	Life->SetSightChecks(false);
+	AHouseLights* Haskett = SpawnHouse(World, Saltbox, FVector::ZeroVector, 0.f);
+	if (!TestNotNull(TEXT("The saltbox's lights"), Haskett) || !TestTrue(TEXT("...with lamplit windows"), Haskett->NumLitWindows() > 0))
+	{
+		return false;
+	}
+	FTransform Front;
+	Haskett->GetLitWindow(0, Front);
+	const FVector Eyes = Front.GetLocation() + Front.GetUnitAxis(EAxis::X) * 1200.0 - FVector(0.0, 0.0, 30.0);
+	const FVector Look = (Front.GetLocation() - Eyes).GetSafeNormal();
+	constexpr double Minutes = 20.0;
+	auto Count = [](const TArray<FSeen>& Seen, EWindowLifeKind Kind)
+	{
+		return Seen.FilterByPredicate([Kind](const FSeen& Each) { return Each.Kind == Kind; }).Num();
+	};
+
+	// The smog: the windows glow dim, and only curtains move, as by day.
+	Haskett->GloomGlow = 4.f;
+	Haskett->ApplyState(Smog);
+	TestTrue(TEXT("In the smog the house is Gloom, not dusk"), Haskett->IsGloom() && !Haskett->IsDusk());
+	if (UMaterialInstanceDynamic* Windows = Haskett->GetWindows())
+	{
+		TestEqual(TEXT("...the windows at their dim glow"), Windows->K2_GetScalarParameterValue(Haskett->GlowParameter), 4.f);
+	}
+	TArray<FSeen> Seen = Watch(*Life, Eyes, Look, 1000.0, Minutes * 60.0);
+	TestTrue(FString::Printf(TEXT("In the smog: curtains now and then (%d), never a shadow (%d)"), Count(Seen, EWindowLifeKind::Curtain),
+		Count(Seen, EWindowLifeKind::Shadow)), Count(Seen, EWindowLifeKind::Curtain) >= 3 && Count(Seen, EWindowLifeKind::Shadow) == 0);
+
+	// DuskSmog: lit as Dusk, so shadows cross the glass.
+	Haskett->ApplyState(DuskSmog);
+	TestTrue(TEXT("In DuskSmog the house is lit for dusk"), Haskett->IsDusk() && !Haskett->IsGloom());
+	if (UMaterialInstanceDynamic* Windows = Haskett->GetWindows())
+	{
+		TestEqual(TEXT("...the windows at the dusk glow"), Windows->K2_GetScalarParameterValue(Haskett->GlowParameter), Haskett->DuskGlow);
+	}
+	Seen = Watch(*Life, Eyes, Look, 3000.0, Minutes * 60.0);
+	TestTrue(FString::Printf(TEXT("In DuskSmog, shadows cross the glass (%d of %d)"), Count(Seen, EWindowLifeKind::Shadow), Seen.Num()),
+		Count(Seen, EWindowLifeKind::Shadow) >= 1);
 	return true;
 }
 

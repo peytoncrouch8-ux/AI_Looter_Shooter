@@ -2458,7 +2458,8 @@ def prop_flags(build, actor, mesh, solid, town):
 
 def place_town_lights(build, ground):
     """The town's lamps (town.json's lights: a street lamp's or porch lantern's SOCKET_Light, as an offset in its piece's
-    frame): an AHouseLights at each placed piece, dark by day and lit at dusk (its candelas), its reach kept small; the
+    frame): an AHouseLights at each placed piece, dark by day, lit at dusk (its candelas) and dim in the smog (its "gloom"
+    candelas), its reach kept small; the
     class tags its lamp Flicker, so ULightFlickerSubsystem breathes it near the player. A piece left out (dropped, or its
     model not approved yet) gets none. In the Dressing folder, so a dressing build replaces them."""
     town, _ = load_town(build.source)
@@ -2497,6 +2498,8 @@ def place_town_lights(build, ground):
         actor = build.place(cls, at, piece.yaw, label=f'TownLight_{light["piece"]}', folder=f'{FOLDER}/Lights', tags=(TAG,))
         actor.set_editor_property('day_lamp', float(light.get('day', 0.0)))
         actor.set_editor_property('dusk_lamp', float(light.get('dusk', 6.0)))
+        # Lit dim in the smog's Gloom (a street lamp 3, a porch lantern 2); -1: as by day (a town.json without "gloom").
+        actor.set_editor_property('gloom_lamp', float(light.get('gloom', -1.0)))
         lamp = actor.get_editor_property('lamp')
         lamp.set_editor_property('intensity', float(light.get('day', 0.0)))
         lamp.set_editor_property('attenuation_radius', float(light.get('reach', 500.0)))

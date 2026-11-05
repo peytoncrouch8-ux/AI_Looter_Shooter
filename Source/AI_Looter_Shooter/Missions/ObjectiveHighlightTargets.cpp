@@ -66,7 +66,8 @@ namespace ObjectiveHighlightTargets
 			{
 				continue;
 			}
-			const bool bDone = Views.IsValidIndex(ViewIndex) && Views[ViewIndex].bDone;
+			// Done, or hidden until it starts (nothing of it to light yet).
+			const bool bDone = Views.IsValidIndex(ViewIndex) && (Views[ViewIndex].bDone || Views[ViewIndex].bHidden);
 			++ViewIndex;
 			if (!bDone)
 			{

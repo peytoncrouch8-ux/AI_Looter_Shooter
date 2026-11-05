@@ -24,8 +24,12 @@ standing side by side at the same height carry each other's ledges on. Their end
 overlap neighbours by 1.5-2 m and the joint reads as a gully. For taller faces, stack them (the upper piece's buried
 bottom behind the lower piece's top).
 
-Triangles: a ~10k Nanite source with a 25% fallback (about 2.5k, the cliff budget) for Medium. Collision: three or four
-convex hulls along the face and one per fallen block. Moss on up-facing rock comes from the material (MossAmount).
+Triangles: a ~10k Nanite source with a 12% fallback (about 1.2k) for Medium, which draws the fallback at every distance
+(2026-11-04, the LODS lane: Docs/Work/2026-11-04-Art/LODS.md; it was 25%, ~2.5k: the faces cost the open views 0.2-0.4
+ms in 0.5-1 M triangles). Collision: three or four convex hulls along the face and one per fallen block (the player's
+and every simple query's, so the fallback's 100% rule for terrain doesn't bind them); complex traces (bullets, the
+spiders' climbing) use the fallback. Moss on up-facing rock comes from the material (MossAmount).
+Tools/Blender/cliff_fallback_sheet.py renders a cut before and after.
 
 Panels and the seam (class Panel), for a curving or noisy wall that a 12 m slab with a flat back can't follow:
 
@@ -37,7 +41,8 @@ Panels and the seam (class Panel), for a curving or noisy wall that a 12 m slab 
                                         between a cliff piece and another rock and hides the junction
 
 The same beds, joints, columns, fractures, broken stepped top, fallen blocks and hulls as the faces, at their density
-(the source is SOURCE_TRIS times the front's area over a face's 12 x 10 m, with the same 25% fallback); two hulls along
+(the source is SOURCE_TRIS times the front's area over a face's 12 x 10 m, with a 25% fallback, PANEL_FALLBACK: the
+Sink's pit wall only, unchanged on 2026-11-04 when the faces went to 12%); two hulls along
 each piece (slices every 0.5 m, closing on its back where it is) and one per big fallen block. A narrow front
 keeps one notch in its top, off to a side, fewer and shorter fractures, smaller scars, joints leaning half as far, and
 columns standing forward and back about their mean (0.7 of a face's). Its depth is the slab's at the foot: the median
@@ -69,7 +74,8 @@ import looter_textures as lt
 SINK = 1.3        # how far a piece reaches below the ground (its pivot)
 STEP = 0.1        # the building grid, before the mesh is reduced to its triangle budget
 SOURCE_TRIS = 10000
-FALLBACK = 25     # percent of the source that Medium draws
+FALLBACK = 12     # percent of a face's source that Medium draws (was 25 until 2026-11-04)
+PANEL_FALLBACK = 25   # the panels' and the seam's
 DENSITY = 180.0   # px per metre: the texture's banding at the scale of the beds (a cliff is seen from afar)
 
 ROCK = lt.material('RockCliff', MossAmount=0.6)
@@ -563,7 +569,7 @@ def build(name, width, height, depth, seed, material_seed, kind=Face, source=SOU
     lt.assign(obj, ROCK)
     lt.box_uv(obj, 'RockCliff', texel_density=DENSITY, seed=material_seed)
     lt.bake_vertex_ao(obj, distance=2.0)
-    obj['Fallback'] = FALLBACK
+    obj['Fallback'] = PANEL_FALLBACK if kind is Panel else FALLBACK
     hulls(obj, face, profiles, xs)
     for _, points in blocks:
         if points:

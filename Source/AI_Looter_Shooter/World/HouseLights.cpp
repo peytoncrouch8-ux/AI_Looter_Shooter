@@ -39,6 +39,11 @@ AHouseLights::AHouseLights()
 	Lamp->Temperature = LampTemperature;
 	// A paraffin flame: it flickers near the player (ULightFlickerSubsystem; BeginPlay adds its windows as its glass).
 	Lamp->ComponentTags.Add(ULightFlickerSubsystem::FlickerTag);
+	// The towns plan's rules for a town light: no light function and no IES (none set), no lighting of the smoke plumes and
+	// other translucent things, and gone beyond 45 m, where the glass's glow carries the read (its reach is under 7 m).
+	Lamp->bAffectTranslucentLighting = false;
+	Lamp->MaxDrawDistance = LampDrawDistance;
+	Lamp->MaxDistanceFadeRange = LampFadeRange;
 }
 
 void AHouseLights::BeginPlay()
@@ -128,14 +133,41 @@ void AHouseLights::OnLightingChanged(const FLightingStateChange& Change)
 
 void AHouseLights::ApplyState(FName State)
 {
-	// FName equality ignores case, as the console's state names do.
-	const bool bDusk = !State.IsNone() && State == DuskState;
-	bDuskNow = bDusk;
-	Lamp->SetIntensity(bDusk ? DuskLamp : DayLamp);
+	// Day, Gloom (the smog's dim lamps) or Dusk (which DuskSmog is too): LightingStates::Kind has the names.
+	KindNow = LightingStates::Kind(State);
+	const float Candelas = GetLampFor(KindNow);
+	Lamp->SetIntensity(Candelas);
+	// A lamp that is off is hidden, so it costs no light at all (a street lamp by day).
+	Lamp->SetVisibility(Candelas > 0.f);
 	if (Windows)
 	{
-		Windows->SetScalarParameterValue(GlowParameter, bDusk ? DuskGlow : DayGlow);
+		Windows->SetScalarParameterValue(GlowParameter, GetGlowFor(KindNow));
 	}
+}
+
+float AHouseLights::GetLampFor(ELightKind Kind) const
+{
+	switch (Kind)
+	{
+	case ELightKind::Dusk: return DuskLamp;
+	case ELightKind::Gloom: return GloomLamp >= 0.f ? GloomLamp : DayLamp;
+	default: return DayLamp;
+	}
+}
+
+float AHouseLights::GetGlowFor(ELightKind Kind) const
+{
+	switch (Kind)
+	{
+	case ELightKind::Dusk: return DuskGlow;
+	case ELightKind::Gloom: return GloomGlow >= 0.f ? GloomGlow : DayGlow;
+	default: return DayGlow;
+	}
+}
+
+bool AHouseLights::IsLampLit() const
+{
+	return Lamp && Lamp->IsVisible() && Lamp->Intensity > 0.f;
 }
 
 // ---------------------------------------------------------------------------

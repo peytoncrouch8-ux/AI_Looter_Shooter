@@ -395,4 +395,35 @@ bool FAmbientAirGustTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAmbientAirLightingTest, "Looter.World.Air.Lighting",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FAmbientAirLightingTest::RunTest(const FString& Parameters)
+{
+	// The air reads the light through the one helper (LightingStates::Kind): DuskSmog (Mains 6-7) is dusk to it, moths at the
+	// lit lamps and no motes in a sun that is down; the smog (Smog, SmogThin) keeps the day's air.
+	using namespace AmbientAirRules;
+	const FName DuskSmog(TEXT("DuskSmog"));
+	const FName Smog(TEXT("Smog"));
+	const FName SmogThin(TEXT("SmogThin"));
+	TestTrue(TEXT("DuskSmog is dusk"), IsDusk(DuskSmog) && IsDusk(Dusk));
+	TestFalse(TEXT("The smog is not dusk"), IsDusk(Smog) || IsDusk(SmogThin) || IsDusk(Day) || IsDusk(NAME_None));
+
+	FAirPlace Sunny;
+	Sunny.bGround = Sunny.bOpenSky = Sunny.bInSun = true;
+	Sunny.Surface = EImpactMaterial::Grass;
+	FAirSurroundings Lamplit;
+	Lamplit.GrassShare = 0.f;
+	Lamplit.SunShare = 1.f;
+	Lamplit.NearLamps = 2;
+	const FAirView DuskSmogView = ViewAt(FVector::ZeroVector, DuskSmog);
+	const FAirView SmogView = ViewAt(FVector::ZeroVector, Smog);
+	TestFalse(TEXT("No motes in DuskSmog"), Belongs(EAirKind::Mote, Sunny, DuskSmogView));
+	TestTrue(TEXT("...but motes in the smog"), Belongs(EAirKind::Mote, Sunny, SmogView));
+	TestFalse(TEXT("No pollen in DuskSmog"), Belongs(EAirKind::Pollen, Sunny, DuskSmogView));
+	TestEqual(TEXT("Moths at the lit lamps in DuskSmog"), Target(EAirKind::Moth, DuskSmogView, Lamplit, 1.f), 2 * MothsPerLamp);
+	TestEqual(TEXT("...none in the smog"), Target(EAirKind::Moth, SmogView, Lamplit, 1.f), 0);
+	return true;
+}
+
 #endif

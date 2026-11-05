@@ -1,4 +1,5 @@
 #include "World/AmbientAirRules.h"
+#include "World/LightingStates.h"
 #include <initializer_list>
 
 namespace
@@ -51,8 +52,8 @@ float AmbientAirRules::Reach(EAirKind Kind, bool bUnderCover)
 
 bool AmbientAirRules::IsDusk(FName Lighting)
 {
-	static const FName Dusk(TEXT("Dusk"));
-	return Lighting == Dusk;
+	// Dusk and DuskSmog; the smog's Gloom keeps the day's air.
+	return LightingStates::Kind(Lighting) == ELightKind::Dusk;
 }
 
 bool AmbientAirRules::IsMeadow(EImpactMaterial Surface)

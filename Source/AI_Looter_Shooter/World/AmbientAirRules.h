@@ -46,7 +46,7 @@ namespace AmbientAirRules
 	/** Its reach round the view (cm), under a roof or not. */
 	AI_LOOTER_SHOOTER_API float Reach(EAirKind Kind, bool bUnderCover);
 
-	/** The lighting state is dusk (Ransom's Rest's Dusk); anything else, and a level without states, is day. */
+	/** The lighting state is dusk (Dusk, DuskSmog: LightingStates::Kind); anything else, the smog's too, and a level without states, is day. */
 	AI_LOOTER_SHOOTER_API bool IsDusk(FName Lighting);
 
 	/** Ground that grows pollen and seed fluff: grass and hay. */

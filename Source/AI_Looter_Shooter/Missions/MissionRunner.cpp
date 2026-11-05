@@ -312,6 +312,7 @@ TArray<FMissionObjectiveView> UMissionRunner::GetObjectiveViews(FName MissionId)
 		View.Fraction = Objective->GetFraction(State);
 		View.bDone = State.bDone;
 		View.bOptional = Objective->bOptional;
+		View.bHidden = !Objective->IsShown(State);
 	}
 	return Views;
 }

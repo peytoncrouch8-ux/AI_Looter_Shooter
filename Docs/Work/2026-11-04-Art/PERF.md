@@ -237,3 +237,112 @@ What to look for:
 3. Present: whether the RHI thread blocks in Present / the frame-latency wait, and for how long.
 4. The worker side's visibility tasks (frustum, occlusion, relevance, dynamic mesh gather) to confirm the CPU's headroom, and
    the game thread's 5-8 ms in Main 6's state (the second line under 8.3).
+
+## Round 2 measured (19:47-19:57, built at 312cb821: Medium 4x + LODs 25% sooner, KIT's lamps round 15, M_Terrain's Medium path)
+
+- Deck row (recorded): **9.2 -> 8.1 ms** (GPU 8.0 -> 6.8, render 8.1, game 4.6, draws 1234, 1.53 M triangles);
+  `Profile(20261104_194801).csv`. Tour camera on the deck (BargeDeck_Landfall / _Stay): 7.74 / 7.75.
+- Horde row (recorded): **8.5 -> 8.3 ms** (GPU 7.2 -> 7.0, game 6.5); `Profile(20261104_194943).csv`.
+- The 42-view tour (`Saved/Tour/Lvl_RansomsRest.csv`, 19:5x): mean 7.20 (the same 40 views as 10:40: 7.32 -> 7.17); over 8.3:
+  **Aerial_Dusk 8.72, Aerial 8.71, Farm 8.61, PointOverValley 8.40** (were 9.36, 9.36, 8.58, 8.57); then Grave 8.20 (8.55),
+  FarmBarge 8.16, Grave_Dusk 8.12, MainStreet 8.06, MainStreet_Dusk 8.06, Aerial_NoBeyond 8.05, WatchtowerValley 8.04 (8.40),
+  SinkRim 8.00, ChapelOverTown 8.00; the rest 4.98-7.96.
+- M_Terrain's Medium path shows ~0.1 in the aerial: run 6's settings alone gave Aerial 8.70 / GPU 7.60, now 8.71 / 7.45
+  (`r.MaterialQualityLevel` is 2 in the run's log, so the Medium permutation is the one drawn): far ground was not where the
+  terrain's cost sat. The valley views are 0.1-0.25 over run 6's settings-only figures (Farm 8.37 -> 8.61, POV 8.26 -> 8.40,
+  Grave 7.96 -> 8.20, WatchtowerValley 7.97 -> 8.04, MainStreet 7.94 -> 8.06): a different process and the build carries round
+  4's content too (312cb821: the deck fight, the barge's repacked maps, Tripo repacks); not split. An A/B of the terrain's
+  Medium path alone needs `r.MaterialQualityLevel 1` vs 2 in one tour (a material recache per switch).
+
+### Insights (Saved/Perf/Insights_Aerial.utrace, Insights_BargeDeck.utrace; GPU events exported to Aerial_gpu.csv, BargeDeck_gpu.csv)
+- **The frame-GPU gap is solved: there is none.** The graphics queue is busy 8.49 of the Aerial's 8.68 ms period (98%: idle
+  0.10 inside frames, 0.08 between), deck 7.45 of 7.63. The CSV's `GPUTime` reports ~1.2 ms less than the queue's real
+  occupancy (it leaves out the frame's work outside the scene, Present's 0.29 and its wait accounting). So the frame is the
+  GPU, full stop; no sync bubble to close. Read perf rows' GPU column as "GPU - ~1.2".
+- Aerial, GPU per frame (ms): base pass 2.84, post 1.44 (TAA 0.49, local exposure 0.13 plus ~0.27 unscoped, bloom 0.13,
+  downsample chain 0.11, histogram 0.03), prepass 0.81, deferred lighting 0.80 (DiffuseIndirectAndAO 0.38: sky and reflection
+  captures; lights 0.36), shadow depths 0.19, fog 0.14, sky 0.13 + LUTs 0.12, HZB 0.13, velocities 0.125, distance fields 0.22
+  (DistanceFields 0.11, atlas 0.09, object buffers 0.02: kept up every frame although Medium has no consumer: no Lumen, DFAO
+  or DF shadows), Slate 0.09.
+- Deck, GPU per frame: deferred lighting 1.58 (lights 1.14: the lamps still the biggest item), post 1.39, base 1.03, shadow
+  depths 0.64 (atlas 0.58), prepass 0.52, velocities 0.30, distance fields 0.21.
+
+## What is left over 8.3 ms (normal state) and where the rest can come from
+| View | now | needs | candidates (measured share) |
+|---|---|---|---|
+| Aerial, Aerial_Dusk | 8.71, 8.72 | -0.42 | Beyond 0.66 (Aerial_NoBeyond 8.05), cliffs 0.3-0.4, scatter 0.3, the distance-field upkeep 0.22 |
+| Farm | 8.61 | -0.31 | scatter 0.7, Gameplay group (barge, NPCs, chests) up to 0.9 in Landfall, Orchard/Dressing 0.1, DF 0.2 |
+| PointOverValley | 8.40 | -0.10 | scatter 0.3, cliffs 0.3, Beyond 0.4, DF 0.2 |
+Margins under 0.2 ms: Grave 8.20, FarmBarge 8.16, Grave_Dusk 8.12. The deck (8.1 first person) has 0.2.
+1. **The distance-field upkeep on Medium (0.22 ms in every view, no visible change):** find what asks for the scene's
+   distance fields when Lumen, DFAO and DF shadows are off (a material with DistanceToNearestSurface, Niagara collision on the
+   global DF, or the always-on DF scene update) and stop it on Medium. PERF's next step (an Insights CPU export of
+   PrepareDistanceFieldScene's caller and `r.DistanceFields.*` A/B rows).
+2. **Beyond (0.66 in the aerial, 0.4 in POV):** its far set's LODs/material on Medium (LEVEL, through Main).
+3. **Cliffs (0.3-0.4; 0.8-1 M triangles):** `SM_CliffFace_*` a cheaper LOD (content, Main).
+4. **Scatter (Farm 0.7):** Medium density or the grass's masked prepass (content/PCG: a visible choice; the user's).
+5. Lamps at the deck still 1.14 GPU (KIT: further reach cuts if the deck must gain margin).
+
+### Next: the distance-field upkeep (0.2 ms GPU + ~0.1 render thread in every view, no visible change expected)
+Why Medium keeps the scene's distance fields: `ShouldPrepareDistanceFieldScene` (`DistanceFieldAmbientOcclusion.cpp` 813)
+returns true for `ShouldPrepareForDFInsetIndirectShadow` = capsule indirect shadows supported (`r.CapsuleShadows` 1 from the
+engine's ShadowQuality@1, `r.CapsuleIndirectShadows` 1) and the CapsuleShadows show flag on. Nothing in the project casts
+capsule shadows (no `bCastCapsuleIndirectShadow`/`DirectShadow` in Source or Tools), so `r.CapsuleIndirectShadows 0` on Low and
+Medium should drop the DF scene update (DistanceFields 0.11, atlas 0.09, object buffers 0.02 GPU; PrepareDistanceFieldScene
+0.07-0.12 on the render thread) and change nothing seen. High/Epic keep it (Lumen and DFAO need the DFs anyway).
+A/B ready: `Saved/Perf/CapsuleAB.json` (Aerial, Farm, PointOverValley, Grave, the deck in Main 6's state; base / off, twice):
+`Tools\perf.ps1 -Label "PERF capsule A/B" -NoRecord -GpuStats -Map /Game/Maps/Lvl_RansomsRest -Frames 19000 -Skip 0 -Exec
+"Looter.Quality Medium,Looter.Tour Saved/Perf/CapsuleAB.json noshots"` (~2.5 min). On a gain: `r.CapsuleIndirectShadows`
+{0, 0, 1, 1} in `QualityVariables` and the test.
+
+## The content list for a LODS lane (2026-11-04 night; numbers from runs 2, 4 and the 19:5x tour)
+
+Rule (CLAUDE.md): walkable terrain meshes keep every triangle in their Nanite fallback (Medium draws it, collision is cooked
+from it): the core's `Tile_*` stay untouched. Medium has no LOD chain on a Nanite mesh: 5.8's `FMeshNaniteSettings` has a
+fallback only (percent or relative error), drawn at every distance; only a mesh with Nanite off gets LODs on Medium.
+Triangle counts below are `RHI/PrimitivesDrawn` drops when the family is hidden (all passes: prepass, base, shadow cascades);
+instanced scatter's triangles don't show there (GPU-driven draws) and are given as instances.
+
+| Family | Reachable? collision from | On screen | Cost now (frame ms) | Change | Expected |
+|---|---|---|---|---|---|
+| Cliff faces `SM_CliffFace_A..D`, `_A2..D2` (`Art/Models/Rocks/Cliffs.py`, ~10k source, `FALLBACK` 25% = ~2.5k) | yes, but collision is their `UCX_` hulls (3-4 + one per fallen block), not the fallback: free of the rule | Aerial 159 pieces / 0.77 M tris, POV 205 / 0.96 M, Farm 116 / 0.49 M, deck 19 / 0.12 M | Aerial 0.42 (GPU 0.33), POV 0.24-0.3, Farm 0.2, deck 0.26 | fallback by relative error (`FallbackTarget` RelativeError, tuned to ~12% average) or `FALLBACK` 25 -> 12; check the near look at the plateau's faces | -0.15..-0.2 Aerial/POV, -0.1 Farm |
+| Beyond ring `<Area>_Ring_<n>` (M_Terrain master, `<Area>RingMacro`; RING_TRIANGLES 38k) | no: past the boundary walls; the upland sectors collide (fallback-cooked, only bullets and grenades land there), the canyon's don't: free of the rule | in every open view; Beyond's triangles 0.06-0.07 M in all: its cost is pixels | Beyond all: Aerial 0.66 (tour: 8.71 vs Aerial_NoBeyond 8.05), RidgeFoot 0.72, POV 0.41, deck 0.44, PointWest 0.43, DeckWest 0.45 | not LODs: a Beyond instance of M_Terrain with the places, roads and side-laid steep reads switched off (MATERIAL), or bake its look into the macro map | split pending (FamilySplit) |
+| Canyon wall `<Area>_CanyonWall_<n>` (RockCliff) | no, no collision | the canyon views | in Beyond's total | its material's detail reads off far (MATERIAL) | split pending |
+| Backdrop `<Area>_Backdrop_<n>` (M_Backdrop, unlit, Nanite off, 6k) | no | every horizon | in Beyond's total; cheap by design (10-06: 0.22 max) | none | - |
+| Far trees `FarTrees_SM_FarPine_A/B`, `SM_FarBroadleaf` (AInstancedScenery, 2,624 instances, never distance-culled, no shadows) | no | every open view | in Beyond's total | cull past ~1.5 km on Medium (they are specks there) or an impostor ring | split pending |
+| Grass `SM_GrassClump_A/B/C` (34k instances), `SM_TallGrass_A` (6.7k), `SM_Clover_A` (3.4k), flowers (1.7k), `SM_DryTuft_A/B` (2k) (`GroundCover.py`: opaque, 150-300 tris a patch, LOD1 50% at screen 0.1, wind by WPO, no shadows) | yes, no collision: free of the rule | Farm, POV, Grave, valley views; culled at Medium's 0.6 x 40-50 m | all scatter: Farm 0.7 (prepass 0.25, base 0.26, shadows 0.12), POV 0.3, Aerial 0.3, deck 0.5 | the user's options below | - |
+| Shrubs `SM_Sagebrush_A/B/C` (4.9k), `SM_Bush_*`, `SM_Juniper_*` (casting shadows) | yes, hulls | valley views | most of scatter's 0.12 shadow share at Farm | shadows off on Medium | ~-0.1 Farm |
+| Buildings `SM_RR_*`, Tripo (LODs 50/25/12 at 0.5/0.25/0.12, x1.25 sooner on Medium since tonight) | yes, hulls | Aerial 0.40 M tris, Farm 0.37 M, POV 0.25 M | 0.15-0.2 | none beyond tonight's 1.25 | - |
+| The barge `SM_DredgeBarge` (135k, Tripo LODs 50/25/12 at 0.5/0.25/0.12) | yes (deck), UCX | Main 6's state | hull hidden: Aerial 0.37, POV 0.13 | LOD screen sizes 0.6/0.35/0.18 (REWORK's mesh) | -0.05..-0.1 POV/Farm in Main 6 |
+
+### Farm's scatter: options to put to the user (Farm needs -0.31; all scatter costs it 0.7)
+Estimates from the measured total and its passes; the exact ms come from `Saved/Perf/FamilySplit.json` (needs
+`Dev/PerfSplitCommands.cpp` built: `Looter.Perf.Scatter` thin/cull/shadow/lod/wpo, `Looter.Perf.HideLabel`).
+1. **Thinner grass on Medium (70% of the patches):** about -0.2 at Farm, -0.1 in the other valley views; up close the meadow
+   is a little sparser; High/Epic keep it all. (50%: about -0.3, visibly thin.)
+2. **Grass ends nearer on Medium (70% of today's distance, ~17-21 m instead of 24-30 m):** about -0.1..-0.15; the grass line
+   moves toward the player (the ground's patterns carry on past it to 30-40 m).
+3. **Shrubs without shadows on Medium:** about -0.1; sagebrush and bushes stand without a ground shadow.
+Invisible extras measured in the same run: the grass's wind stopped past 15 m and its LOD1 everywhere (an upper bound for an
+earlier LOD switch).
+
+### Next window (after the erosion rebuild and a build with `Dev/PerfSplitCommands.cpp`)
+1. `Tools\perf.ps1 -Label "PERF capsule A/B" -NoRecord -GpuStats -Map /Game/Maps/Lvl_RansomsRest -Frames 19000 -Skip 0 -Exec
+   "Looter.Quality Medium,Looter.Tour Saved/Perf/CapsuleAB.json noshots"` (~2.5 min)
+2. `Tools\perf.ps1 -Label "PERF family split" -NoRecord -GpuStats -Map /Game/Maps/Lvl_RansomsRest -Frames 50000 -Skip 0 -Exec
+   "Looter.Quality Medium,Looter.Tour Saved/Perf/FamilySplit.json noshots"` (56 stops, ~8 min: Beyond's four pieces, the
+   grass options, shrub shadows, far-tree cull, the capsule switch, on Aerial, Farm, PointOverValley, Grave)
+
+## Round 3 (the user's yes: "Shrubs without shadows" on Medium only; no grass thinning, no nearer grass end)
+Done (not built, not committed; "ready to build"):
+- `Settings/GraphicsSettingsSubsystem.cpp` `QualityVariables`: `Looter.Scatter.HighShadows` {0, 0, 1, 1}.
+- `World/LumenScatterSubsystem.cpp/.h`: the console variable (default 1; its change handler walks every game world),
+  `ShadowHighOnlyTag()`, `HighShadowsAllowed()`, `ApplyHighShadows(Actor, bShadows)` (any size, not behind `SmallRadius`),
+  called beside `LeaveOutOf` at begin play and on level streaming. The LODS lane's tag (`build_island_scatter.py`
+  `ShadowHighOnly` on sagebrush, rabbitbrush, bushes; not junipers) arrives with the post-erosion scatter generation.
+- Tests: `Looter.World.LumenScatter.HighShadows` (tagged part loses and regains its shadow, untagged untouched, the variable
+  exists); `Looter.Settings.QualityPresets` checks the preset's value. CODEMAP line.
+- `Saved/Perf/FamilySplit.json`: `_ShrubNoShadow` became `_ShrubShadowsOn` (shadows back on for the stop: the saving by
+  difference). `_NoFarTrees` answers the LODS lane's far-tree LODs (50/25% at screen 0.04/0.025 in `FarTrees.py`): take them
+  if hiding the far trees saves 0.1 ms or more in the open views (Aerial, POV); their 0.23-0.37 M triangles per view at ~300
+  each are invisible to `PrimitivesDrawn`, so only the frame and the base/prepass passes tell.

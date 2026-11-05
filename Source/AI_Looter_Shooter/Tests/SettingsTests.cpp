@@ -56,6 +56,8 @@ bool FQualityPresetsTest::RunTest(const FString& Parameters)
 		// Medium's static meshes take their next LOD a quarter sooner (0-0.25 ms in the heaviest views); the engine's own
 		// distances elsewhere.
 		TestEqual(Name + TEXT(" static mesh LOD distance"), Settings.FindRef(TEXT("r.StaticMeshLODDistanceScale")), bMedium ? 1.25f : 1.f);
+		// The shrubs' shadows only on High and Epic (the user's pick, 2026-11-04: about 0.1 ms at the farm).
+		TestEqual(Name + TEXT(" shrub shadows"), Whole(TEXT("Looter.Scatter.HighShadows")), bHighOrEpic ? 1 : 0);
 	}
 
 	// A fresh install starts on the minimum spec, without motion blur, with the minimap and the FPS counter showing.

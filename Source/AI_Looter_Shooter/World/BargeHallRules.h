@@ -102,6 +102,9 @@ namespace BargeRules
 	 *  ends' height), the hatch stair's this high over its treads in this many upright pieces (no overhang past its foot). */
 	inline constexpr float HatchRailWallUp = 200.f;
 	inline constexpr int32 HatchRailPieces = 8;
+	/** Each piece reaches this far into its neighbours' (not past the stair's ends): boxes only meeting left a seam a step's
+	 *  trace slipped through. */
+	inline constexpr float HatchRailOverlap = 2.f;
 	/** The stokehold doors (the FurnaceHall pushes come through them), across her. */
 	inline constexpr float StokeholdAngles[] = { 90.f, 270.f };
 	/** A stokehold's alcove: as deep past the hall's wall as the skin allows (1.2 m at most), as wide as its door

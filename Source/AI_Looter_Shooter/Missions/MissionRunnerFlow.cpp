@@ -163,6 +163,7 @@ void UMissionRunner::BeginStep(FRun& Run)
 		// A look at once, as the tutorial did: a gun already carried, a place already stood in, pass straight away.
 		Objective->Begin(Context, State);
 		Objective->Update(Context, State, 0.f);
+		Objective->NoteStarted(Context, State);
 		if (RefreshDone(*Objective, Context, State) && Objective->bOptional)
 		{
 			NoteOptionalDone(Run, Index);

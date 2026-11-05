@@ -7,6 +7,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
+#include "HAL/IConsoleManager.h"
 #include "Tests/AutomationCommon.h"
 
 namespace
@@ -86,6 +87,42 @@ bool FLumenScatterSmallLeftOutTest::RunTest(const FString& Parameters)
 	{
 		TestFalse(TEXT("No mesh, not scatter"), ULumenScatterSubsystem::IsSmallScatter(*Empty));
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FScatterHighShadowsTest, "Looter.World.LumenScatter.HighShadows",
+	EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+
+bool FScatterHighShadowsTest::RunTest(const FString& Parameters)
+{
+	// The shrubs (scatter tagged ShadowHighOnly) cast shadows only on High and Epic: the preset's variable takes them away
+	// and gives them back; untagged scatter (grass, rocks, trees) is never touched.
+	TestNotNull(TEXT("Looter.Scatter.HighShadows exists (the graphics preset sets it)"),
+		IConsoleManager::Get().FindConsoleVariable(TEXT("Looter.Scatter.HighShadows")));
+	FTestWorldWrapper WorldWrapper;
+	if (!TestTrue(TEXT("Test world created"), WorldWrapper.CreateTestWorld(EWorldType::EditorPreview)))
+	{
+		return false;
+	}
+	UWorld* World = WorldWrapper.GetTestWorld();
+	UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+	UInstancedStaticMeshComponent* Shrub = World && Cube ? LumenScatterPart(*World, Cube) : nullptr;
+	UInstancedStaticMeshComponent* Rock = World && Cube ? LumenScatterPart(*World, Cube) : nullptr;
+	if (!TestNotNull(TEXT("A shrub part and a rock part"), Shrub && Rock ? Shrub : nullptr))
+	{
+		return false;
+	}
+	Shrub->ComponentTags.Add(ULumenScatterSubsystem::ShadowHighOnlyTag());
+	TestTrue(TEXT("Both start with their shadow"), Shrub->CastShadow && Rock->CastShadow);
+
+	TestEqual(TEXT("Medium: the shrub loses its shadow"), ULumenScatterSubsystem::ApplyHighShadows(*Shrub->GetOwner(), false), 1);
+	TestFalse(TEXT("...and casts none"), static_cast<bool>(Shrub->CastShadow));
+	TestEqual(TEXT("...asked again, nothing changes"), ULumenScatterSubsystem::ApplyHighShadows(*Shrub->GetOwner(), false), 0);
+	TestEqual(TEXT("The untagged rock isn't touched"), ULumenScatterSubsystem::ApplyHighShadows(*Rock->GetOwner(), false), 0);
+	TestTrue(TEXT("...and keeps its shadow"), static_cast<bool>(Rock->CastShadow));
+
+	TestEqual(TEXT("High: the shrub gets its shadow back"), ULumenScatterSubsystem::ApplyHighShadows(*Shrub->GetOwner(), true), 1);
+	TestTrue(TEXT("...and casts it"), static_cast<bool>(Shrub->CastShadow));
 	return true;
 }
 

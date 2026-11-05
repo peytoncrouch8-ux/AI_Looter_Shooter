@@ -40,7 +40,11 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   - `environment`: light, sky, fog;
   - `beyond`: ring, backdrop, far trees;
   - `cliffs`: cliff faces and outcrops;
-  - `dressing`: fences, walls, graves, props (`build_area_dressing.py`).
+  - `dressing`: fences, walls, graves, props (`build_area_dressing.py`); the town's street lamps and porch lanterns
+    (`town.json` `lights`, with their `gloom` candelas for the smog) are placed here.
+  - `lights`: the lived-in houses' lights alone (`level.lights`: lamp, reach, the windows' `gloomGlow` for the smog;
+    `house_lights()`, otherwise part of the full build). Takes out the `Lights_<key>` actors, places them again and sets their
+    households again (`build_area_townlife.py`'s `set_households`); `-Until "lights placed and saved"`.
 - Cliffs (`build_area.py` cliffs()). The `level.cliffs` settings:
   - `varied` groups are mirrored, sunk and turned. `lean` groups lean with the wall; `leanTop` and `leanProud` can be set per group.
     The lip ceiling keeps tops under a rounded rim.
@@ -78,6 +82,9 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     (`PINE_ZONE_MARGIN`, over the mask's 4 m forest fade: a lone oak stood on the Bench until 2026-10-14).
   - Keeps off the dressing's footprints and wears the area's material swaps. Run `dressing` before the scatter when fences or graves
     move.
+  - Shrubs (sagebrush, big and pit sage, rabbitbrush, bushes; not the junipers) are tagged `ShadowHighOnly` (`entry()`'s
+    `medium_shadow=False`, 2026-11-04, the user's pick): their shadows are High and Epic's only once the game switches tagged
+    components off on Low/Medium (the code: `Docs/Work/2026-11-04-Art/LODS.md`; not built yet).
 - Materials per area: `level.materials` makes area instances of shared MIs; `level.swaps` puts them on everything the build placed,
   and on the scatter; `level.swapsOn` swaps on named actors only (the windmill's steel).
 - World variety (2026-10-22; the user: RR "looks samey", anything allowed; measured and planned in `Saved/World/PLAN.md`): one nature

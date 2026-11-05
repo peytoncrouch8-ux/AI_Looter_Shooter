@@ -7,7 +7,9 @@ loudspeaker posts this gives a voice) and before Hob. Everything goes in the are
 What it places (the town gate's posts and Main Street's buildings from the layout, the facades found with traces):
 - The Company's checkpoint at the town gate: sandbag walls just inside it (SM_FlourSacks, solid: the riflemen's cover), a
   barrier pole across the gate on two posts (an ACompanySign board, gone once Main 3 is done: the checkpoint broken), and
-  the board on the road side (ACompanySign: VANE CONSOLIDATED / ASSESSMENT IN PROGRESS / NO ENTRY. NO EXIT.).
+  the board on the road side (ACompanySign: VANE CONSOLIDATED / ASSESSMENT IN PROGRESS / NO ENTRY. NO EXIT.), and the
+  Company's barrel fire (ATownFire Main3_BarrelFire, over a barrel stand-in) behind the sandbags, burning from Main 1 until
+  Main 3 breaks the checkpoint, in the smog's light and at dusk.
 - The gate's fight (AAmbushSpawner TownGate, entrance Rise; moved here from build_area_story.py, its id and its count of
   seven kept): three Dredger riflemen behind the sandbags and a hose-man at the barrier, standing guard as the player comes
   up the orchard (from Main 3's first step), then three Unpaid drawn by the smog (one Restless) rising north-east of the
@@ -76,6 +78,15 @@ RIFLE_SPOTS = ((540.0, -330.0), (480.0, 0.0), (540.0, 330.0))
 # walked 20 m out in the play check of 2026-11-01).
 RIFLE_POST = 600.0
 HOSEMAN_SPOT = (200.0, 150.0)
+# The Company's barrel fire (ATownFire, the towns plan 4.1; the user's call 2026-11-04): behind the sandbags between the north
+# rifleman (540, -330) and the middle one (480, 0), 1.7 m from the one and 1.8 m from the other, and clear of the hose-man
+# (200, 150) and the barrier (100). It stands straight behind the gap between the north and the middle wall (a 1.3 m gap)
+# but 1.6 m back from the walls' line, so the gap's mouth stays open for a walker (the barrel is 60 cm across). The fire bed
+# stands FIRE_UP over the ground (a barrel stand-in's rim: SM_Barrel_B is 88 cm, its pivot on the ground) until a BarrelFire
+# model with a SOCKET_Fire exists.
+FIRE_AT = (560.0, -165.0)
+FIRE_UP = 95.0
+FIRE_BARREL = '/Game/Art/Props/SM_Barrel_B'
 UNPAID_SPOTS = ((600.0, 900.0), (1300.0, 1300.0), (-400.0, 700.0), (-1300.0, 300.0))
 GATE_MAX_ALIVE = 4
 GATE_ACTIVATION = 7000.0
@@ -244,6 +255,34 @@ def place_checkpoint(build, gate):
     company_sign(build, sx, sy, yaw_of((-gate.inward[0], -gate.inward[1])), 'Main3_CheckpointSign', SIGN_WORDS, size=SIGN_SIZE,
                  lift=80.0, letters=20.0, shown=company)
     build.log(f'the Company\'s checkpoint at the town gate: {count} sandbags, the barrier (until {MAIN3} is done), the board')
+    place_gate_fire(build, gate)
+
+
+def place_gate_fire(build, gate):
+    """The checkpoint's barrel fire (ATownFire Main3_BarrelFire): lit by the smog's light and at dusk, there from Main 1 until
+    Main 3 breaks the checkpoint (the barrier's rules), over a barrel stand-in (solid, tagged Obstacle, it stays like the
+    sandbags) until a BarrelFire model exists."""
+    cls = story.actor_class('TownFire')
+    if cls is None:
+        build.warn('no TownFire class (build the game module first): the checkpoint has no barrel fire')
+        return
+    x, y = gate.point(*FIRE_AT)
+    # Both taken out before the ground is read: a barrel from the last run would be what the trace met.
+    main2().remove_stale(build, 'Main3_BarrelFire')
+    main2().remove_stale(build, 'Main3_BarrelFire_Barrel')
+    ground = story.ground_at(x, y)
+    barrel = load(FIRE_BARREL)
+    if barrel is None:
+        build.warn(f'no {FIRE_BARREL}: the barrel fire burns on the bare ground')
+        up = 0.0
+    else:
+        build.place(barrel, (x, y, ground), 0.0, label='Main3_BarrelFire_Barrel', folder=FOLDER, tags=('Obstacle',))
+        up = FIRE_UP
+    fire = build.place(cls, (x, y, ground + up), 0.0, label='Main3_BarrelFire', folder=FOLDER)
+    fire.set_editor_property('shown_when', [story.condition(after=[MAIN1])])
+    fire.set_editor_property('hidden_when', [story.condition(after=[MAIN3])])
+    build.log(f'the checkpoint\'s barrel fire (Main3_BarrelFire) at ({x:.0f}, {y:.0f}, {ground + up:.0f}), from {MAIN1}\'s end until '
+              f'{MAIN3} is done, lit by the smog and at dusk')
 
 
 def place_gate_fight(build, gate):

@@ -53,6 +53,11 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
     (`AMissionItem`, carried, dropped by a creature); a turn-in with a choice of two (held to choose; story flags in
     `FCampaignRecord::StoryFlags`, read by `FStoryCondition::WithFlags`); readable props; the porch plate; an UNDERGROUND minimap
     plate (actors tagged `Underground`); any speaker point or a vendor's hatch as a turn-in.
+  - Hidden until started (the user, 2026-11-04: "Hide until it starts"; Main 6's later deck pushes): `UMissionObjective::bHiddenUntilStarted`
+    (Python `hidden_until_started`) keeps an objective off the tracker, the Missions page, the arrow, the highlight and the
+    board's progress until `HasStarted` (a clear objective: its encounter has spawned, is engaged or cleared), latched in
+    `FMissionObjectiveState::bStarted`; it holds its step all along; with `bPassWithoutTargets` a missing spawner passes unseen.
+    `FMissionObjectiveView::bHidden` keeps the views side by side with the step. Test `Looter.Missions.HiddenUntilStarted`.
 - Respawn: lantern posts (the user, 2026-10-31: "What do you mean when I die?" -> Wardens light lantern posts as they
   explore; going down wakes you at the nearest lit post; "GRAVE MARKED"/"ROOST FOUND" becomes "POST LIT"). Words and model
   only; everything below (the roosts' rules, `ARespawnMarker`, ids, `FCampaignRecord::LastGraves/MarkedGraves/ActiveRespawns`,

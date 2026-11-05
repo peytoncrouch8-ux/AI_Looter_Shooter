@@ -6,6 +6,15 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 Each line: bug (date). Cause. Fix.
 
+- Tripo builds failed writing a PNG a second after writing it (2026-11-04: 5 of 13, `OSError [Errno 22] Invalid argument`, once
+  in Blender's own `save_render`). Cause: Windows reports a file still mapped by another reader (most likely the virus scanner
+  opening the fresh PNG) as errno 22 on open-for-write; `write_maps` and `write_set`+grade write then rewrite. Fix:
+  `lt.retry_write` (`Tools/Blender/looter_textures.py`): up to 8 tries with a 0.5 s back-off, only on OSError 13/22 or Blender's
+  "could not write image"; `lt.write_png` and `looter_tripo._save_colour` go through it.
+- A shared Blender module renamed under a running pipeline breaks every build that imports it (2026-11-04: ~15 min of
+  `ModuleNotFoundError: looter_tripo_barge_paint_look`; another lane's f-string syntax error broke every Wardens export for an
+  hour). Fix: a lane parses and imports every touched module before any run, and announces a rename to the lanes that import it.
+
 - The ore lift's cage clipped the mountain near the top (2026-10-30 playtest). Cause: area_shape.py lays building footprints
   after pads, and RR_LiftHead's 3 m + 2 m footprint circle levelled the last 5 m of the lift's cutting (`liftCut`) back up
   to the shoulder: the cage ran 2.2 m into it; the cutting also lay 0.7 m shallower than its note. Fix: RR_LiftHead has no

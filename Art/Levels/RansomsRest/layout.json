@@ -2766,15 +2766,15 @@
       "WindmillFan": "RR_WindmillFan"
     },
     "lights": {
-      "farmhouse": { "lamp": [2,5.5], "reach": 175 },
-      "store": { "lamp": [3.5,30], "reach": 350 },
-      "undertaker": { "lamp": [1.75,5.5], "reach": 175 },
-      "cottageNorth": { "lamp": [3,16], "reach": 400 },
+      "farmhouse": { "lamp": [2,5.5], "reach": 175, "gloomGlow": 4 },
+      "store": { "lamp": [3.5,30], "reach": 350, "gloomGlow": 6 },
+      "undertaker": { "lamp": [1.75,5.5], "reach": 175, "gloomGlow": 6 },
+      "cottageNorth": { "lamp": [3,16], "reach": 400, "gloomGlow": 4 },
       "cottageSouth": { "dark": true },
-      "cottageNorthEast": { "lamp": [3,16], "reach": 400 },
+      "cottageNorthEast": { "lamp": [3,16], "reach": 400, "gloomGlow": 4 },
       "cottageSouthWest": { "dark": true },
-      "dugout": { "lamp": [2,9], "reach": 300 },
-      "sheriff": { "lamp": [1.5,6.0], "reach": 300 }
+      "dugout": { "lamp": [2,9], "reach": 300, "gloomGlow": 4 },
+      "sheriff": { "lamp": [1.5,6.0], "reach": 300, "gloomGlow": 6 }
     },
     "smoke": ["farmhouse","store","undertaker","cottageNorth","cottageNorthEast","dugout","depot","locomotive","workshop"],
     "cliffs": {

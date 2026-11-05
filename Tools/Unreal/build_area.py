@@ -1288,8 +1288,9 @@ class AreaBuild:
     def house_lights(self):
         """The lived-in houses' lights (level.lights, by placement key): AHouseLights on each one's SOCKET_Light, its lamp
         there and the model's WindowGlow slot brightened at dusk, with the lamp's candelas by day and at dusk ("lamp") and
-        its reach ("reach", cm) where the house wants its own; or with "dark" an empty house's windows unlit (its
-        WindowGlow slot wears MI_WindowGlow_Dark, which level.materials makes)."""
+        its reach ("reach", cm) where the house wants its own, and the windows' brightness in the smog ("gloomGlow"; a house
+        without it is lit in the smog as by day); or with "dark" an empty house's windows unlit (its WindowGlow slot wears
+        MI_WindowGlow_Dark, which level.materials makes)."""
         spec = self.source.get('level', {}).get('lights', {})
         if not spec:
             return
@@ -1322,6 +1323,9 @@ class AreaBuild:
             day, dusk = settings.get('lamp', (2.0, 5.5))
             lights.set_editor_property('day_lamp', day)
             lights.set_editor_property('dusk_lamp', dusk)
+            # The windows' Glow in the smog's Gloom ("gloomGlow": a lived-in house 4, a shop 6); none: lit in the smog as by day.
+            if 'gloomGlow' in settings:
+                lights.set_editor_property('gloom_glow', float(settings['gloomGlow']))
             lamp = lights.get_editor_property('lamp')
             lamp.set_editor_property('intensity', day)
             if 'reach' in settings:
@@ -1354,8 +1358,8 @@ class AreaBuild:
         """Builds the whole level, or with mode "gameplay" only the gameplay actors, with "environment" only the light,
         sky and fog, with "beyond" only what lies past the boundary (a grounded area's ring, canyon wall and
         backdrop; an island's sky islands), with "cliffs" only the cliff faces and the outcrops, with "dressing" only
-        the obstacles' fences, walls, graves, cairns and yard props (build_area_dressing.py), or with "water" only the
-        waterfalls and their feet (falls())."""
+        the obstacles' fences, walls, graves, cairns and yard props (build_area_dressing.py), with "water" only the
+        waterfalls and their feet (falls()), or with "lights" only the lived-in houses' lights (house_lights())."""
         with open(self.computed_path) as f:
             self.layout = json.load(f)
         # Reloaded, as the editor keeps modules between runs, so an edited one takes effect.
@@ -1419,6 +1423,24 @@ class AreaBuild:
             importlib.reload(importlib.import_module('build_area_swimwater')).place(self)
             levels.save_current_level()
             self.log('waterfalls placed and saved')
+            return
+        if mode == 'lights':
+            # The lived-in houses' lights alone (level.lights: lamp, reach, the windows' dusk and smog glow), so a change to them
+            # needs no full build. Nothing is cleared by folder (the folder named holds nothing; it only opens the level): the
+            # last build's Lights_<key> are taken out by label, as the build's own tag marks them.
+            self.open_level('Effects/Lights')
+            old = [a for a in actors.get_all_level_actors() if unreal.Name(self.tag) in a.tags
+                   and str(a.get_actor_label()).startswith('Lights_') and str(a.get_folder_path()) == f'{self.folder}/Effects']
+            if old:
+                actors.destroy_actors(old)
+            self.house_lights()
+            # Who lives in each lit house is the town life's (build_area_townlife.py sets it on the Lights_<key>): the new
+            # lights get it again, as the gameplay pass would, for a level that has the town life.
+            if any(spot['kind'] == 'Grave_Ellis' for spot in self.layout['placements'].values()):
+                town_life = importlib.reload(importlib.import_module('build_area_townlife'))
+                town_life.set_households(self, town_life.level_actors(self))
+            levels.save_current_level()
+            self.log(f'lights placed and saved ({len(old)} of the last build\'s taken out)')
             return
         if mode == 'dressing':
             # On the terrain's tiles, which stand already; in the area's look (the cairns' granite).
@@ -1486,8 +1508,8 @@ def run(name, only_gameplay=False, mode=None):
 
 if __name__ == '__main__':
     args = sys.argv[1:]
-    modes = ('gameplay', 'environment', 'beyond', 'cliffs', 'dressing', 'water')
+    modes = ('gameplay', 'environment', 'beyond', 'cliffs', 'dressing', 'water', 'lights')
     if not args or args[0] in modes:
-        raise SystemExit('usage: build_area.py <Area> [gameplay|environment|beyond|cliffs|dressing|water] (the area is '
+        raise SystemExit('usage: build_area.py <Area> [gameplay|environment|beyond|cliffs|dressing|water|lights] (the area is '
                          'a folder under Art/Levels)')
     run(args[0], mode=next((a for a in args[1:] if a in modes), None))

@@ -200,15 +200,24 @@ bool FBargeDeckTest::RunTest(const FString& Parameters)
 	Check(FallingStackFoot);
 	Check(FVector(BerthX, BerthSide * (WellDeckHalfBeam - BoardingInset), WellDeckZ));
 	TestTrue(TEXT("Every deck spot on open deck at its zone's height"), bSpots);
-	// The horns off every lane: on the starboard rim, along the well deck, the bow-most first (Vane's cue is the first's).
-	bool bHorns = true;
+	// The horns off every lane: on the starboard rim, along the well deck, the bow-most first (Vane's cue is the first's), a
+	// post's width apart and clear of the rim's lamps.
+	FString HornsOff;
 	for (int32 Index = 0; Index < static_cast<int32>(UE_ARRAY_COUNT(HornSpots)); ++Index)
 	{
 		const FHornSpot& Horn = HornSpots[Index];
-		bHorns &= Horn.At.Y > WellDeckHalfBeam && FMath::IsNearlyEqual(static_cast<float>(Horn.At.Z), WellDeckZ + RailHeight)
-			&& Horn.At.X > WellDeckAft && Horn.At.X < WellDeckFore && (Index == 0 || Horn.At.X < HornSpots[Index - 1].At.X);
+		bool bHorn = Horn.At.Y > WellDeckHalfBeam && FMath::IsNearlyEqual(static_cast<float>(Horn.At.Z), WellDeckZ + RailHeight)
+			&& Horn.At.X > WellDeckAft && Horn.At.X < WellDeckFore && (Index == 0 || Horn.At.X <= HornSpots[Index - 1].At.X - 2.0 * HornHalfWidth);
+		for (const FWorkLamp& Lamp : WorkLamps)
+		{
+			bHorn &= Lamp.Mount != ELampMount::Rim || Lamp.Fixed.Y * Horn.At.Y < 0.0 || FMath::Abs(Lamp.Fixed.X - Horn.At.X) >= HornHalfWidth + WorkLampArm;
+		}
+		if (!bHorn)
+		{
+			HornsOff += FString::Printf(TEXT("x %.0f; "), Horn.At.X);
+		}
 	}
-	TestTrue(TEXT("The horns on the starboard rim, off the lanes, the bow-most first"), bHorns);
+	TestTrue(FString::Printf(TEXT("The horns on the starboard rim, off the lanes, the bow-most first (%s)"), *HornsOff), HornsOff.IsEmpty());
 	// The furnace's vents are the deck fight's hazards: her flues run fore from the hall (aft, under the casing) under the
 	// house to them, so each is on the well deck, none over the hall.
 	bool bVentsOnWell = true;

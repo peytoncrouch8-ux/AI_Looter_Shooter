@@ -37,6 +37,13 @@ namespace
 		return UE_TWO_PI * BargeRules::CatwalkMiddle / BargeRules::CatwalkSpans * BargeRules::CatwalkSpanStretch;
 	}
 
+	/** A span's length at the hand rail's radius: its straight boxes at the middle's length stuck their ends out into the
+	 *  walkway (Main's run, 2026-11-04: the ring's walk stopped in Handrail15 by its span's end). */
+	float RailSpanLength()
+	{
+		return UE_TWO_PI * (BargeRules::CatwalkInner + BargeRules::CatwalkRailIn) / BargeRules::CatwalkSpans * BargeRules::CatwalkSpanStretch;
+	}
+
 	/** The hatch stair's run, its slope's turn and up, and its sides' way (flat, square to the run). */
 	struct FHatchRails
 	{
@@ -167,7 +174,7 @@ void ABargeBoarding::BuildHall()
 		{
 			const float Angle = BargeRules::CatwalkSpanAngle(Index);
 			PawnWall(*FString::Printf(TEXT("Handrail%d"), Index), HallXY(Angle, BargeRules::CatwalkInner + BargeRules::CatwalkRailIn) + FVector(0.0, 0.0, Catwalk + EndHeight * 0.5),
-				FVector(BargeRules::CatwalkRailWidth * 0.5, CatwalkSpanLength() * 0.5, EndHeight * 0.5), FRotator(0.f, HallYaw(Angle), 0.f));
+				FVector(BargeRules::CatwalkRailWidth * 0.5, RailSpanLength() * 0.5, EndHeight * 0.5), FRotator(0.f, HallYaw(Angle), 0.f));
 		}
 	}
 	// Both sides of the hatch's stair (over the hall's drop, over the hole's gap beside it), in upright pieces along it: each
@@ -175,18 +182,19 @@ void ABargeBoarding::BuildHall()
 	const FHatchRails Hatch = HatchRails();
 	const FRotator Along(0.f, static_cast<float>(Hatch.Run.Rotation().Yaw), 0.f);
 	const FVector Piece = Hatch.Run / BargeRules::HatchRailPieces;
+	const FVector Overlap = Hatch.Run * (BargeRules::HatchRailOverlap / FMath::Max(Hatch.Run.Size2D(), 1.0));
 	for (const double Side : { -1.0, 1.0 })
 	{
 		const FVector StairTop = Hatch.Middle - Hatch.Run * 0.5 + HatchRailSide(Hatch, Side);
 		for (int32 Index = 0; Index < BargeRules::HatchRailPieces; ++Index)
 		{
-			const FVector Upper = StairTop + Piece * Index;
-			const FVector Lower = Upper + Piece;
+			const FVector Upper = StairTop + Piece * Index - (Index > 0 ? Overlap : FVector::ZeroVector);
+			const FVector Lower = StairTop + Piece * (Index + 1) + (Index + 1 < BargeRules::HatchRailPieces ? Overlap : FVector::ZeroVector);
 			const double Bottom = FMath::Min(Upper.Z, Lower.Z);
 			const double Height = FMath::Max(Upper.Z, Lower.Z) + BargeRules::HatchRailWallUp - Bottom;
 			const FVector Middle((Upper.X + Lower.X) * 0.5, (Upper.Y + Lower.Y) * 0.5, Bottom + Height * 0.5);
 			PawnWall(*FString::Printf(TEXT("HatchRail%d_%d"), Side < 0.0 ? 0 : 1, Index), Middle,
-				FVector(Piece.Size2D() * 0.5, BargeRules::CatwalkRailWidth * 0.5, Height * 0.5), Along);
+				FVector((Lower - Upper).Size2D() * 0.5, BargeRules::CatwalkRailWidth * 0.5, Height * 0.5), Along);
 		}
 	}
 	for (int32 Index = 0; Index < BargeRules::NumFloorStairs; ++Index)
@@ -274,16 +282,18 @@ void ABargeBoarding::LayHallLooks()
 		for (const float Up : { BargeRules::CatwalkRailUp, BargeRules::CatwalkRailMidUp })
 		{
 			Rails.Add(FTransform(Facing, RailAt + FVector(0.0, 0.0, Catwalk + Up),
-				FVector(BargeRules::CatwalkRailWidth / 100.0, SpanLength / 100.0, BargeRules::CatwalkRailDepth / 100.0)));
+				FVector(BargeRules::CatwalkRailWidth / 100.0, RailSpanLength() / 100.0, BargeRules::CatwalkRailDepth / 100.0)));
 		}
+		// The stanchions on the rails' line, where two spans' straight rails cross.
 		const float Half = 180.f / BargeRules::CatwalkSpans;
+		const float RailJoint = (BargeRules::CatwalkInner + BargeRules::CatwalkRailIn) / FMath::Cos(FMath::DegreesToRadians(Half));
 		for (const float Edge : { Angle - Half, Angle + Half })
 		{
 			if (Edge > Angle && BargeRules::IsCatwalkSpanLaid((Index + 1) % BargeRules::CatwalkSpans))
 			{
 				continue;
 			}
-			Rails.Add(FTransform(Facing, HallXY(Edge, BargeRules::CatwalkInner + BargeRules::CatwalkRailIn) + FVector(0.0, 0.0, Catwalk + BargeRules::CatwalkRailUp * 0.5),
+			Rails.Add(FTransform(Facing, HallXY(Edge, RailJoint) + FVector(0.0, 0.0, Catwalk + BargeRules::CatwalkRailUp * 0.5),
 				FVector(BargeRules::CatwalkStanchion / 100.0, BargeRules::CatwalkStanchion / 100.0, BargeRules::CatwalkRailUp / 100.0)));
 		}
 	}

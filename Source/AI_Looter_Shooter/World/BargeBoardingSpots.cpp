@@ -6,7 +6,9 @@
 
 #include "World/BargeBoarding.h"
 #include "World/BargeRules.h"
+#include "CollisionQueryParams.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/HitResult.h"
 #include "Engine/StaticMesh.h"
 
 namespace
@@ -130,10 +132,31 @@ TArray<FVector> ABargeBoarding::GetFightSpots(FName Fight) const
 
 TArray<FVector> ABargeBoarding::GetDropRopeTops(FName Fight) const
 {
+	// Each top a hand off the face its man comes over, found on her hull (Tripo's faces aren't flat: the house's upper storey
+	// is rounded at its top and its sides): off its foremost point over the height he hangs at, so his body clears it too.
 	TArray<FVector> Tops;
+	const FCollisionQueryParams Params(SCENE_QUERY_STAT(BargeDropTop), false);
 	for (const BargeRules::FDropRope& Rope : DropsOf(Fight))
 	{
-		Tops.Add(ToWorld(Rope.Top));
+		const double Way = BargeRules::DropFaceWay(Rope);
+		// The face's X times Way: least is foremost (toward the open deck he drops onto).
+		double Foremost = TNumericLimits<double>::Max();
+		for (int32 Try = 0; Hull && Try < BargeRules::DropFaceTries; ++Try)
+		{
+			const FVector From = Rope.Top + FVector(-Way * BargeRules::DropTopOff, 0.0, -Try * BargeRules::DropFaceStepDown);
+			const FVector To = From + FVector(Way * (BargeRules::DropTopOff + BargeRules::DropFaceSearch), 0.0, 0.0);
+			FHitResult Hit;
+			if (Hull->LineTraceComponent(Hit, ToWorld(From), ToWorld(To), Params) && !Hit.bStartPenetrating)
+			{
+				Foremost = FMath::Min(Foremost, Way * GetActorTransform().InverseTransformPosition(Hit.ImpactPoint).X);
+			}
+		}
+		FVector Top = Rope.Top;
+		if (Foremost < TNumericLimits<double>::Max())
+		{
+			Top.X = Way * Foremost - Way * BargeRules::DropTopOut;
+		}
+		Tops.Add(ToWorld(Top));
 	}
 	return Tops;
 }

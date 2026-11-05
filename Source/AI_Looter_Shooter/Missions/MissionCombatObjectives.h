@@ -114,6 +114,8 @@ public:
 	virtual bool HandleKill(const FMissionContext& Context, FMissionObjectiveState& State, const AActor& Victim, const AController* Killer) const override;
 	/** Its encounter is in the level. */
 	virtual bool HasTargets(const FMissionContext& Context) const override;
+	/** Its encounter has begun: a creature out, its waves under way, or over (played before its step). */
+	virtual bool HasStarted(const FMissionContext& Context, const FMissionObjectiveState& State) const override;
 	/** The encounter's living creature nearest the player; before they're out (or once they're down), the spawner. */
 	virtual TOptional<FVector> GetAutoWaypoint(const FMissionContext& Context, const FMissionObjectiveState& State) const override;
 	virtual FString DescribeRule() const override;

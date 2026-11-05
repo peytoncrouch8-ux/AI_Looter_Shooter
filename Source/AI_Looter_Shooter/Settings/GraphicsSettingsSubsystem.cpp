@@ -60,6 +60,10 @@ namespace
 		// heaviest views (2026-11-04 evening: Grave and PointOverValley -0.2, the aerials -0.1), the user's yes; the
 		// engine's own distances elsewhere.
 		{ TEXT("r.StaticMeshLODDistanceScale"), { 1.f, 1.25f, 1.f, 1.f } },
+		// The shrubs (scatter tagged ShadowHighOnly: sagebrush, rabbitbrush, bushes) cast no shadow on Low and Medium:
+		// about 0.1 ms at the farm on the reference card, the user's pick 2026-11-04 (grass already casts none); High and
+		// Epic keep them. ULumenScatterSubsystem applies it as play begins and whenever it changes.
+		{ TEXT("Looter.Scatter.HighShadows"), { 0, 0, 1, 1 } },
 	};
 
 	/** Looter.Quality Low|Medium|High|Epic: sets and saves the preset, as the settings menu does (handy for perf runs). */

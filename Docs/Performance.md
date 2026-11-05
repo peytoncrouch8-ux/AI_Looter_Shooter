@@ -36,8 +36,9 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
   is the throttle below, GPU 8.0, game 4.2): her deck is 47 m over the town; the town horde 8.5. Split by the PERF lane
   (`Docs/Work/2026-11-04-Art/PERF.md`): the barge's point lights 1.65 ms of the deck's frame (lights pass 2.04 GPU).
 - **Medium is GPU-bound per pixel in every heavy view (PERF lane, 2026-11-04 evening, six A/B tours):** at 70% screen the
-  frame drops 1.4-1.9 ms; every GPU saving shows 1:1 in the frame (frame = GPU busy + 1.2-1.6 ms, a gap not yet explained:
-  not the occlusion read, not desktop composition). The render thread's 4-6 ms `EventWait/Visibility` is a throttle, not
+  frame drops 1.4-1.9 ms; every GPU saving shows 1:1 in the frame. The rows' GPU column reads 1.2-1.6 ms under the frame
+  because the CSV's `GPUTime` under-counts: Unreal Insights shows the graphics queue busy 98% of the frame (Aerial 8.49 of
+  8.68 ms, the deck 7.45 of 7.63), no sync bubble. The render thread's 4-6 ms `EventWait/Visibility` is a throttle, not
   work: it waits for the GPU's last-frame occlusion results; HZB occlusion takes the render thread to 3.4 ms and the frame
   stays (GPU +0.3-0.5); `r.NumBufferedOcclusionQueries 2` changes nothing but adds 4-9 ms of input latency. So draw calls cost
   through the GPU, and what costs is pixels: the barge's lamps at her deck 1.65, `M_Terrain` in the aerials 1.5 (~20 texture
@@ -45,6 +46,9 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
   Medium filters 4x (was 8x) and takes static mesh LODs a quarter sooner (`r.StaticMeshLODDistanceScale` 1.25), measured
   together Aerial 9.3 -> 8.7, PointOverValley 8.6 -> 8.26, Farm 8.6 -> 8.37, Grave 8.3 -> 7.96. The tour's two `_FarShadow`
   views went (they measured the far cascade turned down on 2026-10-07); `BargeDeck_Landfall` (+`_Stay`) measures her deck.
+  Built with the KIT's lamps (round 15) and `M_Terrain`'s Medium path (312cb821, 19:47): the deck 9.2 -> 8.1 ms, the horde
+  8.5 -> 8.3; the 42-view tour mean 7.20 (the same 40 views 7.32 -> 7.17), over 8.3 only Aerial_Dusk 8.72, Aerial 8.71, Farm
+  8.61, PointOverValley 8.40 (were 9.36, 9.36, 8.58, 8.57). What is left and where: `Docs/Work/2026-11-04-Art/PERF.md`.
 - Small instanced scatter (meshes under 1.5 m radius) stays out of Lumen and the distance fields (`ULumenScatterSubsystem`):
   Ransom's Rest's ~66k grass/flower/pebble instances made Lumen's surface cache recapture ~6,900 tiny cards
   (`LumenSceneUpdate` 400+ ms, frames of 1.3 s alternating with normal ones, even standing still).
@@ -173,3 +177,7 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-11-04 | Art round 1 final (reworked Tripo hull): LMG 30 s into 10 Basic spiders | 3c85407f | 1920x1080 | 8.6 | 116 | 10.1 | 8.5 | 5.2 | 2.0 | 7.1 | 1631 | 1443430 | 4.67 |
 | 2026-11-04 | Art round 3: on the reworked barge's well deck (9 work lamps, kit props) | 527a6d5d | 1920x1080 | 9.2 | 108 | 9.9 | 4.2 | 9.2 | 1.7 | 8.0 | 1228 | 1760609 | 6.19 |
 | 2026-11-04 | Art round 3: 10 Basic spiders in town | 527a6d5d | 1920x1080 | 8.5 | 118 | 9.1 | 6.2 | 8.5 | 1.7 | 7.2 | 1911 | 2077555 | 4.14 |
+| 2026-11-04 | PERF round 2 (Medium 4x filtering, LODs 25% sooner) + KIT lamps r15 + M_Terrain Medium path: on the barge's well deck | 312cb821 | 1920x1080 | 8.1 | 123 | 8.7 | 4.6 | 8.1 | 1.8 | 6.8 | 1234 | 1532296 | 6.22 |
+| 2026-11-04 | PERF round 2 + KIT lamps r15 + M_Terrain Medium path: 10 Basic spiders in town | 312cb821 | 1920x1080 | 8.3 | 120 | 9.1 | 6.5 | 8.1 | 1.7 | 7.0 | 1918 | 2053139 | 4.17 |
+| 2026-11-04 | Art round 5: on the barge's well deck | 312cb821 | 1920x1080 | 8.2 | 122 | 9.0 | 5.4 | 8.2 | 2.1 | 6.9 | 1145 | 1454652 | 8.38 |
+| 2026-11-04 | Art round 5: 10 Basic spiders in town | 312cb821 | 1920x1080 | 8.8 | 113 | 10.5 | 7.6 | 7.8 | 2.0 | 7.3 | 1841 | 1934115 | 4.52 |

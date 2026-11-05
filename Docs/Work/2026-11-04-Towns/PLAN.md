@@ -379,3 +379,5 @@ pays back before it is committed: more shadowless pieces, shorter culls, more vi
 - D6 wheel tracks into the yards: **no**.
 - Also (perf, the same evening): 120 fps a hard line for every view; Medium's filtering 8x -> 4x and LODs 25% sooner (the user's
   yes), so step 0's savings come from the PERF lane's list first; Unreal Insights allowed to find the 1.2-1.6 ms gap.
+- Start (the user, 2026-11-04 night): **"Start now"**, alongside the sharpening round; first LIGHTS (the dusk bug, dim smog lamps)
+  and PROPS (the scripted clutter models); BUILDINGS, DRESSING and GROUND as lane slots free (at most 8 agents).

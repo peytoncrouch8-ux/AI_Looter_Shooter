@@ -51,3 +51,52 @@ TArray<FName> ALightingStates::GetStateNames() const
 	}
 	return Names;
 }
+
+// ---------------------------------------------------------------------------
+// How lit the town is in a state
+// ---------------------------------------------------------------------------
+
+namespace
+{
+	struct FStateKind
+	{
+		FName State;
+		ELightKind Kind;
+	};
+
+	/** Every lighting state the town lights itself for, by name (layout.json level.environment.states). Any other is Day. */
+	const TArray<FStateKind>& StateKinds()
+	{
+		static const TArray<FStateKind> Table = {
+			{ FName(TEXT("Day")), ELightKind::Day },
+			// The choked golden hour: the lamps lit dim against the smog (the user's call, 2026-11-04: dim lit).
+			{ FName(TEXT("Smog")), ELightKind::Gloom },
+			{ FName(TEXT("SmogThin")), ELightKind::Gloom },
+			{ FName(TEXT("Dusk")), ELightKind::Dusk },
+			// Mains 6-7 run it; the town's lamps are lit for the dusk it is, smog or not.
+			{ FName(TEXT("DuskSmog")), ELightKind::Dusk },
+		};
+		return Table;
+	}
+}
+
+ELightKind LightingStates::Kind(FName State)
+{
+	if (State.IsNone())
+	{
+		return ELightKind::Day;
+	}
+	// FName equality ignores case, as the console's state names do ("dusksmog").
+	const FStateKind* Found = StateKinds().FindByPredicate([State](const FStateKind& Each) { return Each.State == State; });
+	return Found ? Found->Kind : ELightKind::Day;
+}
+
+const TCHAR* LightingStates::KindName(ELightKind Kind)
+{
+	switch (Kind)
+	{
+	case ELightKind::Gloom: return TEXT("Gloom");
+	case ELightKind::Dusk: return TEXT("Dusk");
+	default: return TEXT("Day");
+	}
+}

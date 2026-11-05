@@ -2,11 +2,10 @@
 #include "Audio/LooterSoundCues.h"
 #include "Misc/Paths.h"
 #include "World/LightingStateSubsystem.h"
+#include "World/LightingStates.h"
 
 namespace
 {
-	const FName DuskName(TEXT("Dusk"));
-
 	FAmbienceSweetener Make(const TCHAR* Cue, float Weight, float MinGap, float MaxGap, float Cooldown, float MinMetres,
 		float MaxMetres, float MinUp, float MaxUp, bool bFlat = false)
 	{
@@ -89,7 +88,9 @@ ELooterAudioArea AmbienceRules::AreaForMap(const FString& MapName)
 
 bool AmbienceRules::IsDusk(FName LightingState)
 {
-	return LightingState == DuskName;
+	// Every dusk the light knows (Dusk, and Mains 6-7's DuskSmog), by the one helper the town's lights use: by name alone the
+	// story's smoky dusk played the day's sound bed (the LIGHTS lane, 2026-11-04).
+	return LightingStates::Kind(LightingState) == ELightKind::Dusk;
 }
 
 FAmbienceBed AmbienceRules::BedFor(ELooterAudioArea Area, FName LightingState)

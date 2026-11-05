@@ -127,10 +127,11 @@ PLATFORM_TOP = 40.0               # the depot platform's top (DepotPlatform_4m)
 
 # Dusk lights on the pieces that carry SOCKET_Light (VillageProps.py: the lamp post's lantern, 0.64 m out along its
 # front and 2.21 m up; FrontierClutter.py: the porch lantern's glass, about 0.29 m out and 0.18 m under its plate):
-# candelas by day and at dusk, reach (cm).
+# candelas by day and at dusk, in the smog's Gloom (Smog, SmogThin: the town lights its lamps against it, dim: AHouseLights'
+# GloomLamp; the user's call 2026-11-04, lamps under the smog dim lit), reach (cm).
 LIGHTS = {
-    'LampPost': dict(offset=(64.0, 0.0, 221.0), day=0.0, dusk=8.0, reach=650.0),
-    'PorchLantern': dict(offset=(29.0, 0.0, -18.0), day=0.0, dusk=4.0, reach=350.0),
+    'LampPost': dict(offset=(64.0, 0.0, 221.0), day=0.0, dusk=8.0, gloom=3.0, reach=650.0),
+    'PorchLantern': dict(offset=(29.0, 0.0, -18.0), day=0.0, dusk=4.0, gloom=2.0, reach=350.0),
 }
 
 # What build_area_dressing.PIECES needs for the existing kit's meshes this town brings into the level (its size as it
@@ -1659,7 +1660,7 @@ ABOUT = (
     "(Art/Models/Props/FrontierClutter.py, look sheet 42) waiting for approval, by mesh, with counts; deferredPieces: "
     "those pieces in full, at the spots they keep (make_town.py APPROVED moves a mesh's into pieces, unmoved). lights: "
     "the pieces that carry SOCKET_Light, lit at dusk (offset: the socket in the piece's frame, cm; candelas by day and "
-    "at dusk; reach cm; deferred with their piece). spots: the small animals' places (chickens in their yards, the "
+    "at dusk; gloom: candelas in the smog; reach cm; deferred with their piece). spots: the small animals' places (chickens in their yards, the "
     "porch cat), pending approval.")
 
 
@@ -1673,7 +1674,8 @@ def write(d, world, approved):
         if p.mesh in LIGHTS:
             spec = LIGHTS[p.mesh]
             entry = {'id': f'light_{p.id}', 'piece': p.id, 'socket': 'Light', 'offset': list(spec['offset']),
-                     'day': spec['day'], 'dusk': spec['dusk'], 'reach': spec['reach'], 'tags': ['Flicker']}
+                     'day': spec['day'], 'dusk': spec['dusk'], 'reach': spec['reach'], 'gloom': spec['gloom'],
+                     'tags': ['Flicker']}
             if p.deferred:
                 entry['deferred'] = True
             lights.append(entry)

@@ -4,6 +4,10 @@ Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
 ## START HERE (2026-11-04 evening, IN PROGRESS: art round 4 on CONTRACT.md "Round 4"; barge round 3 committed in 0c0750bf)
+**The user, 21:30:** their subscription ends on the 7th, and they will not renew unless these changes make the game better.
+Main's answer: judge by the game, not by reports: after the round 5 chain, a smoke-tested playtest build plus a one-page list of
+what changed and where to look (before/after shots), so a few minutes of play shows it; anything that plays worse is fixed or
+rolled back first. Nothing of Phase 3 or the art rounds has been played yet.
 **The user's calls this evening:** next "Sharper Tripo models" (REPACK lane); barge leftovers "Berth repetition, Plain stairs,
 Blurry house walls" (REWORK r5, REBAKE); perf "Alongside the next work" (PERF lane: the heavy views wait on last frame's
 occlusion queries, GPU + 1.2-1.4 ms; `r.NumBufferedOcclusionQueries 2` on test). From a grill round: playtest "Later this week"

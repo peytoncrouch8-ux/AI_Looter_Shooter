@@ -5,6 +5,7 @@
 #include "Audio/LooterSound.h"
 #include "World/HouseLights.h"
 #include "World/LightingStateSubsystem.h"
+#include "World/LightingStates.h"
 #include "World/WindowLifeCard.h"
 #include "World/WindowShutter.h"
 #include "Camera/PlayerCameraManager.h"
@@ -30,9 +31,6 @@ namespace
 
 	/** The sight line ends this far out in front of the window (cm), so the house's own wall never blocks it. */
 	constexpr float SightOut = 40.f;
-
-	/** The lighting state the lamps are lit for. */
-	const FName DuskState(TEXT("Dusk"));
 
 	/** One thing that may play: a kind at a house's lit window, or a shutter. */
 	struct FOption
@@ -180,8 +178,9 @@ void UWindowLifeSubsystem::Look()
 
 bool UWindowLifeSubsystem::IsDuskNow() const
 {
+	// Dusk and DuskSmog (Mains 6-7) are dusk; the smog's Gloom keeps the day's events (curtains, shutters).
 	const ULightingStateSubsystem* Lighting = ULightingStateSubsystem::Get(this);
-	return Lighting && Lighting->GetState() == DuskState;
+	return Lighting && LightingStates::Kind(Lighting->GetState()) == ELightKind::Dusk;
 }
 
 FObjectKey UWindowLifeSubsystem::HouseKeyOf(const AWindowShutter* Shutter) const

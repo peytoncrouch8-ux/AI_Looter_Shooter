@@ -19,10 +19,44 @@ Tripo hull (`BARGE_MEASURE.md`). This lane: the barge's C++ and tests. Route: **
   Not built.
 - **Round 12** (15:50): REWORK's round-4 hull: Barge 8/9 (`.Hull`'s deck heights); the zones re-plugged (below). Not built.
 - **Rounds 13-14** (17:00): the PIE walk's six fixes; the bigger deck fight (three pushes). Not built (below).
-- **Round 15** (19:15): the review's fixes and the perf lane's lights (below). Not built.
+- **Round 15** (19:15): the review's fixes and the perf lane's lights (below). Built by Main: Barge 8/11 (Round 16).
+- **Round 16** (20:30): `.Deck`'s horns, `.Fight`'s rope tops, `.Hall`'s ring, foot walk and rail checks (below). The
+  stern route's stop is the round-4 hull. Not built.
+- **Round 17** (21:00): hidden-until-started objectives for step 4's later pushes (below). Not built.
 - **Next**: Main's build, then `Looter.World.Barge.Kit`, `.Deck`, `.Hall`; `.Hull` after REWORK's round 4 (its lid, rail, coaming); PIE.
 - Round 6 supersedes everything below it on the house, the arena rectangle, the deck-level hall and office, and the spots;
   the berth math, the catwalk openings (round 5), the vents' clock and the dying/fall still hold. Rounds 2-5 are history.
+
+## Round 17 (21:00): the later pushes hidden until they start (the user: "Hide until it starts"); not built
+- `UMissionObjective::bHiddenUntilStarted` (Python `hidden_until_started`). Until `HasStarted`, the objective is off the tracker, the Missions page, the arrow, the highlight and the board's progress. `UMissionClearObjective`'s start: its spawner has spawned, is engaged or is cleared.
+- The start is latched in `FMissionObjectiveState::bStarted` (a reset fight keeps its line). The objective holds its step all along. With `pass_without_targets`, a missing spawner passes unseen.
+- `FMissionObjectiveView::bHidden`: the views stay side by side with the step's objectives (the highlight reads them by index).
+- **For Main:** `create_mission_assets.py`, Main 6's step 4: add `hidden_until_started=True` to the roof, tower and stern clear objectives. `objective()` passes it on through `set_editor_property`.
+- Test: `Looter.Missions.HiddenUntilStarted` (`Tests/MissionHiddenObjectiveTests.cpp`). The later fight stays hidden while the first runs and clears, and it holds the step. It shows on its first spawn, and the step ends once it's cleared. A push with no spawner passes hidden.
+
+## Round 16 (20:30): Main's Barge 8/11 after round 15; causes and fixes; not built
+- **`.Deck` horns:** the bow-most stood at x 4050, past `WellDeckFore` (4031). `HornSpots` x 3980, 3740, 3100, 2700. The rules check now also wants them a post's width apart (`2 * HornHalfWidth`) and `HornHalfWidth + WorkLampArm` off the rim's lamps (x 2400, 3550), and names the failing one.
+- **`.Fight` rope tops:** no hull face within 60 cm behind x 2262 at z 3190 at y -380 and 600 (y 0 had one). The upper storey's hull reaches x 2238 only at its foremost; Tripo's rounded top edge and sides stand back.
+  - `GetDropRopeTops` now finds each face on the hull. It traces from `DropTopOff` (60) in front of the rule's top to `DropFaceSearch` (300) behind it.
+  - The trace runs at the rule's height and 3 more heights 75 cm apart under it (`DropFaceTries` 4, `DropFaceStepDown`; down past where the spawner hangs him, 1.2 m under the top).
+  - The top hangs `DropTopOut` (45: his 36 cm body and a hand) off the foremost face found, at the rule's height. With no face found, the rule's top stays.
+  - Roof tops are now z 3150. The test checks the getter's tops (as the build script sets them) at the same heights and prints a top it finds no face by.
+  - **The level's roof and tower spawners must be re-set from the getter after the build.**
+- **`.Fight` stern route:** port stopped at (1500, -698), starboard at (1440, 780), both "in Hull". This is the round-4 hull in Content: `SM_DredgeBarge.uasset` was last written 15:31 and committed in 0c0750bf.
+  - Its layout (BARGE_LAYOUT.md as of 0c0750bf) shows exactly these: the -Y house walk had 144 headroom at x 1500; the +Y house walk was 130 wide at x 1375 (and had 29 headroom at x 700).
+  - REWORK's round-5 layout (committed in 312cb821) clears both walks: -Y 170 wide / 348 headroom at least, +Y 167 / 360. Importing round 5 should open the route. No kit change was needed.
+  - The route's radius is now the Dredger's 36 (was Shoulders + 5 = 35).
+- **`.Hall` ring (298 deg in Handrail15):**
+  - The rail's pawn boxes were straight, at the middle's span length (240 cm) on the 556 radius. Their ends stuck out to r 569 at each span's edge; the ring walk at r 600 left 28 cm for a 30 cm body.
+  - The boxes (and the rail looks) are now the span's length at the rail's radius (`RailSpanLength`, 206). Neighbours still overlap.
+  - The test's `RingWalk` is `CatwalkInner + 60` (610): 42 cm off the boxes' ends, 38+ off the desk's front (about 648).
+  - The first run ends 6 deg short of the stair's foot (was 4): at 4 deg the aft rail's foot was 32 cm off.
+  - The ring's stanchions now stand where two spans' rails cross (r 556 / cos 10 deg), not 9 cm inside them.
+- **`.Hall` off the foot (at (-649, -368) in OfficeDesk):** the walk went straight from the stair's foot (r 698, out by the wall) to the desk's aisle. It cut across the desk's fore corner (r 664 at 324 deg).
+  - It now turns in first: foot, then (ArcFoot - 8 deg, r 610), then (DeskAngle, r 610). That leg runs at y -306 on her, 86 cm from the corner and 50 from the stair rails' feet.
+- **`.Hall` rails:** the hatch stair's check traced at the stair's middle, exactly on the seam between rail pieces 4 and 5 (boxes only meeting).
+  - The pieces now overlap by `HatchRailOverlap` (2 cm) into their neighbours, not past the stair's ends.
+  - The check traces two fifths of the way down, inside a piece. The message names each failing span (angle, height) and stair side.
 
 ## Round 15 (19:15): the review's fixes, the perf lane's lights; not built
 - **The stern push** starts in the cross walk: `SternFightSpots` (-600, +-820), (-400, +-560), at least 250 apart. The stern deck lay past the Dredgers' LoseInterestRadius (80 m) from the forecastle. It still comes up both house walks behind the player.

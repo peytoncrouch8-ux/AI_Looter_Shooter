@@ -95,11 +95,22 @@ bool FBargeFightTest::RunTest(const FString& Parameters)
 	constexpr double DredgerRadius = 40.0;
 	constexpr double DredgerTall = 190.0;
 	FString Drops;
-	const auto CheckDrop = [&](const FDropRope& Rope, double FaceWay, double FloorZ)
+	// (Her getter's tops, as the build script sets the spawners': it finds each face on her hull.)
+	const TArray<FVector> RoofTops = Barge->GetDropRopeTops(ABargeBoarding::RoofFight);
+	const TArray<FVector> TowerTops = Barge->GetDropRopeTops(ABargeBoarding::TowerFight);
+	const auto CheckDrop = [&](const FDropRope& Rope, const FVector& Top, double FloorZ)
 	{
 		FHitResult Hit;
-		const FVector Top = Her.TransformPosition(Rope.Top);
-		const bool bFace = Barge->Hull && Barge->Hull->LineTraceComponent(Hit, Top, Top + FVector(FaceWay * DropTopOff, 0.0, 0.0), FCollisionQueryParams(SCENE_QUERY_STAT(BargeFightTest), false));
+		// Her face within DropTopOff behind the top, at its height or where he hangs under it.
+		const double FaceWay = DropFaceWay(Rope);
+		const FVector TopOnHer = Her.InverseTransformPosition(Top);
+		bool bFace = false;
+		for (int32 Try = 0; Barge->Hull && !bFace && Try < DropFaceTries; ++Try)
+		{
+			const FVector At = TopOnHer - FVector(0.0, 0.0, Try * DropFaceStepDown);
+			bFace = Barge->Hull->LineTraceComponent(Hit, Her.TransformPosition(At), Her.TransformPosition(At + FVector(FaceWay * DropTopOff, 0.0, 0.0)),
+				FCollisionQueryParams(SCENE_QUERY_STAT(BargeFightTest), false));
+		}
 		const bool bRope = !World->LineTraceTestByChannel(Top, Her.TransformPosition(Rope.Feet + FVector(0.0, 0.0, DredgerTall)), ECC_Visibility);
 		double Floor = 0.0;
 		const bool bFloor = FloorUnder(World, *Barge, Rope.Feet + FVector(0.0, 0.0, 120.0), Floor) && FMath::IsNearlyEqual(Floor, FloorZ, 5.0);
@@ -107,13 +118,14 @@ bool FBargeFightTest::RunTest(const FString& Parameters)
 		const bool bClear = CapsuleClear(World, *Barge, FVector(Rope.Feet.X, Rope.Feet.Y, bFloor ? Floor : FloorZ), DredgerRadius, DredgerTall, &Blocker);
 		if (!bFace || !bRope || !bFloor || !bClear)
 		{
-			Drops += FString::Printf(TEXT("(%.0f, %.0f):%s%s%s%s "), Rope.Feet.X, Rope.Feet.Y, bFace ? TEXT("") : TEXT(" no face by its top"),
+			const FString NoFace = bFace ? FString() : FString::Printf(TEXT(" no face by its top (%.0f, %.0f, %.0f)"), TopOnHer.X, TopOnHer.Y, TopOnHer.Z);
+			Drops += FString::Printf(TEXT("(%.0f, %.0f):%s%s%s%s "), Rope.Feet.X, Rope.Feet.Y, *NoFace,
 				bRope ? TEXT("") : TEXT(" the rope blocked"), bFloor ? TEXT("") : *(TEXT(" floor ") + FloorWhat(World, *Barge, Rope.Feet + FVector(0.0, 0.0, 120.0))),
 				bClear ? TEXT("") : *(TEXT(" in ") + Blocker));
 		}
 	};
-	for (const FDropRope& Rope : RoofDrops) { CheckDrop(Rope, -1.0, WellDeckZ); }
-	for (const FDropRope& Rope : TowerDrops) { CheckDrop(Rope, 1.0, ForecastleZ); }
+	for (int32 Index = 0; Index < RoofTops.Num(); ++Index) { CheckDrop(RoofDrops[Index], RoofTops[Index], WellDeckZ); }
+	for (int32 Index = 0; Index < TowerTops.Num(); ++Index) { CheckDrop(TowerDrops[Index], TowerTops[Index], ForecastleZ); }
 	TestTrue(FString::Printf(TEXT("The droppers' ropes by their faces and clear, their landings floored and clear (%s)"), *Drops), Drops.IsEmpty());
 	// The stern push's way: from the cross walk forward up each house walk to the well deck, a man's way the whole way (one
 	// search each side, from that side's first spot).
@@ -122,8 +134,9 @@ bool FBargeFightTest::RunTest(const FString& Parameters)
 	{
 		const FVector& From = SternFightSpots[Side < 0.0 ? 0 : 1];
 		FString Why;
+		// A Dredger's body (DredgerCreature.cpp: 36 cm round).
 		if (!RouteOpen(World, *Barge, FVector2D(From.X, From.Y), LaneAftX, Side < 0.0 ? -HullHalfBeam : 0.0, Side < 0.0 ? 0.0 : HullHalfBeam,
-			CrossWalkZ, Shoulders + 5.0, &Why))
+			CrossWalkZ, 36.0, &Why))
 		{
 			Route += FString::Printf(TEXT("%s: %s; "), Side < 0.0 ? TEXT("port") : TEXT("starboard"), *Why);
 		}

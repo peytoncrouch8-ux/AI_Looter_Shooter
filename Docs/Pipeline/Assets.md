@@ -52,7 +52,11 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
      places' patterns read only within 30-40 m (their mean mip past it); the side-laid rock and strata noise only where a
      face can be steep (983 PS, 13 samplers, 6 graph samples). Editor view at 8x filtering, the Aerial: terrain 1.20 -> 0.75 ms
      of base pass; the valley -0.1 ms. The custom nodes' own reads use `View.MaterialTextureBilinearWrapedSampler` (each
-     texture object's own sampler took a slot: 17).
+     texture object's own sampler took a slot: 17). `FarGround` (static, round 7): the Beyond ring drawn from the macro map
+     alone at the layers' far brightness with the steep faces' tint and banding (260 PS, 3 samplers, 1 read; reads the
+     same at High at range, so every quality). It is on `MI_RansomsRestRingMacro_Steep` (the ring's actors wear it through
+     level.swaps; build_area never clears it, the ring's re-import clears only its parent); `FAR_GROUND_INSTANCES`, set by
+     every M_Terrain build and by `build_world_materials.py TerrainFar` (run that if the _Steep instance is ever remade).
      One Custom node does it all (`Leaned` an additional output). On, object space: 442 PS, 8 samplers, 6 interpolator
      scalars; DetailWorld: 340 VS, 450 PS, 9 interpolators (the frame worked out per vertex: per pixel it cost ~0.1 ms
      more). Editor viewport (Epic, 1885x866), BasePass: barge filling the view +0.09-0.12 ms (round 1); a kit wall filling
@@ -224,10 +228,38 @@ Rules that saved time:
    - Left: her own `UCX_` boxes stay swollen but are unused (her Hull has NoCollision); no collision on her forecastle stair, the ring forward of the console, the overhead spars; Junie's launchers (`PilotSortieFight.cpp`) stand where the deck is 17
      cm under `DeckTop`; the tender's `LauncherSpots` float 30-130 cm over its hull; `LamplighterShipParts.cpp` is 556 lines and `looter_tripo_collision.py` 888 (over ~500).
 
+15. Tripo atlases repacked (2026-11-04, the REPACK lane; the audit's plan row 5; numbers and what each model gained:
+   `Docs/Work/2026-11-04-Art/REPACK.md`). `Tools/Blender/looter_tripo_repack.py` re-places a fitted model's UV islands (Tripo's
+   own, seams kept) to fill more of the square and re-cuts its BC, ORM and N from the GLB's 4096 maps onto them; the visible
+   mesh is untouched. Rules learnt:
+   - Tripo's atlases are already packed by a raster packer as good as ours (their 36-66% use is island shapes and gaps):
+     space is won only where the game mesh drops faces from the atlas (cuts, faces moved to other slots). So the step keeps
+     Tripo's layout unless the new one holds 1.05x its UV area (`MIN_GAIN`), and never leaves an island less dense than it was
+     (the floor: evened out freely, 28% of the farmhouse came out softer). Blender's own packer lost to Tripo's (0.35-0.47 vs
+     0.58 on Abel's hat).
+   - Re-cut by an exact UV-to-UV box filter (k x k point taps over each texel's footprint): bilinear taps came out softer than
+     Tripo's old 2:1 shrink. Normals re-encoded in the new MikkTSpace frames (a scratch mesh of the loop triangles: n-gons OK).
+   - A soft source can't be sharpened by a re-cut: check the survey's "lost at map size" first
+     (`Toolsrtrun.ps1 -Script Tools\Blender	ripo_repack_check.py -ScriptArgs survey`). Lamplighter 0.8%, Unpaid 0.2%, tender 1.0%
+     at 2K: rebake those in our sets instead.
+   - Hooks: `repack=True` (Wardens SPECS), `repack_after=True` (m23/m47 BASE: after their fit), `swap(repack=True)` (buildings:
+     after the retexture), the build's `sets` (own_set: faces onto a texture set of their own). `LOOTER_TRIPO_REPACK=0` gives the
+     old layout (before/after). Repacked today: SM_Farmhouse_Ransom, SM_Cottage_Ransom, SM_Barn_Ransom, SM_CompanyCheckpointSign,
+     SM_CompanySandbags. The pack is cached in `Intermediate/TripoRepack`; the re-cut adds ~1-2 min a model to an export.
+   - Before/after: `tripo_repack_check.py -ScriptArgs model,<kind>:<Name>` (kinds wardens, m23, m47, building) renders the same
+     camera at 1, 3, 10 m with `LOOTER_TRIPO_REPACK=0` and on into `Saved/ArtPreviews/Repack/`.
+   - `lt.write_png` and `looter_tripo._save_colour` retry Windows' transient OSError 22/13 (`lt.retry_write`): a PNG rewritten a
+     second after it was written (write_maps, write_set + grade) is often still mapped by another process, likely the virus
+     scanner; 5 of 13 Tripo builds failed so before the retry.
+
 - Exports must be repeatable. Never iterate BMesh sets (their order changes between runs). Export twice and compare; only FBX IDs
   and time stamps may differ.
 - Faces without UV area give tangent warnings; `Tools/Blender/tangentcheck.py` predicts them.
 - Terrain meshes keep 100% Nanite fallback. Medium draws the fallback and collision is cooked from it.
+- A Nanite mesh with UCX hulls may cut its fallback (Medium has no LOD chain on Nanite: the fallback at every distance), but
+  complex traces (bullets, spiders climbing) still use it. The cliff faces: 12% (was 25%, 2026-11-04; `Cliffs.py` FALLBACK,
+  checked with `Tools/Blender/cliff_fallback_sheet.py`: Decimate stands in for Nanite's cut, its UVs projected again or it
+  smears the texture where Nanite wouldn't).
 - A variant of a model (Farmhouse_Ransom) goes in the same script, with the original exported byte-identical.
 - A prop whose pieces the game hides is several models on one pivot in the same script (the porch plate: plate, jars,
   biscuits).

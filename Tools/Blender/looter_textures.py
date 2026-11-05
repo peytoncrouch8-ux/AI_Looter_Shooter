@@ -1400,11 +1400,27 @@ def write_png(path, data):
         return struct.pack('>I', len(body)) + tag + body + struct.pack('>I', zlib.crc32(tag + body) & 0xFFFFFFFF)
     color_type = {1: 0, 2: 4, 3: 2, 4: 6}[c]
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'wb') as file:
-        file.write(b'\x89PNG\r\n\x1a\n')
-        file.write(chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, color_type, 0, 0, 0)))
-        file.write(chunk(b'IDAT', zlib.compress(rows.tobytes(), 6)))
-        file.write(chunk(b'IEND', b''))
+    body = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, color_type, 0, 0, 0))
+            + chunk(b'IDAT', zlib.compress(rows.tobytes(), 6)) + chunk(b'IEND', b''))
+    def write():
+        with open(path, 'wb') as file:
+            file.write(body)
+    retry_write(write, path)
+
+
+def retry_write(write, path, tries=8, wait=0.5):
+    """write() again while Windows refuses the file for a moment (2026-11-04: OSError 22 on PNGs rewritten a second
+    after they were first written, five of thirteen Tripo builds: another process, likely the virus scanner, holds the
+    fresh file mapped), waiting wait, 2 x wait, ... seconds; the last failure is raised."""
+    import time
+    for k in range(tries):
+        try:
+            return write()
+        except (OSError, RuntimeError) as e:
+            if k == tries - 1 or (isinstance(e, OSError) and e.errno not in (13, 22)):
+                raise
+            _log(f'retrying {os.path.basename(path)} ({e})')
+            time.sleep(wait * (2 ** k))
 
 
 def fill_transparent(color, alpha, threshold=0.5):

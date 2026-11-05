@@ -41,6 +41,10 @@ VEGETATION = '/Game/Art/Vegetation'
 ROCKS = '/Game/Art/Rocks'
 # Beyond this distance (cm) foliage stops swaying (saves vertex work far away).
 WIND_DISTANCE = 4000
+# The tag on scatter whose shadow is High and Epic's only (the shrubs: sagebrush, rabbitbrush, bushes; the user's pick of
+# 2026-11-04, about -0.1 ms at the Farm on Medium). The game switches the tagged components' shadows off on Low and Medium
+# (Docs/Work/2026-11-04-Art/LODS.md: the code it needs). The junipers keep theirs (small trees, with trunk hulls).
+SHADOW_HIGH_ONLY = 'ShadowHighOnly'
 
 CHANNELS = {'R': unreal.PCGTextureColorChannel.RED, 'G': unreal.PCGTextureColorChannel.GREEN,
             'B': unreal.PCGTextureColorChannel.BLUE, 'A': unreal.PCGTextureColorChannel.ALPHA}
@@ -351,7 +355,10 @@ def overrides(asset):
     return swapped if any(a is not b for a, b in zip(swapped, worn)) else None
 
 
-def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=False, wind=True, tree=False, material=None):
+def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=False, wind=True, tree=False, material=None,
+          medium_shadow=True):
+    """medium_shadow False (with shadow): the shadow is High and Epic's only; the component is tagged SHADOW_HIGH_ONLY
+    for the game to switch it off on Low and Medium (Docs/Work/2026-11-04-Art/LODS.md)."""
     d = unreal.PCGSoftISMComponentDescriptor()
     d.set_editor_property('static_mesh', asset)
     # The area's look on the scattered meshes as on the placed ones: a slot wearing a shared material the area swaps
@@ -376,9 +383,14 @@ def entry(asset, weight, cull, collide=False, shadow=False, density_scaling=Fals
     if wind:
         d.set_editor_property('world_position_offset_disable_distance', WIND_DISTANCE)
     d.set_editor_property('can_ever_affect_navigation', collide)
+    tags = []
     if tree:
         # The minimap draws a crown for every component tagged Tree.
-        d.set_editor_property('component_tags', [unreal.Name('Tree')])
+        tags.append(unreal.Name('Tree'))
+    if shadow and not medium_shadow:
+        tags.append(unreal.Name(SHADOW_HIGH_ONLY))
+    if tags:
+        d.set_editor_property('component_tags', tags)
     e = unreal.PCGMeshSelectorWeightedEntry()
     e.set_editor_property('descriptor', d)
     e.set_editor_property('weight', weight)
@@ -696,7 +708,8 @@ def build_graph(area, mask, scrub_mask=None, places_mask=None):
 
     # Bushes at the forest's edges and in its gaps, and a few out in the meadow.
     bushes, y = s.layer('Bushes', 420.0, 'R', 0.1)
-    s.spawn(bushes, 'Bushes', 11, y, mix(BUSHES, 9000, shadow=True), scale=(0.75, 1.25), sink=5.0)
+    s.spawn(bushes, 'Bushes', 11, y, mix(BUSHES, 9000, shadow=True, medium_shadow=False), scale=(0.75, 1.25),
+            sink=5.0)
 
     # Under the trees: ferns, with stumps and fallen logs.
     floor, y = s.layer('Forest floor', 260.0, 'R', 0.3)
@@ -799,21 +812,25 @@ def scrub_layers(s, veg, area, pines=None, thin=()):
                                                                                shadow=True),
                                (0.85, 1.3), CREST_TURN, sink=SCRUB_SINK, clear=True, ray=area.ray))
     rabbit, y = mask_layer('rabbitbrush', 'Rabbitbrush', list(placed))
-    placed.append(s.spawn(rabbit, 'Rabbitbrush', 11, y, entries(RABBITBRUSH_MESHES, shadow=True), scale=(0.8, 1.25),
+    placed.append(s.spawn(rabbit, 'Rabbitbrush', 11, y, entries(RABBITBRUSH_MESHES, shadow=True, medium_shadow=False),
+                          scale=(0.8, 1.25),
                           sink=SCRUB_SINK))
     # A fifth of the sage in tight groups (the computed points), the rest from the mask keeping off them: one spawner.
     grouped = listed('Sage groups', scrub['sageGroups'], avoid=list(placed), bounds=SAGE_GROUP_CLEAR)[0] \
         if scrub.get('sageGroups') else None
     sage, y = mask_layer('sage', 'Sagebrush', list(placed) + ([grouped] if grouped else []))
     placed.append(s.spawn(s.merged('Sagebrush: all', [sage] + ([grouped] if grouped else []), y), 'Sagebrush', 11, y,
-                          entries(SAGE_MESHES, shadow=True), scale=SAGE_SCALE, sink=SCRUB_SINK))
+                          entries(SAGE_MESHES, shadow=True, medium_shadow=False), scale=SAGE_SCALE,
+                          sink=SCRUB_SINK))
     if 'bigSage' in layers:
         big, y = mask_layer('bigSage', 'Big sagebrush', list(placed))
-        placed.append(s.spawn(big, 'Big sagebrush', 11, y, entries(BIG_SAGE_MESHES, shadow=True), scale=BIG_SAGE_SCALE,
+        placed.append(s.spawn(big, 'Big sagebrush', 11, y, entries(BIG_SAGE_MESHES, shadow=True, medium_shadow=False),
+                              scale=BIG_SAGE_SCALE,
                               sink=SCRUB_SINK))
     if scrub.get('pitSage'):
         pit_sage, y = listed('Pit sage', scrub['pitSage'])
-        placed.append(s.spawn(pit_sage, 'Pit sage', 11, y, entries(PIT_SAGE_MESHES, shadow=True), scale=(0.8, 1.25),
+        placed.append(s.spawn(pit_sage, 'Pit sage', 11, y, entries(PIT_SAGE_MESHES, shadow=True, medium_shadow=False),
+                              scale=(0.8, 1.25),
                               sink=SCRUB_SINK))
     tufts, y = mask_layer('tufts', 'Dry tufts', list(placed), dressing='solid', thin=thin)
     s.spawn(tufts, 'Dry tufts', 11, y, entries(DRY_TUFT_MESHES, density_scaling=True), scale=(0.8, 1.25),

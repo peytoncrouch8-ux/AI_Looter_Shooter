@@ -110,6 +110,12 @@ void UMissionRunner::ForEachRunningObjective(TFunctionRef<bool(const UMissionObj
 			{
 				bChanged = true;
 			}
+			// One hidden until it starts comes onto the display as its thing begins (before it's taken as done, so a fight
+			// over at once is still noted as begun).
+			if (Objective->NoteStarted(Context, State))
+			{
+				bChanged = true;
+			}
 			if (RefreshDone(*Objective, Context, State))
 			{
 				bChanged = true;
@@ -259,7 +265,8 @@ void UMissionRunner::SyncDisplay()
 			const UMissionObjective* Objective = Mission->GetObjective(Run.Step, Index);
 			const FMissionObjectiveState& State = Run.States[Index];
 			// Optional ones go under the line (FillOptionalParts), never on it or on the arrow: the step goes on without them.
-			if (!Objective || State.bDone || Objective->bOptional)
+			// One hidden until it starts isn't on either until it has (it still holds the step).
+			if (!Objective || State.bDone || Objective->bOptional || !Objective->IsShown(State))
 			{
 				continue;
 			}

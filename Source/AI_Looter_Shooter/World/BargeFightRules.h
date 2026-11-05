@@ -47,9 +47,11 @@ namespace BargeRules
 	/**
 	 * A dropper's rope (her frame): its top, where he appears and hangs (a hand off the face he comes over, under its top),
 	 * and his feet's spot, where he lands (the spawner's spot; his rope's turn is his spot's). The roof's: off the house's
-	 * fore face (its upper storey's hull to x 2238, its roof at 3200) down to the well deck's aft half, slanted out over the
-	 * horns, the vent and the stack. The tower's: off the bow scoop's aft face (its hull from x 5090, its top 3129) down onto
-	 * the forecastle's fore end either side of the winch and the barrels.
+	 * fore face (its upper storey's hull to x 2238 at its foremost, z 2701..3200) down to the well deck's aft half, slanted
+	 * out over the vent and the stack. The tower's: off the bow scoop's aft face (its hull from x 5090, its top 3129) down
+	 * onto the forecastle's fore end either side of the winch and the barrels. A top here is where her getter starts looking
+	 * for its face (ABargeBoarding::GetDropRopeTops: the Fight test found none 60 cm behind x 2262 at z 3190 at y -380 and
+	 * 600, the hull's upper storey rounded at its top and sides).
 	 */
 	struct FDropRope
 	{
@@ -57,16 +59,28 @@ namespace BargeRules
 		FVector Feet;
 	};
 	inline const FDropRope RoofDrops[] = {
-		{ FVector(2262.0, -380.0, 3190.0), FVector(2880.0, -350.0, WellDeckZ) },
-		{ FVector(2262.0, 0.0, 3190.0), FVector(2660.0, -80.0, WellDeckZ) },
-		{ FVector(2262.0, 600.0, 3190.0), FVector(2800.0, 560.0, WellDeckZ) },
+		{ FVector(2262.0, -380.0, 3150.0), FVector(2880.0, -350.0, WellDeckZ) },
+		{ FVector(2262.0, 0.0, 3150.0), FVector(2660.0, -80.0, WellDeckZ) },
+		{ FVector(2262.0, 600.0, 3150.0), FVector(2800.0, 560.0, WellDeckZ) },
 	};
 	inline const FDropRope TowerDrops[] = {
 		{ FVector(5070.0, -250.0, 3100.0), FVector(4960.0, -300.0, ForecastleZ) },
 		{ FVector(5070.0, 250.0, 3100.0), FVector(4960.0, 280.0, ForecastleZ) },
 	};
-	/** How far out of the face a rope's top hangs (the tests find the face that close behind it). */
+	/**
+	 * A rope's top hangs DropTopOut off the face its man comes over (a Dredger's 36 cm body and a hand: he hangs clear of
+	 * it); the tests find the face within DropTopOff behind it. Her getter looks for the face from DropTopOff in front of
+	 * the rule's top to DropFaceSearch behind it, at the rule's height and DropFaceTries - 1 more heights DropFaceStepDown
+	 * apart under it (down past where he hangs: the spawner hangs him 1.2 m under the top), and hangs the top off the
+	 * foremost it finds (a face's top edge may be rounded back), at the rule's height (none found: the rule's top).
+	 */
+	inline constexpr float DropTopOut = 45.f;
 	inline constexpr float DropTopOff = 60.f;
+	inline constexpr float DropFaceSearch = 300.f;
+	inline constexpr float DropFaceStepDown = 75.f;
+	inline constexpr int32 DropFaceTries = 4;
+	/** The way along her from a rope's top to its face: the house's toward her stern (-1), the scoop's toward her bow (1). */
+	inline double DropFaceWay(const FDropRope& Rope) { return Rope.Top.X < Rope.Feet.X ? -1.0 : 1.0; }
 
 	/** The third push's spots (BargeDeckStern) in the cross walk either side of the hatch, each at least the spawner's
 	 *  Spacing (250) from the next, off the coaming and the restart: two at its aft corners, two by the house's walks. */
@@ -77,15 +91,16 @@ namespace BargeRules
 	 * The Company's horns (ACompanyLoudspeaker posts, the user's Tripo post: 4 m, 2.1 m across, its horns toward its +X;
 	 * the build script attaches one at each), off every lane the player runs (the PIE walk, 2026-11-04: on the well deck
 	 * they left only a knife-edge to the walks): all four on the starboard bulwark's rim facing in (the port rim is the
-	 * Lamplighter's side; against the house they met the gantry and the stack), clear of the rim's work lamps, the bow-most
-	 * first (Vane's deck cue is the first's). Each: its foot, its yaw (her frame).
+	 * Lamplighter's side; against the house they met the gantry and the stack), clear of the rim's work lamps (x 2400, 3550)
+	 * and of each other (HornHalfWidth), every foot on the well deck's rim (aft of WellDeckFore), the bow-most first (Vane's
+	 * deck cue is the first's). Each: its foot, its yaw (her frame).
 	 */
 	struct FHornSpot
 	{
 		FVector At;
 		float Yaw;
 	};
-	inline const FHornSpot HornSpots[] = { { FVector(4050.0, 792.0, WellDeckZ + RailHeight), -90.f }, { FVector(3800.0, 792.0, WellDeckZ + RailHeight), -90.f },
+	inline const FHornSpot HornSpots[] = { { FVector(3980.0, 792.0, WellDeckZ + RailHeight), -90.f }, { FVector(3740.0, 792.0, WellDeckZ + RailHeight), -90.f },
 		{ FVector(3100.0, 792.0, WellDeckZ + RailHeight), -90.f }, { FVector(2700.0, 792.0, WellDeckZ + RailHeight), -90.f } };
 	/** Half a horn post's width across its horns (the model's 211 cm). */
 	inline constexpr float HornHalfWidth = 110.f;
