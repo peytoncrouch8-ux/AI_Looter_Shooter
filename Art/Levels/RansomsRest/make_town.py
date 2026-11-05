@@ -1563,6 +1563,12 @@ class Placer:
         # Everything placed already: a walk's pieces join one another and the awnings stand over them; what stands on a
         # walk or a porch keeps off the other pieces there and the awnings' posts; a piece and what rests on it touch.
         ring = getattr(piece, 'ring_of', None)
+        gap = town_rules.spacing_of(piece.mesh) if rule else 0.0
+        if gap:
+            # Never a merged vignette or a stack near its twin (town_rules.SPACING).
+            for o in self.placed:
+                if o.mesh == piece.mesh and o is not piece and math.hypot(o.x - x, o.y - y) < gap:
+                    return f'{o.id}, its twin, within {gap / 100.0:.0f} m', None
         for o in self.near(box, 300.0):
             if o is piece or o.mount in ('wall', 'air') or piece.on is o or o.on is piece or o is ring:
                 continue
@@ -2100,6 +2106,8 @@ def rules_report(d, world, placer, pieces):
     if r.refused:
         print('rules: not chosen or breakable, left out: ' + ', '.join(f'{m} {n}' for m, n in
                                                                       sorted(Counter(r.refused).items())))
+    for line in r.unfit_why:
+        print('rules: unfit, left out: ' + line)
     new_types = sorted({p['mesh'] for p in pieces} & (set(town_rules.KIT) | set(town_rules.WALK_VARIANTS)))
     print(f'rules: {len(new_types)} new mesh types in the town (cap {town_rules.TYPE_CAP}): ' + ', '.join(new_types))
     print(f'rules: moved to their next spot {len(placer.moved)}; ground cover dropped: '

@@ -6,6 +6,15 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 Each line: bug (date). Cause. Fix.
 
+- OPEN: the barge's starboard walk is blocked in the game but open in Blender's route check (2026-11-05, Looter.World.Barge.Fight
+  "starboard: got to x 1560; past it at (1590, 750): in Hull", identical on hulls 5, 5b and 5c; port open). Not the fix tried:
+  REWORK's low hulls narrowed (FOOT_MEDIAN) and every UCX proven convex (the check builds each UCX's convex hull, as Unreal's
+  one-hull-per-UCX import does): unchanged. A read-only editor probe tracing her Hull alone (`line_trace_component`,
+  `sphere_overlap_component`; a world trace hits the PCG scatter VOLUME instead; Unreal's Python can't read `KConvexElem`
+  vertices) saw sphere overlaps from floor+105 up across the walk at x 1590-1620 but a swept body along y 750 met nothing:
+  the overlap call may test complex (render) collision. Next: trace the test's own sweep in C++ and print the hit's element
+  index and its convex's bounds (scratchpad bargeprobe.py has the cross-section). Two failed fixes: the user decides.
+
 - Tripo builds failed writing a PNG a second after writing it (2026-11-04: 5 of 13, `OSError [Errno 22] Invalid argument`, once
   in Blender's own `save_render`). Cause: Windows reports a file still mapped by another reader (most likely the virus scanner
   opening the fresh PNG) as errno 22 on open-for-write; `write_maps` and `write_set`+grade write then rewrite. Fix:

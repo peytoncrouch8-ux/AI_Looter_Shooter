@@ -104,6 +104,7 @@ def measure(obj):
            f'{sum(len(p.vertices) - 2 for p in obj.data.polygons)}.', '']
     well = _well(r, bm, out)
     _walks(r, bm, out, well)
+    _convex(out)
     _route(out)
     bm.free()
     _cross(r, out)
@@ -270,6 +271,14 @@ def _walks(r, bm, out, well):
     out.append('')
 
 
+def _convex(out):
+    """Every UCX convex (the import makes one convex hull of each: a hollow one blocks what it seems to leave open)."""
+    _hulls()
+    out += ['## Collision convex', '', f'- {len(_HULLS)} UCX, ' + (', '.join(
+        f'{n} {share * 100:.0f}% of its hull' for n, share in _CONCAVE) if _CONCAVE else 'every one convex') + '.', '']
+    FAILS.extend(f'UCX {n} not convex ({share * 100:.0f}% of its hull)' for n, share in _CONCAVE)
+
+
 def _route(out):
     """The stern push's way up each side walk to the well deck, as Looter.World.Barge.Fight walks it (its cells, its
     Dredger, on the UCX hulls): the script fails where it is shut."""
@@ -372,26 +381,43 @@ def _hall(r, obj, out):
 
 
 _HULLS = []
+_CONCAVE = []
 FAILS = []
+CONVEX_SLACK = 0.01           # a UCX's own volume this far short of its convex hull's: Unreal's import would fill it
 
 
 def _hulls():
-    """Each UCX hull as (name, its bounds' low and high corners, its outward planes, a tree of its faces), made once
-    per measure()."""
+    """Each UCX as Unreal takes it (the import makes one convex hull of each UCX mesh): (name, its bounds' low and high
+    corners, its hull's outward planes, a tree of its hull's faces), made once per measure(). A UCX whose own volume
+    falls short of its hull's by more than CONVEX_SLACK is noted in _CONCAVE (Unreal would fill it in)."""
     if not _HULLS:
+        _CONCAVE.clear()
         for name, _, _, ob in barge.UCX:
-            M = ob.matrix_local
-            verts = [M @ v.co for v in ob.data.vertices]
+            own = bmesh.new()
+            own.from_mesh(ob.data)
+            own.transform(ob.matrix_local)
+            hull = bmesh.new()
+            for v in own.verts:
+                hull.verts.new(v.co)
+            made = bmesh.ops.convex_hull(hull, input=list(hull.verts))
+            for g in made.get('geom_interior', []) + made.get('geom_unused', []):
+                if isinstance(g, bmesh.types.BMVert) and g.is_valid:
+                    hull.verts.remove(g)
+            hull.normal_update()
+            hull.verts.index_update()
+            whole, mine = hull.calc_volume(), (own.calc_volume() if own.faces else 0.0)
+            if whole > 0.0 and abs(mine) < whole * (1.0 - CONVEX_SLACK):
+                _CONCAVE.append((name, abs(mine) / whole))
+            verts = [v.co.copy() for v in hull.verts]
+            polys = [tuple(v.index for v in f.verts) for f in hull.faces]
             c = sum(verts, Vector()) / len(verts)
-            planes = []
-            for poly in ob.data.polygons:
-                n = (M.to_3x3() @ poly.normal).normalized()
-                q = verts[poly.vertices[0]]
-                planes.append((n if n.dot(q - c) >= 0.0 else -n, q))
+            planes = [(f.normal.copy() if f.normal.dot(f.verts[0].co - c) >= 0.0 else -f.normal, f.verts[0].co.copy())
+                      for f in hull.faces]
+            own.free()
+            hull.free()
             lo = Vector([min(v[i] for v in verts) for i in range(3)])
             hi = Vector([max(v[i] for v in verts) for i in range(3)])
-            tree = BVHTree.FromPolygons(verts, [tuple(p.vertices) for p in ob.data.polygons])
-            _HULLS.append((name, lo, hi, planes, tree))
+            _HULLS.append((name, lo, hi, planes, BVHTree.FromPolygons(verts, polys)))
     return _HULLS
 
 

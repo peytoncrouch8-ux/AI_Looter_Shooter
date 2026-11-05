@@ -166,6 +166,30 @@ FRAMES = {
         doors=[(250.0, 0.0, 1.0, 0.0, 160.0, 200.0), (-540.0, 0.0, -1.0, 0.0, 160.0, 220.0)]),
     # The L house (home_i: the main block 8 x 4.8 m, the gabled wing 3 m wide out 3 m to the front, a porch in the crook at
     # 0.45 m, its corner post fallen in the grass before it; the back door boarded).
+    # The BUILDINGS lane's (2026-11-05, Docs/Work/2026-11-04-Towns/BUILDINGS.md "walls" and "bounds"): the body from the
+    # walls, a porch, stoop or dock from the bounds in front of it (its floor taken at 0.45 m where the table gives none).
+    'RR_Smithy_Town': dict(     # open front: the whole front is its way in
+        walls=[(-700.0, 5.0, -450.0, 450.0)], doors=[(5.0, 0.0, 1.0, 0.0, 800.0, 250.0)]),
+    'RR_Bathhouse': dict(       # the boiler and its firebox roof on its left (Blender +x: Unreal -Y) side
+        walls=[(-500.0, 5.0, -300.0, 300.0), (-450.0, -50.0, -500.0, -300.0)], doors=[(5.0, 0.0, 1.0, 0.0, 110.0, 200.0)]),
+    'RR_FeedStore': dict(       # the 1.0 m dock 2.5 m deep, its steps on the right
+        walls=[(-1000.0, 5.0, -350.0, 350.0)], decks=[((0.0, 250.0, -350.0, 350.0), 100.0)],
+        steps=[(250.0, 369.0, -350.0, -200.0)], doors=[(250.0, 0.0, 1.0, 0.0, 200.0, 200.0)]),
+    'RR_BoardingHouse': dict(   # the outside stair up the right gable (keep 1.4 m clear there)
+        walls=[(-800.0, 5.0, -550.0, 550.0), (-700.0, -73.0, -685.0, -550.0)],
+        decks=[((0.0, 230.0, -550.0, 550.0), 45.0)], doors=[(230.0, 0.0, 1.0, 0.0, 120.0, 220.0)]),
+    'RR_Home_K': dict(walls=[(-600.0, 5.0, -420.0, 420.0)], decks=[((0.0, 245.0, -460.0, 460.0), 45.0)],
+                      doors=[(245.0, 0.0, 1.0, 0.0, 110.0, 200.0)]),
+    'RR_Home_L': dict(walls=[(-740.0, 5.0, -134.0, 306.0)], steps=[(0.0, 175.0, -70.0, 70.0)],
+                      doors=[(175.0, 0.0, 1.0, 0.0, 100.0, 150.0)]),
+    'RR_Home_M': dict(walls=[(-560.0, 5.0, -460.0, 460.0)], decks=[((0.0, 245.0, -260.0, 260.0), 45.0)],
+                      doors=[(245.0, 0.0, 1.0, 0.0, 110.0, 200.0)]),
+    'RR_Home_N': dict(walls=[(-500.0, 5.0, -310.0, 310.0), (-720.0, -500.0, -310.0, 310.0)],
+                      decks=[((0.0, 200.0, -150.0, 150.0), 45.0)], doors=[(200.0, 0.0, 1.0, 0.0, 110.0, 200.0)]),
+    'RR_Home_O': dict(walls=[(-760.0, 5.0, -392.0, 108.0)], decks=[((0.0, 235.0, -443.0, 158.0), 45.0)],
+                      doors=[(235.0, 0.0, 1.0, 0.0, 110.0, 200.0)]),
+    'RR_Home_P': dict(walls=[(-500.0, 5.0, -562.0, 238.0)], decks=[((0.0, 210.0, -150.0, 150.0), 45.0)],
+                      doors=[(210.0, 0.0, 1.0, 0.0, 110.0, 200.0)]),
     'RR_Home_I': dict(
         walls=[(-485.0, 5.0, -565.0, 245.0), (0.0, 305.0, -525.0, -215.0)],
         decks=[((0.0, 190.0, -215.0, 245.0), 45.0)],
@@ -256,11 +280,32 @@ SKIP = {
     ('cottageNorthEast', 'front', 'PorchChair'), ('cottageNorthEast', 'front', 'Washtub'),   # the Mercers' likewise
     ('cottageSouth', 'front', 'Vignette_PorchEmpty_A'),   # the manager's porch keeps its rocker and crate
     ('cabinNorth', 'side', 'Vignette_Alley_A'),            # the hotel's sides: the saloon's balcony end, the lamp gap
+    ('cabinSouth', 'side', 'Vignette_Alley_A'),            # the store's across Pen Lane's mouth is the one there (SPACING);
+                                                            # its next spot, the barber's west wall, is in the Farm view
     ('cabinNorthWest', 'side', 'Vignette_Alley_A'),   # the assay's west side is the gate fight's ground
     ('cabinNorthWest', 'back', 'FallenBoards_A'),
     ('homeB', 'back', 'FirewoodStack'), ('homeB', 'back', 'ChoppingBlock'),
     ('homeB', 'back', 'LaundryLine'),                       # the dogtrot's yard is by hand (the stock pens behind it)
 }
+
+# Round 2 (2026-11-05, the PIE check DEMO2.md):
+# - SPACING: no merged vignette within 15 m of another of itself (two of one cluster facing each other across Pen Lane read
+#   copy-pasted), no stack within 6 m of its twin.
+# - Crossings only over ruts or mud: on a dirt road's bed (wagon ruts: the road term's, or Main Street's own dust ruts),
+#   or within CROSSING_WET of water spilt on the ground (a trough, a pump, a well: the wear term's wet). A path has one
+#   trodden line, no ruts to bridge (the plank crossing on Pen Lane read as a dropped pallet).
+# - Stacks (crates, barrels) only where someone stacked them: within STACK_ANCHOR of an open store's or a yard's wall, of
+#   a wagon or cart (unloading), or of a back lot's yard group (the east end's pile stood in open street, no door behind).
+SPACING = {'Vignette_': 1500.0, 'CrateStack_': 600.0, 'BarrelStack_': 600.0}
+CROSSINGS = ('PlankCrossing_',)
+CROSSING_ROADS = ('dirt',)
+CROSSING_WET = 250.0
+WET = ('WaterTrough', 'HandPump', 'RR_Well', 'Well', 'WaterBarrel_Cart')
+STACKS = ('CrateStack_', 'BarrelStack_')
+STACK_ANCHOR = 250.0
+STACK_HOSTS = ('shopOpen', 'yard')
+WAGONS = ('Buckboard', 'Cart', 'Dray', 'WagonFreight')
+YARD_GROUPS = ('storeBacklot', 'saloonBacklot', 'yardStacks', 'yardWagon')
 
 # Spawn points and patrol routes: every rule piece keeps this far off (the job's 3 m; make_town's own pieces keep 2.5 m).
 SPAWN_CLEAR_RULES = 300.0
@@ -493,7 +538,57 @@ class Rules:
         self.mt, self.d, self.world = mt, d, d.world
         self.skip = set(skip or ())
         self.refused = []
+        self.unfit_why = []
         self.made = []
+
+    def unfit(self, mesh, x, y):
+        """Why a crossing or a stack has no business at (x, y) (the round 2 rules above), or None."""
+        w = self.world
+        if mesh.startswith(CROSSINGS):
+            for rid, pts, half, kind in w.roads:
+                if (kind or 'dirt') in CROSSING_ROADS and min_seg(pts, (x, y)) <= half - 60.0:
+                    return None
+            if self.near_mesh(WET, x, y, CROSSING_WET):
+                return None
+            return 'no ruts or mud to cross (a path or bare ground)'
+        if mesh.startswith(STACKS):
+            for pid, b in w.buildings.items():
+                if type_of(pid, b.model) in STACK_HOSTS and any(dist_box(wall, x, y) <= STACK_ANCHOR for wall in b.walls):
+                    return None
+            if self.near_mesh(WAGONS, x, y, STACK_ANCHOR, boxes=True):
+                return None
+            for o in w.layout.get('obstacles', []):
+                if o['id'] in YARD_GROUPS and o.get('polygon') and \
+                        min_seg([tuple(v[:2]) for v in o['polygon']] + [tuple(o['polygon'][0][:2])], (x, y)) <= 400.0:
+                    return None
+            return 'no store, yard or wagon by it (who stacked it here?)'
+        return None
+
+    def walk_at(self, group, y):
+        """The walk section of a run under a spot along the street (for a piece that stands on it)."""
+        for s in self.d.pieces:
+            if s.mount == 'walk' and s.group == group and s.mesh.startswith('Boardwalk_') and s.mesh != 'Boardwalk_Steps':
+                span = 400.0 if s.mesh.startswith('Boardwalk_4m') else 200.0
+                lo, hi = sorted((s.y, s.y + span * (1.0 if s.yaw == 180.0 else -1.0)))
+                if lo <= y <= hi:
+                    return s
+        return None
+
+    def near_mesh(self, names, x, y, reach, boxes=False):
+        """Whether a design piece or a layout placement of these meshes stands within reach (its box, for a wagon)."""
+        for o in self.d.pieces:
+            if o.mesh.startswith(names):
+                if boxes:
+                    bx = self.world.meshes.box(o.mesh)
+                    box = self.mt.Box.frame(o.x, o.y, o.yaw, *bx)
+                    if self.mt.point_box_dist(box, x, y) <= reach:
+                        return True
+                elif math.hypot(o.x - x, o.y - y) <= reach:
+                    return True
+        for b in self.world.buildings.values():
+            if b.model.startswith(names) and any(dist_box(wall, x, y) <= reach for wall in b.walls):
+                return True
+        return False
 
     def allowed(self, mesh):
         if mesh in self.skip:
@@ -509,6 +604,10 @@ class Rules:
 
     def add(self, mesh, x, y, yaw, group, cls, alts=(), **kw):
         if not self.allowed(mesh):
+            return None
+        why = self.unfit(mesh, x, y)
+        if why:
+            self.unfit_why.append(f'{group} {mesh} at ({x:.0f}, {y:.0f}): {why}')
             return None
         on_road = kw.pop('on_road', False)
         group = kw.pop('group_override', group)
@@ -552,7 +651,7 @@ class Rules:
                 self.local(f, mesh, lx, ly, lyaw + j, 'porch', alts=alts, mount='porch', lift=z,
                            against=f.b.id if hugs(mesh) else None)
             else:
-                cls = 'small' if self.height(mesh) < 160.0 else 'big'
+                cls = 'small' if mesh in KIT or self.height(mesh) < 160.0 else 'big'
                 self.local(f, mesh, lx, ly, lyaw + j, cls, alts=alts, against=f.b.id if hugs(mesh) else None,
                            along=True if hugs(mesh) else None)
 
@@ -740,6 +839,29 @@ class Rules:
                 p.ring_of = rail
 
 
+def min_seg(pts, p):
+    """The distance from p to a polyline."""
+    best = 1e18
+    for (ax, ay), (bx, by) in zip(pts, pts[1:]):
+        dx, dy = bx - ax, by - ay
+        l2 = dx * dx + dy * dy
+        t = 0.0 if l2 < 1e-9 else max(0.0, min(1.0, ((p[0] - ax) * dx + (p[1] - ay) * dy) / l2))
+        best = min(best, math.hypot(p[0] - ax - dx * t, p[1] - ay - dy * t))
+    return best
+
+
+def dist_box(box, x, y):
+    lx, ly = box.local(x, y)
+    return math.hypot(max(abs(lx) - box.hx, 0.0), max(abs(ly) - box.hy, 0.0))
+
+
+def spacing_of(mesh):
+    for prefix, gap in SPACING.items():
+        if mesh.startswith(prefix):
+            return gap
+    return 0.0
+
+
 def hugs(mesh):
     """A piece that stands with its back to a wall (its pivot on the wall's face)."""
     entry = KIT.get(mesh)
@@ -762,7 +884,9 @@ def probe_out(lx, ly, yaw, dist):
 def street(r):
     """Main Street's, the yard road's and Pen Lane's events and crossings, every 25-35 m, in the 2.5 m strip beside the
     walks (|X| 250-500 on Main Street), never in the middle 3.5 m lane, 3 m off every spawn point and route, out of the
-    roosts' find circles, off the loudspeaker posts."""
+    roosts' find circles, off the loudspeaker posts. These are candidates: Rules.unfit() takes off a crossing with
+    nothing to cross and a stack nobody would have stacked there (round 2: Pen Lane's and the fields path's crossings,
+    the east end's pile)."""
     g = 'street'
     # The gate end: a water cart drawn up by the shack and the trough (a barrel cart for the houses without wells).
     r.add('WaterBarrel_Cart', -380.0, 450.0, 90.0 + jitter('watercart', 6.0), g, 'event')
@@ -773,6 +897,21 @@ def street(r):
     r.add('WagonFreight_Canvas', -400.0, 4985.0, 90.0 + jitter('canvas', 3.0), g, 'event')
     # Barrels off the depot, left on their sleepers at the street's east end for the store (the yard road's freight).
     r.add('BarrelStack_A', 400.0, 6700.0, 90.0 + jitter('barrels east', 12.0), g, 'event')
+    # Instead at the street's east end, where the yard road comes in from the depot: a trough and a rail at its edge, the
+    # riders' tie-up, as the gate has at the west end (kit pieces: no new draws).
+    r.add('WaterTrough', 525.0, 6640.0, jitter('east trough', 3.0), 'mainStreet', 'street')
+    r.add('HitchRail', 490.0, 6960.0, jitter('east rail', 2.0), 'mainStreet', 'street')
+    # Front bins under 5 with room the fights allow (round 2; kit pieces, no new draws): a spittoon at the end of the
+    # assay office's bench, milk cans out by the Mercers' porch for the dairy, a washtub by the water cart, a coffin
+    # out by Bright & Daughter's walk with the timber crates.
+    r.add('Spittoon', 765.0, 333.0, 0.0, 'assay', 'porch', mount='porch', on=r.walk_at('assay', 333.0), lift=38.0)
+    r.add('MilkCans', 750.0, 6090.0, 180.0 + jitter('mercer cans', 20.0), 'mercer', 'small')
+    r.add('Washtub', -560.0, 600.0, jitter('cart tub', 20.0), 'street', 'small')
+    r.add('Coffin_Closed', -740.0, 6800.0, jitter('undertaker coffin', 6.0), 'undertaker', 'small')
+    # Pruitt's second rail, before the west end of his porch (his is the busiest front; the first stands at 23.8 m).
+    r.add('HitchRail', -462.0, 2700.0, 0.0, 'mainStreet', 'street')
+    # The fields path's mouth: a trough by the parked wagon's team, between the crossing lamp and the manager's porch.
+    r.add('WaterTrough', -700.0, 4720.0, jitter('fields trough', 3.0), 'mainStreet', 'street')
     # The yard road's mouth: planks across its mud toward the undertaker's yard.
     r.add('PlankCrossing_A', 60.0, 7450.0, -4.0 + jitter('crossing yard', 4.0), g, 'flat', on_road=True)
     # Pen Lane: planks over its wet stretch past the bend from the street.
@@ -808,6 +947,7 @@ def extras(r):
     # The assay office's alley mouth (north side, Y 358-850): a stack of crates left on the walk where it crosses the
     # gap, and junk against the sheriff's west wall 4-6 m back (out of the roost's 9 m find circle).
     on_walk('assay', 'CrateStack_A', 755.0, 430.0, 180.0 + jitter('assay crates', 12.0), against=None)
+    on_walk('assay', 'BottleCrate', 772.0, 470.0, 180.0 + jitter('assay empties', 10.0), against=None)
     if 'sheriff' in f:
         fr = f['sheriff']
         x0, x1, y0, y1 = fr.body

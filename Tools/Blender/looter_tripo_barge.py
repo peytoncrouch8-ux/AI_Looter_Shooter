@@ -186,6 +186,7 @@ def rework(obj, report, maps):
     bm.free()
     obj.data.update()
     collision.build(obj, pieces)
+    _route_open()
     sq = lambda y: y * SQUEEZE_CASING                  # both stacks stand on the casing
     sockets = {'Gangway': ((GAP_X, -gap['outer'], GAP_SILL), -90.0),     # on the sill's outboard edge, facing out
                'Hatch': ((sum(HATCH[:2]) / 2.0, 0.0, CROSS), 0.0)}
@@ -197,6 +198,23 @@ def rework(obj, report, maps):
                         'coaming faces': hatch, 'triangulated, slivers': split, 'ucx': len(UCX)}
     for name, centre, size, _ in UCX:
         log(f'UCX {name}: centre {centre} size {size}')
+
+
+def _route_open():
+    """The stern push's way up both side walks (looter_tripo_barge_route, on the UCX as Unreal's import takes them):
+    shut, the build fails here, whoever builds it (two builds of the same code differ a little, so a check of one
+    build does not vouch for another)."""
+    import bpy
+    import looter_tripo_barge_check as check
+    import looter_tripo_barge_route as stern
+    bpy.context.view_layer.update()
+    check._HULLS.clear()
+    shut = [(side, got) for side in (-1, 1) if not (got := stern.route(check._hulls(), side))[0]]
+    check._HULLS.clear()
+    if shut:
+        raise ValueError('the stern route is shut: ' + '; '.join(f'{"+Y" if s > 0 else "-Y"} past x {g[1]:.0f}: {g[2]}'
+                                                                  for s, g in shut))
+    log('the stern route is open up both walks (as Looter.World.Barge.Fight walks it)')
 
 
 # --- Pieces that stay whole ---

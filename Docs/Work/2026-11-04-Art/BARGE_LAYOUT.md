@@ -1,7 +1,7 @@
 # Dredge barge layout (measured)
 
 SM_DredgeBarge after the round-5 rework (Tools/Blender/looter_tripo_barge.py), measured with rays by Tools/Blender/looter_tripo_barge_check.py. UE frame, cm: pivot bottom-centre, bow +X, berth side -Y, Z up.
-Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 148917.
+Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 148653.
 
 ## Well deck
 
@@ -25,6 +25,10 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 - +Y house walk, x -100..2125 (90 stations): floor z 2253..2266, from the wall's foot |y| 587..744 to the bulwark's inner face |y| 815..976; clear width (z +20..+180) 167 at least (x 1000; by height +20: 167, +100: 221, +180: 229), median 251; headroom 878 at least, under 220 at 0 stations. Nowhere under 150. A capsule (radius 34, half-height 88) along its middle: no collision hull in its way.
 - -Y casing walk, x -3325..-675 (107 stations): floor z 2254..2268, from the wall's foot |y| 351..840 to the bulwark's inner face |y| 708..941; clear width (z +20..+180) 126 at least (x -725; by height +20: 126, +100: 144, +180: 144), median 185; headroom 222 at least, under 220 at 0 stations. Nowhere under 120. Measured on their neighbours' floor (none found under a low cut stub): x -2250. A capsule (radius 34, half-height 88) along its middle: no collision hull in its way.
 - -Y house walk, x -100..2125 (90 stations): floor z 2253..2262, from the wall's foot |y| 558..718 to the bulwark's inner face |y| 792..940; clear width (z +20..+180) 170 at least (x 1375; by height +20: 170, +100: 224, +180: 223), median 244; headroom 382 at least, under 220 at 0 stations. Nowhere under 150. A capsule (radius 34, half-height 88) along its middle: no collision hull in its way.
+
+## Collision convex
+
+- 194 UCX, every one convex.
 
 ## The stern push's way (as Looter.World.Barge.Fight walks it: looter_tripo_barge_route)
 
@@ -51,7 +55,7 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 
 ## Material slots
 
-- TripoDredgeBarge_Hull 48705, TripoDredgeBarge_Deck 15158, TripoDredgeBarge_Super 65131, TripoDredgeBarge_Walls 19832.
+- TripoDredgeBarge_Hull 48527, TripoDredgeBarge_Deck 15149, TripoDredgeBarge_Super 65068, TripoDredgeBarge_Walls 19832.
 - well deck: TripoDredgeBarge_Deck
 - forecastle floor: TripoDredgeBarge_Deck
 - cross walk: TripoDredgeBarge_Deck
@@ -267,7 +271,7 @@ Bounds: x -3750..5590, y -1237..1237, z 0..4809 (9340 x 2475 x 4809). Triangles 
 - hull 1: centre (-3100, 15, 1617), size 599 x 2171 x 1216
 - hull 10: centre (2300, 23, 1563), size 599 x 1936 x 1324
 - hull 11: centre (2900, 16, 1564), size 599 x 1833 x 1322
-- hull 12: centre (3500, 16, 1632), size 599 x 1833 x 1187
+- hull 12: centre (3501, 16, 1632), size 599 x 1833 x 1187
 - hull 13: centre (4099, 16, 1612), size 599 x 1833 x 1225
 - hull 14: centre (4700, 20, 1739), size 599 x 1682 x 971
 - hull 15: centre (5229, 14, 2007), size 456 x 1489 x 435

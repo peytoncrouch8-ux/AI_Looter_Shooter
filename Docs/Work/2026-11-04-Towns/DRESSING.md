@@ -102,3 +102,64 @@ payback; the lamps fall back to LampPost on the same spots). Triangles: weeds ~1
 - Yard fences round lots (plan 4.4): not done. check_lines only checks buildings, roads and spots (not trees, rocks, groups or
   pieces) and fences would cut the set piece's alley routes; wants a lot plan (part 3).
 - For GROUND: paint wet (G) under PlankCrossing_* and churn (B) under StrawLitter_* from town.json when the wear atlas comes.
+
+# Round 2 (2026-11-05 morning; after DEMO2.md's PIE check of f4a0a3c7)
+`town_next.json` regenerated on the 02:54 probe (twice: byte-identical); town.json untouched. 338 pieces (built: 299); 17 new
+types (BarrelStack_A gone). Before the changes, a rerun on that probe gave the built town exactly back (only the new buildings'
+dressing added): the as-built pinning holds after a build.
+
+## Rules added (town_rules.py; make_town.py's placer)
+- SPACING: a merged vignette never within 15 m of itself, a stack never within 6 m of its twin (rule pieces; make_town checks
+  placed pieces). Pen Lane's facing pair: the store's west-wall junk stays; the barber's east-side one is in SKIP (its next
+  spot, the barber's west wall, is 66 m from the Farm camera, inside its 72 m draw distance).
+- Crossings only over ruts or mud (`Rules.unfit`): on a dirt road's bed (half width - 60 cm; Main Street counts: its dust has
+  ruts) or within 2.5 m of a trough, pump, well or the water cart. Paths have no ruts to bridge.
+- Stacks only where someone stacked them: within 2.5 m of an open store's or a yard's wall (shopOpen, yard), of a wagon or cart's
+  box (Buckboard, Cart, Dray, WagonFreight*), or 4 m of a back-lot group (storeBacklot, saloonBacklot, yardStacks, yardWagon).
+- Refused this run: BarrelStack_A (400, 6700), CrateStack_A (430, 6420) (east end), CrateStack_A (755, 430) (the shut assay's
+  walk), PlankCrossing_A (-1300, 2060) (Pen Lane), (-1250, 4530) (fields path). Kept: Pruitt's crossing over the south rut, the
+  yard road's mouth; the buckboard's crates (its wagon), the store's, undertaker's, workshop's stacks.
+- Menu class: the rules' kit pieces place as 'small' (they placed 'big' when over 1.6 m, ahead of the hand extras).
+- FRAMES for the BUILDINGS lane's models (BUILDINGS.md tables; porch/dock floors 0.45 m where it gives none): RR_Smithy_Town
+  (open front = an 8 m way in), RR_Bathhouse (+ boiler), RR_FeedStore (1.0 m dock, steps), RR_BoardingHouse (+ outside stair),
+  RR_Home_K, L, M, N (+ lean-to), O, P. homeL, bathhouse, smithyTown (placed in the layout since) are dressed by their type.
+
+## Fronts toward 5-9 (kit pieces only: no new draws)
+East end: a WaterTrough (525, 6640) and HitchRail (515, 6959), the riders' tie-up where the yard road comes in (as the gate has).
+Pruitt's second rail (-462, 2700). A trough by the wagon's team at the fields path's mouth (-695, 4745). BottleCrate (772, 470)
+and a Spittoon (765, 333) on the assay's walk. MilkCans (750, 6090) by the Mercers' porch. Washtub (-585, 600) by the water cart.
+Coffin_Closed (-730, 6700) by Bright & Daughter's crates (drawn already in the yard; out of the MainStreet camera's 72 m).
+```
+north front  1 5 5 5 7 5 9 5  mean 5.2   (round 1: 1 4 5 5 7 5 9 4 = 5.0)
+south front  0 5 5 4 8 4 6 5  mean 4.6   (round 1: 0 4 5 3 8 3 6 4 = 4.1)
+```
+Still under 5: both gate bins (Main 3's checkpoint), south 4 (Pen Lane's mouth: rise spots (-400, 2200), (-800, 2250)) and 6
+(the fields path's mouth: (-400, 4400)). Zones: smithyTown front 0 (open front: the forge inside is its front), homeL and
+penLaneEast front 0 (empty: weeds and boards).
+
+## Cost
+Against the built town: -1 type (BarrelStack_A) in MainStreetMid, MainStreetEast, BackLotsNorth; Coffin_Closed is drawn in the
+yard already; YardRoad +2 types (the smithy's Handbills_A, Ladder_A: +3..11 draws). Expected well under +0.1 ms. The table's
+totals (vs the town before the towns round): MainStreet +28..97, MainStreetMid +31..98, MainStreetEast +31..97, PenLane +9..14,
+BackLotsNorth +23..70, YardRoad +3..11, Farm 0, ChapelOverTown +10..39.
+
+## Diff of placements (town.json as built -> town_next.json; weeds summarised)
+```
++ assay_bottle_crate_01 BottleCrate (772, 470)          - assay_crate_stack_a_01 CrateStack_A (754, 420)
++ assay_spittoon_01 Spittoon (765, 333)                  - cabinSouth_vignette_alley_a_01 Vignette_Alley_A (-1215, 1607)
++ mainStreet_hitch_rail_06 HitchRail (-462, 2700)        - penLane_plank_crossing_a_01 PlankCrossing_A (-1300, 2060)
++ mainStreet_hitch_rail_07 HitchRail (462, 4690)         - street_barrel_stack_a_01 BarrelStack_A (400, 6700)
+  (the hotel's rail, was _05: ids follow the design)     - street_crate_stack_a_01 CrateStack_A (430, 6420)
+~ mainStreet_hitch_rail_05 HitchRail -> (515, 6959)      - street_plank_crossing_a_03 PlankCrossing_A (-1250, 4530)
++ mainStreet_water_trough_03 WaterTrough (525, 6640)     ~ undertaker_barrel_b_02 Barrel_B (-700, 6640) -> (-600, 6486)
++ mainStreet_water_trough_04 WaterTrough (-695, 4745)    ~ workshop_crate_stack_b_01 CrateStack_B (-2797, 5858) -> (-2835, 5851)
++ mercer_milk_cans_02 MilkCans (750, 6090)
++ street_washtub_01 Washtub (-585, 600)
++ undertaker_coffin_closed_01 Coffin_Closed (-730, 6700)
++ bathhouse_ (CrateStack_A, CrateStack_B, Handbills_A, Ladder_A, StrawLitter_A, 5 WeedFringe_A)
++ smithyTown_ (CrateStack_B, Handbills_A, Ladder_A, StrawLitter_A, 8 WeedFringe_A)
++ homeL_ (2 FallenBoards_A, 9 WeedFringe_B)
+weeds: + cabinSouth 2, + mainStreet 2 rings, - cottageNorthEast 1, ~ mainStreet 1 ring
+```
+Main runs: copy town_next.json over town.json, `build_area.py RansomsRest dressing`, scatter, fauna, path_probe, tour (MainStreet*,
+PenLane, YardRoad, Farm), Looter.Breakable / Economy.Balance (no breakable mesh added or moved), PIE look at the east end and Pen Lane.
