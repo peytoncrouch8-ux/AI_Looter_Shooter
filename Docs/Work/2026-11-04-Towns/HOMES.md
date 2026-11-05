@@ -156,3 +156,92 @@ Smithy X -744..54 Y +-490) moved the bathhouse 1 m and L 1.5 m, the privy and th
    a PIE walk into the smithy (walk-in floor against the rising back ground, forge fire) and the strip south of the workshop.
 5. `make_town.py` reads `level.props` as buildings, so its next run keeps off all three. CODEMAP lines for
    `Art/Models/Buildings/Outbuildings.py` and `TownBuildings.py` are the BUILDINGS lane's.
+
+# Round 4: a back street on a pad for the 13 unplaced buildings (the user's call; Main 08:25, 2026-11-05)
+
+**Verdict: the ground is not there, and a pad cannot make it.** A pad changes heights; every blocker below is something else.
+Placed: 6 of the 13 (homes K, M, O lived + shed C, smokehouse, privy) as an **east row** on the yard road, no pad, no terrain
+rebuild. Patch `towns_backstreet.patch.json` (`--check` passes, not applied). Not placed (7): Boarding House, Feed Store, N, P,
+sheds A and B, root cellar.
+
+## What the valley holds (measured, 2026-11-05; offline)
+- Needs: footprints of the 7 big buildings 628 m2 (K 88, M 86, N 66, O 63, P 71, Feed 111, Boarding 143), with 3 m yards and the lane
+  about 1,800 m2; the six outbuildings 4-17 m2 each.
+- Method: the 50 cm occupancy raster of the 08:50 layout + the 02:54 probe + town.json AND town_next.json, every rule category
+  (fights, encounter spots/routes/grounds, roosts, loot gameplay actors, Main 3 street, the Sink rim line +9 m, cliffs, water,
+  buildings, obstacles, features, pads, roads +1 m, boundary), then relaxed: dressing pieces, random breakables (loot rerun),
+  tree stands, props obstacles (stock pens, the Scatter boulders, the dray, the lumber stacks) treated as movable. The terrain's
+  true heights come from the exported tiles (Intermediate/ArtExport/SM_RansomsRest_Tile_*.fbx, 215,536 triangles, rasterised on
+  50 cm; equals the probe to 0.3 cm): ground everywhere is lumpy within +-20 cm, so slope never limited anything.
+- Result even so: the largest free rectangles are **12 x 24 m** (a handful of places); connected free ground is 750 m2 east of the
+  yard road and about 800 m2 behind the south side. The strict raster has no free 10 x 10 m at all.
+- **Behind Main Street's north side (the pitch):** X 2250..3500 holds 218 m2 connected even with the two Main 4 roaming fights
+  (NorthRoad, BootHill) moved away: the MiserPlot ambush ground (to Y 1850), the north road / Sink road diagonal, the hanging tree, the
+  saloon backlot, the Sink pit 9 m margin (pit polygon from X 2740) and the town's own backs (X 2250). The Sink fall is not the
+  limit. Its east end, where the Sink road is far, is where the row below stands.
+
+## Chosen: the east row (north verge of the yard road, Main Street's east end)
+| id | model | location (X, Y) | yaw | lived | clearance (cm) | ground vs door |
+|---|---|---|---|---|---|---|
+| `homeK` | RR_Home_K | (1100, 6950) | 180 | yes | cottageNorthEast 271, Main St edge 296, yard road 478, Sink margin 986 | -12..+16 |
+| `homeM` | RR_Home_M | (1350, 8150) | 180 | yes | the dray (yardWagon) 139, yard road 639, lumber stacks 653, Sink 1147 | -30..+1 |
+| `homeO` | RR_Home_O | (1650, 9050) | 180 | yes | lumber stacks 105, yard road 895, Sink 1467 | -9..+17 |
+| `shedC` | RR_Shed_C | (2275, 8475) | 180 | - | M 268, O 251, Sink 967 | -4..+13 |
+| `smokehouse` | RR_Smokehouse | (2775, 8925) | 180 | smoke | O 288, shed C 196, Sink 959 | -13..+8 |
+| `privyB` | RR_Privy_B | (2775, 9325) | 180 | - | O 284, smokehouse 156, Sink 1297 | -8..+2 |
+- Gaps K-M 243, M-O 245. Doors face the yard road (south-west, -X); porch lines step back 846, 1096, 1405 along the road slow
+  diagonal, so the verge widens east (3 m at K to 9 m at O: the dressing front/verge zones, street events). Rear yards: the
+  outbuildings stand 7-13 m behind M and O; the rear of K (X 1754..1950) is a 2 m strip before the cottonwood sliver and the Sink margin.
+- No dressing piece (town.json HEAD or town_next.json 7b) falls inside any footprint (nearest: mercer_barrel_b_01 238 from K, the weed
+  fringes of H 292). Off every fight ground, encounter spot/route, roost circle (the undertaker yard, Y >= 9300 west of X 1500), the Main 3
+  street, loot gameplay actors (the random breakables Barrel_A_845_8378 and Crate_A_699_8282 stay outside, 209 and 358 from M).
+- **No pad:** K, M, O stand inside the frozen zone_mainStreet / zone_depot / lotFeedStore (terrain_compare must keep them at
+  0.00 cm) and their ground is within +-30 cm of each door: nothing to level. A pad here would break the exceptions.
+- Lights: K, M, O lived (lamp 3 / 16 cd, reach 400, gloomGlow 4, their SOCKET_Light and lamplit panes); all smoke (K, M, O, smokehouse).
+  The outbuildings have no lit glass. Fires: none.
+- Obstacle sinkRoadCottonwoods (the stand hiding the Sink from the street) ran through the row; the patch pares it to a strip behind
+  it (X 1950..2640, Y 6550..8150; trees need the scatter rerun). The houses now do the hiding.
+- Households (TownLife): build_area_townlife.HOUSEHOLDS knows no K/M/O: add homeK = Cottage, homeM = CottageSouth, homeO = CottageNorth
+  (existing household names; not done here, a script outside this job) or the three stay silent.
+
+## Considered and rejected
+- **South back (the only place a pad would work):** the band X -5350..-3900, Y -500..2550 (the Scatter boulders and the stock pens
+  taken out) holds two buildings: Boarding House at (-4490, 955, yaw 0) + N at (-4432, 2100, yaw 0) on a lane at X -4000, or K + M. Its
+  pad, if ever wanted: southBackPad center [-4640, 1300], size [1480, 2300], yaw 0, corner 0.15, height 10 (mean ground 11, min -30,
+  max 34), bank slope 25, round 200, toe 150, reach 100 (reach 100 keeps backPenLane and whitlockYardPad at 0.00). **No way in:**
+  Pen Lane alley between the burnt livery and Home C is closed by the ruin obstacle polygon (to Y 2200; C starts 2239, 39 cm), and the
+  route from Amos gate crosses the Whitlock encounter ground (Y 4900..5400) and the Side 2 bale discs. A paint-only lane (paint true)
+  would carry no heights. Dropped; 2 buildings do not repay a terrain rebuild.
+- East of the yard road other combinations: Boarding + M, Boarding + O, Boarding + K, Feed + K + O fit (2-3 buildings, max 3 anywhere
+  in the strip); nothing else fits once K, M, O stand. Swap M for the Boarding House if the lived boarding house matters more than M.
+- N and P, Feed Store, sheds A and B, root cellar have no free spot beside the row; the pen lane back (-4325, 1975) takes one house
+  (22 m off a road).
+
+## What would give more room (decisions, not done)
+1. The Main 3 gate fight ground (r 30 m): 665 m2 connected in the west meadow (X -1400..2400, Y -4000..-250), about 4-5 buildings.
+   Phase 3 just tuned that fight.
+2. Remove the burnt livery ruin (placement, footing, obstacle): opens the alley to the south back (2 buildings, with the pad above).
+3. Move the Side 2 bales and shrink the WhitlockHands ground: the south back frontage grows 20 m (2 more homes), still no access.
+4. Nothing on the north side helps (218 m2).
+
+## Plan for DRESSING (lot types; town_rules.py already types these models: homeLived, outbuilding)
+- Add homeK, homeM, homeO, shedC, smokehouse, privyB to DRESSED (their ids are not in the table; MODEL_TYPES covers them).
+- Lot K: X 700..1900, Y 6350..7500 (front on the verge; side alley 2.7 m to cottageNorthEast: rain barrel, tools leaning; rear: a
+  laundry line against the cottonwood strip). Lot M: X 800..2150, Y 7650..8700 (the dray parked at the west side of its porch is already
+  there: make it the lot front vignette; rear: shed C, a garden). Lot O: X 1300..2900, Y 8800..9500 (lumber stacks on its west side
+  stay; rear: smokehouse, privy, woodpile). Yard fences on the side lines between lots (2.4 m gaps: picket, broken 0-0.1).
+- Street events on the verge: not within 3 m of a porch line; the undertaker yard roosts at Y >= 9300 keep their 9 m circles.
+
+## Run order (east row; no pad, so no generator, import, beyond or cliffs)
+1. python Tools/layout_patch.py RansomsRest Docs/Work/2026-11-04-Towns/towns_backstreet.patch.json --check, then without --check;
+   archive the patch.
+2. DRESSING: DRESSED + HOUSEHOLDS (above); make_town.py reads level.props as buildings (town.json); 7b copy of town_next.json over
+   town.json goes in the same pass.
+3. Editor: Tools\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_area.py RansomsRest props" -Until "props placed and saved"
+   (props, plumes, house lights, households).
+4. build_island_scatter.py RansomsRest (the cottonwood strip and the grass keep off the new walls; wait for the count, save), then
+   build_area_dressing.py, build_area_fauna.py (roof perches), path_probe.py RansomsRest. Loot rerun not needed (no breakable
+   falls in a footprint).
+5. Tests: Looter.World.HouseLights (3 more lit houses), Looter.World.TownLife, Looter.World.RansomsRest.InsideBoundary,
+   Looter.UI.Minimap, Looter.Encounters.Camps; Tools\tour.ps1 + Tools\perf.ps1 (3 houses + 3 outbuildings, 3 lights, 4 plumes at
+   Main Street east end: the town view toward the Sink and the depot).

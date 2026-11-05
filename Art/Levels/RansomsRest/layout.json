@@ -1653,9 +1653,9 @@
     {
       "id": "sinkRoadCottonwoods",
       "kind": "trees",
-      "polygon": [[1479,6289],[1885,7305],[2082,8097],[2418,8766],[1882,9034],[1518,8303],[1315,7495],[921,6511]],
+      "polygon": [[1950,6550],[2150,7000],[2300,7500],[2480,7950],[2640,8150],[2560,7600],[2380,7100],[2200,6600]],
       "height": 1100,
-      "note": "cottonwoods behind Main Street's east end, hiding the Sink from the street"
+      "note": "cottonwoods behind Main Street's east end, hiding the Sink from the street: pared back to a strip behind the east row (K, M, O stand where the stand's western band was; 2026-11-05 back street)"
     },
     {
       "id": "denRock",
@@ -2779,9 +2779,12 @@
       "homeB": { "lamp": [3,16], "reach": 400, "gloomGlow": 4 },
       "smithyTown": { "dark": true },
       "bathhouse": { "dark": true },
-      "homeL": { "dark": true }
+      "homeL": { "dark": true },
+      "homeK": { "lamp": [3,16], "reach": 400, "gloomGlow": 4 },
+      "homeM": { "lamp": [3,16], "reach": 400, "gloomGlow": 4 },
+      "homeO": { "lamp": [3,16], "reach": 400, "gloomGlow": 4 }
     },
-    "smoke": ["farmhouse","store","undertaker","cottageNorth","cottageNorthEast","dugout","depot","locomotive","workshop","homeB","smithyTown","bathhouse"],
+    "smoke": ["farmhouse","store","undertaker","cottageNorth","cottageNorthEast","dugout","depot","locomotive","workshop","homeB","smithyTown","bathhouse","homeK","homeM","homeO","smokehouse"],
     "cliffs": {
       "varied": ["boundaryFoot","eastRidge","hogback","larkspurEast","escarpment","bluffPath","ransomsPoint","coffinRock","theSink","sinkRamp","theNose","millGorge"],
       "top": [0.72,1.12],
@@ -3013,7 +3016,43 @@
         "location": [-4225,6425],
         "yaw": 270,
         "note": "the shotgun house (empty): south of the workshop yard, facing west over the field wall to fieldsPath 9 m ahead, like the bathhouse"
-      }
+      },
+      {
+        "id": "homeK",
+        "kind": "RR_Home_K",
+        "location": [1100,6950],
+        "yaw": 180,
+        "note": "K (lived): the yard road's north verge at Main Street's east end, its porch 3 m from the street's edge, 2.7 m from cottageNorthEast; where the cottonwood screen stood"
+      },
+      {
+        "id": "homeM",
+        "kind": "RR_Home_M",
+        "location": [1350,8150],
+        "yaw": 180,
+        "note": "M (lived): second house of the east row, 2.4 m from K, its porch 6.4 m from the yard road; the undertaker's dray 1.4 m off its west wall"
+      },
+      {
+        "id": "homeO",
+        "kind": "RR_Home_O",
+        "location": [1650,9050],
+        "yaw": 180,
+        "note": "O (lived): the row's east end by the undertaker's yard, 2.5 m from M, lumber stacks 1 m off its west wall"
+      },
+      {
+        "id": "shedC",
+        "kind": "RR_Shed_C",
+        "location": [2275,8475],
+        "yaw": 180,
+        "note": "shed behind M and O (its door toward them)"
+      },
+      {
+        "id": "smokehouse",
+        "kind": "RR_Smokehouse",
+        "location": [2775,8925],
+        "yaw": 180,
+        "note": "smokehouse behind O, 9.6 m from the Sink's rim line"
+      },
+      { "id": "privyB", "kind": "RR_Privy_B", "location": [2775,9325], "yaw": 180, "note": "privy behind O" }
     ],
     "environment": {
       "about": "The golden hour tried out on Lvl_TerrainTest (Tools/Unreal/build_area_environment.py): the sun low in the west-southwest over the canyon, haze thickest down in the canyon and glowing warm toward the sun, the planet's top down on the plains, the cloud dome past the backdrop. Tuned on Ransom's Rest at step 5a. Art note 3 (the sky): the sky's own color cancels most of the warm sun's tint, so it stays a clear blue overhead and warms only toward the sun; the haze ends at 13.5 km, between the backdrop (12 km) and the cloud dome (15 km), so neither the sky nor the clouds wear it; the haze's glow toward the sun matches the warm sky there. Art note 2 (the far band): the fog thinned to 0.003 (dusk 0.004) and the atmosphere's own haze stretched 3 times, so the backdrop's layers fade by distance, darker near and paler far, instead of melting into one pale band; M_Backdrop darkens them toward the sun to their shaded sides.",

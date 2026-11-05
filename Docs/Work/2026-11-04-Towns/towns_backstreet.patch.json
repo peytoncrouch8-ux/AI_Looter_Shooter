@@ -1,0 +1,185 @@
+[
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "homeK",
+      "kind": "RR_Home_K",
+      "location": [
+        1100,
+        6950
+      ],
+      "yaw": 180,
+      "note": "K (lived): the yard road's north verge at Main Street's east end, its porch 3 m from the street's edge, 2.7 m from cottageNorthEast; where the cottonwood screen stood"
+    }
+  },
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "homeM",
+      "kind": "RR_Home_M",
+      "location": [
+        1350,
+        8150
+      ],
+      "yaw": 180,
+      "note": "M (lived): second house of the east row, 2.4 m from K, its porch 6.4 m from the yard road; the undertaker's dray 1.4 m off its west wall"
+    }
+  },
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "homeO",
+      "kind": "RR_Home_O",
+      "location": [
+        1650,
+        9050
+      ],
+      "yaw": 180,
+      "note": "O (lived): the row's east end by the undertaker's yard, 2.5 m from M, lumber stacks 1 m off its west wall"
+    }
+  },
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "shedC",
+      "kind": "RR_Shed_C",
+      "location": [
+        2275,
+        8475
+      ],
+      "yaw": 180,
+      "note": "shed behind M and O (its door toward them)"
+    }
+  },
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "smokehouse",
+      "kind": "RR_Smokehouse",
+      "location": [
+        2775,
+        8925
+      ],
+      "yaw": 180,
+      "note": "smokehouse behind O, 9.6 m from the Sink's rim line"
+    }
+  },
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "privyB",
+      "kind": "RR_Privy_B",
+      "location": [
+        2775,
+        9325
+      ],
+      "yaw": 180,
+      "note": "privy behind O"
+    }
+  },
+  {
+    "path": "level.lights",
+    "op": "merge",
+    "value": {
+      "homeK": {
+        "lamp": [
+          3,
+          16
+        ],
+        "reach": 400,
+        "gloomGlow": 4
+      },
+      "homeM": {
+        "lamp": [
+          3,
+          16
+        ],
+        "reach": 400,
+        "gloomGlow": 4
+      },
+      "homeO": {
+        "lamp": [
+          3,
+          16
+        ],
+        "reach": 400,
+        "gloomGlow": 4
+      }
+    },
+    "comment": "lived = the boarding house and K, M, O (the user, D5): the lamp, its two lamplit panes and the gloom glow at the lived houses' level; no other new building has lit glass"
+  },
+  {
+    "path": "level.smoke",
+    "op": "append",
+    "value": "homeK"
+  },
+  {
+    "path": "level.smoke",
+    "op": "append",
+    "value": "homeM"
+  },
+  {
+    "path": "level.smoke",
+    "op": "append",
+    "value": "homeO"
+  },
+  {
+    "path": "level.smoke",
+    "op": "append",
+    "value": "smokehouse"
+  },
+  {
+    "path": "obstacles",
+    "op": "set",
+    "where": {
+      "id": "sinkRoadCottonwoods"
+    },
+    "value": {
+      "id": "sinkRoadCottonwoods",
+      "kind": "trees",
+      "polygon": [
+        [
+          1950,
+          6550
+        ],
+        [
+          2150,
+          7000
+        ],
+        [
+          2300,
+          7500
+        ],
+        [
+          2480,
+          7950
+        ],
+        [
+          2640,
+          8150
+        ],
+        [
+          2560,
+          7600
+        ],
+        [
+          2380,
+          7100
+        ],
+        [
+          2200,
+          6600
+        ]
+      ],
+      "height": 1100,
+      "note": "cottonwoods behind Main Street's east end, hiding the Sink from the street: pared back to a strip behind the east row (K, M, O stand where the stand's western band was; 2026-11-05 back street)"
+    },
+    "comment": "the old stand (921..2418, 6289..9034) ran through the three lots; the scatter/trees pass reads this polygon"
+  }
+]

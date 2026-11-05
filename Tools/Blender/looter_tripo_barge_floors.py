@@ -16,6 +16,8 @@ WALK_FLOOR, WALK_Y, WALK_STEP = (2240.0, 2262.0), (450.0, 1100.0), 25.0   # wher
 TRENCH_JOIN = 2.0                      # cm: floor faces closer than this across y are one run
 OUTBOARD_TEST = (30.0, 400.0)          # cm: a floor has its bulwark (or wall) within this, ray out at this height
 RIM_Z_MAX = 2450.0                     # the bulwark's points looked at stop under this (the walk canopies start here)
+HEAD_RAYS = (-10.0, -5.0, 0.0, 5.0, 10.0)   # cm along x round a station: its headroom rays (a strap 5 cm thick across a
+                                       # walk between two stations' rays stood at head height at x 1607, unseen)
 STEP_OVER = 10.0                       # cm: a walk's headroom is measured from this over its floor (a plate or a cut
                                        # stub lower than this is a step on the walk, not a roof over it)
 PATH_IN = 30.0                         # cm: a side walk's middle line keeps within its width rule's half + this of the

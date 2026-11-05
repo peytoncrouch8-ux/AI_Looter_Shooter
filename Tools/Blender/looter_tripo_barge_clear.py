@@ -165,7 +165,8 @@ def _corridor_round(bm, tag, nearest, fill, runs, head, first):
             continue
         lo, hi = edges[(s, k)]
         ym = s * fl.walk_middle(lo, hi, runs[run][2])
-        clear = reach((x, ym, top + fl.STEP_OVER), (0.0, 0.0, 1.0), head + HEAD_SPARE) + fl.STEP_OVER
+        clear = min(reach((x + d, ym, top + fl.STEP_OVER), (0.0, 0.0, 1.0), head + HEAD_SPARE) for d in fl.HEAD_RAYS) \
+            + fl.STEP_OVER
         wide = min(reach((x, ym, top + h), (0.0, s, 0.0), FAR) + reach((x, ym, top + h), (0.0, -s, 0.0), FAR)
                    for h in CROSS_AT)
         if clear < head + HEAD_SPARE or wide < runs[run][2] + WIDE_SPARE:
@@ -211,7 +212,7 @@ def _corridor_round(bm, tag, nearest, fill, runs, head, first):
         x0, x1 = ks[0] * step - step / 2.0 - pad - more0, ks[-1] * step + step / 2.0 + pad + more1
         y0, y1 = (lo + keep, out) if s > 0 else (-out, -(lo + keep))
         z0 = min(r[2] for r in rows) + CORRIDOR[0] if stub is None else stub[2] + STUB_CUT   # over its lowest floor (TOP_JOIN)
-        z1 = min(r[2] for r in rows) + head + CORRIDOR[1]
+        z1 = max(r[2] for r in rows) + head + CORRIDOR[1]     # over its highest floor (from its lowest, 218 left)
         box = ((x0, x1), (y0, y1), (z0, z1))
         listed()
         near = np.all((hi3 > np.array([b[0] for b in box]) - 1.0) & (lo3 < np.array([b[1] for b in box]) + 1.0), axis=1)

@@ -26,6 +26,7 @@ HOUSE_SPLIT_Z = 2700.0       # the house's and casing's hulls split here (over h
 HOUSE_BINS, CABIN_BINS, CASING_BIN = 3, 2, 900.0
 LOW_BIN = 150.0              # cm: the low hulls' lengths (a hull of 9 m filled the walls' feet's bends: it stood up to 1.6
                              # m into the walks where a foot runs inboard, the capsule test stopped there)
+LOW_CLEAR = 10.0             # cm: the low hulls stay this much more than the walk's width rule off its bulwark
 FOOT_MEDIAN = 2              # stations each side a wall's foot is the median over
 CABIN_Z, STACK_HEAD_Z, CRADLE_TOP = 3200.0, 4450.0, 950.0
 HOUSE_X, CASING_FORE = (-600.0, 2000.0), -640.0  # Tripo's x (final_x() moves them)
@@ -93,7 +94,7 @@ def pieces(bm, tag):
                 cell = tuple(int(c // LATTICE_CELL) for c in p)
                 add(f'scoop frame {cell}', p)
         elif (house[0] < x < house[1] or casing[0] < x < casing[1]) and w and z > w[2] + FLOOR_CLEAR \
-                and abs(y) < reach(z, w):
+                and abs(y) < reach(z, w, barge.WALK_RUNS['house' if house[0] < x < house[1] else 'casing'][2]):
             band = 'cabin' if z > CABIN_Z else ('high' if z > HOUSE_SPLIT_Z else 'low')
             if house[0] < x < house[1]:
                 bins = CABIN_BINS if band == 'cabin' else HOUSE_BINS
@@ -118,12 +119,13 @@ def pieces(bm, tag):
     return pts, {'walk': walk, 'floor': floor, 'scoop_x': scoop_x, 'bow': bow}
 
 
-def reach(z, w):
-    """How far out a point of the house or casing may lie at height z (w: its walk's floor): up to head height and
-    over (the low hulls) only its own wall's foot line, so no rail post or overhang slopes a hull into the walk; the
-    high hulls to the bulwark's inner face; the cabin to its own walk round it."""
+def reach(z, w, wide):
+    """How far out a point of the house or casing may lie at height z (w: its walk's floor; wide: the walk's width
+    rule): up to head height and over (the low hulls) only its own wall's foot line, so no rail post or overhang slopes
+    a hull into the walk, and never into the walk's rule width + LOW_CLEAR along the bulwark (a cut's cap at the foot
+    read as the foot stepping out); the high hulls to the bulwark's inner face; the cabin to its own walk round it."""
     if z < HOUSE_SPLIT_Z:
-        return w[0] + WALL_MARGIN
+        return min(w[0] + WALL_MARGIN, w[1] - wide - LOW_CLEAR)
     return w[1] - BULWARK_EDGE if z < CABIN_Z else HOUSE_Y
 
 

@@ -227,7 +227,8 @@ def _walks(r, bm, out, well):
                                             WALK_RULE[name][1])
                 across = [r.reach((x, ym, top + h), (0.0, s, 0.0)) + r.reach((x, ym, top + h), (0.0, -s, 0.0))
                           for h in (FEET, HIP, HEAD)]
-                rows.append((x, lo, hi, top, min(across), (r.up(x, ym, top + floors.STEP_OVER) or 9999.0) - top, across,
+                head = min((r.up(x + d, ym, top + floors.STEP_OVER) or 9999.0) for d in floors.HEAD_RAYS) - top
+                rows.append((x, lo, hi, top, min(across), head, across,
                              ym))
             if not rows:
                 continue
