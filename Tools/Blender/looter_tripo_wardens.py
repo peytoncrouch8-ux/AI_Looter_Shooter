@@ -86,6 +86,9 @@ SPECS = {
         # Reshaped for the walkable kit (looter_tripo_barge: one flat deck, the house, the tower on it, bulwark, guard),
         # which adds its own UCX_ boxes and the Door and Gangway sockets.
         rework=barge.rework, slots=barge.slots, paint=barge_paint.paint, boxes=[],
+        # The house's and casing's walls on a 2K texture set of their own, TripoDredgeBargeWalls (looter_tripo_repack.own_set,
+        # 15 -> 33 px/m; REPACK.md): the faces slots() puts on TripoDredgeBarge_Walls, one rule (barge_paint.walls).
+        sets={'Walls': dict(faces=barge_paint.walls, maps=2048, slot='TripoDredgeBarge_Walls')},
         # Its LODs switch sooner (PERF, Landfall: the barge cost 0.3-0.9 ms at range with the shared 0.5/0.25/0.12).
         lod_screens='0.6,0.35,0.18',
         # The two smokestacks' tops (the smog plumes) and the hose drum's underside (the hose hangs from it).

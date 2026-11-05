@@ -20,6 +20,7 @@ import looter_textures as lt
 import looter_tripo_barge as barge
 import looter_tripo_barge_collision as bc
 import looter_tripo_barge_floors as floors
+from looter_tripo_barge_previews import preview  # noqa: F401 (Wardens.py -Preview calls barge_check.preview)
 from looter_tripo_rework import B, D, U
 
 LAYOUT = os.path.join(lt.REPO, 'Docs', 'Work', '2026-11-04-Art', 'BARGE_LAYOUT.md')
@@ -27,7 +28,13 @@ FAR = 9000.0                  # cm: longer than the barge
 STEP = 100.0                  # cm between stations along the walks and the well deck
 FEET, HIP, HEAD = 20.0, 100.0, 180.0    # heights over a floor where a walk's clear width is measured
 MIN_WALK = 150.0              # the kit's rule: a walk at least this wide
+CAPSULE = (34.0, 88.0)        # cm: the pawns' capsule (radius, half-height), swept along each side walk's middle
+CAPSULE_STEP = 8.0            # cm between the points along its core tested against the collision hulls
+CAPSULE_SLACK = 0.5           # cm: a hull this near the capsule's skin still lets it by (the floor boxes it stands on)
+MIDDLE_MEDIAN = 3             # stations each side a walk's edges are the median over for its middle line
 MIN_HEAD = 200.0              # headroom reported where lower (the player stands ~150 tall, the camera above)
+WALK_RULE = {name: (barge.WALK_HEAD, run[2]) for name, run in barge.WALK_RUNS.items()}   # the side walks' headroom and
+                              # clear width end to end (looter_tripo_barge): the script fails under either
 CROSS_WALK = (-670.0, -350.0) # Tripo's x: the casing's fore face, the house's aft face (the walks' runs end there)
 SEG_REPORT = 300.0            # cm between the forecastle's reported widths
 CLEAR_STEP = 100.0            # cm between the forecastle's reported clear strips
@@ -36,8 +43,8 @@ SLOT_SAMPLES = (('well deck', (3200.0, 0.0, 2400.0), (0.0, 0.0, -1.0), 'Deck'),
                 ('forecastle floor', (4300.0, 0.0, 2390.0), (0.0, 0.0, -1.0), 'Deck'),
                 ('cross walk', (-650.0, 400.0, 2400.0), (0.0, 0.0, -1.0), 'Deck'),
                 ('hull below the strake', (3000.0, -2000.0, 1600.0), (0.0, 1.0, 0.0), 'Hull'),
-                ('house', (1000.0, -2000.0, 2900.0), (0.0, 1.0, 0.0), 'Super'),
-                ('casing', (-2000.0, -2000.0, 2800.0), (0.0, 1.0, 0.0), 'Super'),
+                ('house wall', (1000.0, -2000.0, 2900.0), (0.0, 1.0, 0.0), 'Walls'),
+                ('casing wall', (-2000.0, -2000.0, 2800.0), (0.0, 1.0, 0.0), 'Walls'),
                 ('stack', (-1107.0, -2000.0, 4000.0), (0.0, 1.0, 0.0), 'Super'),
                 ('the well deck bulwark', (2700.0, -2000.0, 2320.0), (0.0, 1.0, 0.0), 'Super'))
 HATCH_DROP = 1880.0           # the kit's catwalk under the hatch: nothing may stand in the hole above it
@@ -78,16 +85,18 @@ def stations(a, b, step=STEP):
 
 
 def measure(obj):
-    """The layout as markdown lines, every number measured."""
+    """The layout as markdown lines, every number measured; FAILS lists what breaks a rule (the script fails after
+    writing the layout)."""
     bpy.context.view_layer.update()          # the UCX_ and SOCKET_ children's matrices
     _HULLS.clear()
+    FAILS.clear()
     r = Rays(obj)
     bm = bmesh.new()
     bm.from_mesh(obj.data)
     V = np.array([U(v.co) for v in obj.data.vertices])
     lo, hi = V.min(0), V.max(0)
     out = ['# Dredge barge layout (measured)', '',
-           'SM_DredgeBarge after the round-4 rework (Tools/Blender/looter_tripo_barge.py), measured with rays by '
+           'SM_DredgeBarge after the round-5 rework (Tools/Blender/looter_tripo_barge.py), measured with rays by '
            'Tools/Blender/looter_tripo_barge_check.py. UE frame, cm: pivot bottom-centre, bow +X, berth side -Y, Z up.',
            f'Bounds: x {lo[0]:.0f}..{hi[0]:.0f}, y {lo[1]:.0f}..{hi[1]:.0f}, z {lo[2]:.0f}..{hi[2]:.0f} '
            f'({(hi - lo)[0]:.0f} x {(hi - lo)[1]:.0f} x {(hi - lo)[2]:.0f}). Triangles '
@@ -194,31 +203,68 @@ def _walks(r, bm, out, well):
             ('house', barge.final_x(CROSS_WALK[1]), well['house'] - 20.0))
     for s in (1, -1):
         for name, x0, x1 in runs:
+            # End to end: a station where no floor is found (something low lies over it: a strap's cut foot) is measured
+            # on its neighbours' floor, from their highest (over the stub).
+            found = {k: t for (sd, k), t in table.items() if sd == s and x0 < k * step < x1}
+            gaps = [k for k in range(math.ceil(x0 / step), math.floor(x1 / step) + 1)
+                    if x0 < k * step < x1 and k not in found]
+            for k in gaps:
+                near = [found[k + d] for d in (1, -1, 2, -2) if k + d in found]
+                if near:
+                    found[k] = (max(t[0] for t in near), min(t[1] for t in near), max(t[2] for t in near))
             rows = []
-            for (sd, k), (lo, hi, top) in sorted(table.items()):
+            keys = sorted(found)
+            for i, k in enumerate(keys):
+                lo, hi, top = found[k]
                 x = k * step
-                if sd != s or not x0 < x < x1:
-                    continue
-                ym = s * (lo + hi) / 2.0
+                # The walk's middle line: its edges the median of its neighbours' (where a wall's foot steps in, a door
+                # or the casing's corner at the cross walk, the floor's run reaches inboard: no pawn keeps to that).
+                near = [found[j] for j in keys[max(i - MIDDLE_MEDIAN, 0):i + MIDDLE_MEDIAN + 1]]
+                ym = s * floors.walk_middle(float(np.median([t[0] for t in near])), float(np.median([t[1] for t in near])),
+                                            WALK_RULE[name][1])
                 across = [r.reach((x, ym, top + h), (0.0, s, 0.0)) + r.reach((x, ym, top + h), (0.0, -s, 0.0))
                           for h in (FEET, HIP, HEAD)]
-                rows.append((x, lo, hi, top, min(across), (r.up(x, ym, top + 5.0) or 9999.0) - top, across))
+                rows.append((x, lo, hi, top, min(across), (r.up(x, ym, top + floors.STEP_OVER) or 9999.0) - top, across,
+                             ym))
             if not rows:
                 continue
             col = lambda i: [q[i] for q in rows]
             worst = min(rows, key=lambda q: q[4])
-            narrow = [q for q in rows if q[4] < MIN_WALK]
-            low = [q for q in rows if q[5] < MIN_HEAD]
+            head_min, wide_min = WALK_RULE[name]
+            narrow = [q for q in rows if q[4] < wide_min]
+            low = [q for q in rows if q[5] < head_min]
+            FAILS.extend(f'{"+Y" if s > 0 else "-Y"} {name} walk at x {q[0]:.0f}: headroom {q[5]:.0f}, clear width '
+                         f'{q[4]:.0f} (the rule: {head_min:.0f}, {wide_min:.0f})' for q in rows
+                         if q[5] < head_min or q[4] < wide_min)
+            unmeasured = [k * step for k in gaps if k not in found]
+            if unmeasured:
+                FAILS.append(f'{"+Y" if s > 0 else "-Y"} {name} walk: no floor found near x '
+                             + ', '.join(f'{x:.0f}' for x in unmeasured))
+            # The collision: the pawns' capsule along the walk's middle, at every station and between them.
+            path = [(q[0], q[7], q[3]) for q in rows]
+            path += [tuple((a[i] + b[i]) / 2.0 for i in range(3)) for a, b in zip(path, path[1:]) if b[0] - a[0] < 2 * step]
+            blocked = {}
+            for x, y, base in path:
+                for hull in _capsule_hits(x, y, base):
+                    blocked.setdefault(hull, []).append(x)
+            if blocked:
+                FAILS.append(f'{"+Y" if s > 0 else "-Y"} {name} walk: the capsule is stopped by ' + '; '.join(
+                    f'{h} (x {min(xs):.0f}..{max(xs):.0f})' for h, xs in sorted(blocked.items())))
             by_h = ', '.join(f'+{h:.0f}: {min(q[6][i] for q in rows):.0f}' for i, h in enumerate((FEET, HIP, HEAD)))
             out.append(f'- {"+Y" if s > 0 else "-Y"} {name} walk, x {rows[0][0]:.0f}..{rows[-1][0]:.0f} ({len(rows)} '
                        f'stations): floor z {min(col(3)):.0f}..{max(col(3)):.0f}, from the wall\'s foot |y| '
                        f'{min(col(1)):.0f}..{max(col(1)):.0f} to the bulwark\'s inner face |y| {min(col(2)):.0f}..'
                        f'{max(col(2)):.0f}; clear width (z +{FEET:.0f}..+{HEAD:.0f}) {worst[4]:.0f} at least (x '
                        f'{worst[0]:.0f}; by height {by_h}), median {np.median(col(4)):.0f}; headroom {min(col(5)):.0f} at '
-                       f'least, under {MIN_HEAD:.0f} at {len(low)} stations'
+                       f'least, under {head_min:.0f} at {len(low)} stations'
                        + (': ' + ', '.join(f'x {q[0]:.0f} ({q[5]:.0f})' for q in low[:10]) if low else '') + '. '
-                       + (f'Under {MIN_WALK:.0f} wide at {len(narrow)} stations: ' + ', '.join(
-                           f'x {q[0]:.0f} ({q[4]:.0f})' for q in narrow[:8]) if narrow else f'Nowhere under {MIN_WALK:.0f}.'))
+                       + (f'Under {wide_min:.0f} wide at {len(narrow)} stations: ' + ', '.join(
+                           f'x {q[0]:.0f} ({q[4]:.0f})' for q in narrow[:8]) if narrow else f'Nowhere under {wide_min:.0f}.')
+                       + (f' Measured on their neighbours\' floor (none found under a low cut stub): x '
+                          + ', '.join(f'{k * step:.0f}' for k in gaps) + '.' if gaps else '')
+                       + f' A capsule (radius {CAPSULE[0]:.0f}, half-height {CAPSULE[1]:.0f}) along its middle: ' + (
+                           '; '.join(f'stopped by {h} at x {min(xs):.0f}..{max(xs):.0f}' for h, xs in sorted(blocked.items()))
+                           if blocked else 'no collision hull in its way') + '.')
     out.append('')
 
 
@@ -311,10 +357,12 @@ def _hall(r, obj, out):
 
 
 _HULLS = []
+FAILS = []
 
 
 def _hulls():
-    """Each UCX hull as (name, its bounds' low and high corners, its outward planes), made once per measure()."""
+    """Each UCX hull as (name, its bounds' low and high corners, its outward planes, a tree of its faces), made once
+    per measure()."""
     if not _HULLS:
         for name, _, _, ob in barge.UCX:
             M = ob.matrix_local
@@ -327,15 +375,34 @@ def _hulls():
                 planes.append((n if n.dot(q - c) >= 0.0 else -n, q))
             lo = Vector([min(v[i] for v in verts) for i in range(3)])
             hi = Vector([max(v[i] for v in verts) for i in range(3)])
-            _HULLS.append((name, lo, hi, planes))
+            tree = BVHTree.FromPolygons(verts, [tuple(p.vertices) for p in ob.data.polygons])
+            _HULLS.append((name, lo, hi, planes, tree))
     return _HULLS
+
+
+def _capsule_hits(x, y, base):
+    """The collision hulls (not the floor boxes it stands on) a pawn's capsule standing at (x, y) on base (cm) meets."""
+    r, half = CAPSULE
+    core = [B((x, y, z)) for z in np.arange(base + r, base + 2.0 * half - r + 0.1, CAPSULE_STEP)]
+    reach = (r - CAPSULE_SLACK) / 100.0
+    hits = set()
+    for name, lo, hi, planes, tree in _hulls():
+        if name.split(' ')[0] in ZONES:
+            continue
+        for b in core:
+            if not all(lo[i] - reach <= b[i] <= hi[i] + reach for i in range(3)):
+                continue
+            if all(n.dot(b - q) < 0.0 for n, q in planes) or tree.find_nearest(b)[3] < reach:
+                hits.add(name)
+                break
+    return hits
 
 
 def _inside_ucx(pts):
     """The names of the UCX hulls any of pts (cm) lies inside."""
     hits = set()
     bs = [B(p) for p in pts]
-    for name, lo, hi, planes in _hulls():
+    for name, lo, hi, planes, _ in _hulls():
         for b in bs:
             if all(lo[i] <= b[i] <= hi[i] for i in range(3)) and all(n.dot(b - q) < -0.01 for n, q in planes):
                 hits.add(name)
@@ -362,7 +429,7 @@ def _slots(obj, r, out):
             wrong.append(region)
     out.append('')
     if len(names) != len(barge.SLOTS) or wrong:
-        raise ValueError(f'material slots wrong: {names}, regions {wrong}')
+        FAILS.append(f'material slots wrong: {names}, regions {wrong}')
 
 
 def _zones(out):
@@ -406,36 +473,6 @@ def _sockets(obj, out):
     out.append('')
 
 
-def preview(obj):
-    """Saved/ArtPreviews/DredgeBargeRework3/: Tripo's preview angle, the spyglass side, bow, stern, top, the well deck
-    at eye height looking aft and forward, the berth gap, the hatch, a berth close-up and the -Y casing walk."""
-    import looter_train as tk
-    folder = os.path.join(lt.PREVIEW_DIR, 'DredgeBargeRework3')
-    fx = barge.final_x
-    bpy.context.view_layer.update()
-    tk.render([obj], 'tripo_angle', view=(1.05, 1.0, 0.75), lens=50.0, fit=0.95, folder=folder)
-    tk.render([obj], 'spyglass', view=(1.0, -0.08, 0.02), lens=70.0, fit=0.62, resolution=(1920, 1080), folder=folder)
-    tk.render([obj], 'bow', view=(0.9, -1.3, 0.42), lens=40.0, fit=0.75, folder=folder)
-    tk.render([obj], 'stern', view=(-0.9, 1.35, 0.38), lens=40.0, fit=0.75, folder=folder)
-    tk.closeup([obj], 'top', B((fx(0.0), 0.0, 2500.0)), (0.0, 0.08, 1.0), 125.0, lens=35.0, resolution=(900, 1600),
-               folder=folder)
-    # At eye height on the well deck: from near the stairs looking aft at the house, from the house looking forward.
-    eye = barge.WELL + 160.0
-    aft, fore = fx(barge.FORE_CUT) + barge.FORE_DX - 200.0, fx(2005.0) + 150.0
-    tk.closeup([obj], 'well_aft', B((aft - 1000.0, 0.0, eye - 80.0)), (0.0, -1.0, 0.08), 10.0, lens=22.0, folder=folder)
-    tk.closeup([obj], 'well_fwd', B((fore + 1000.0, 0.0, eye)), (0.0, 1.0, 0.0), 10.0, lens=22.0, folder=folder)
-    tk.closeup([obj], 'berth', B((barge.GAP_X, -900.0, barge.WELL + 60.0)), (1.0, 0.0, -0.05), 11.6, lens=26.0,
-               folder=folder)
-    tk.closeup([obj], 'hatch', B((sum(barge.HATCH[:2]) / 2.0, 0.0, barge.CROSS)), (1.0, 0.0, 1.2), 6.0, lens=30.0,
-               folder=folder)
-    # Close: the jumbo's hull side at the berth (its plate seams), and the -Y casing walk at eye height looking aft.
-    tk.closeup([obj], 'berth_close', B((barge.GAP_X - 450.0, -820.0, 2150.0)), (1.0, 0.0, 0.1), 5.0, lens=35.0,
-               folder=folder)
-    walk_eye = (fx(-700.0), -800.0, barge.CROSS + 160.0)
-    tk.closeup([obj], 'casing_walk', B((walk_eye[0] - 1000.0, -790.0, walk_eye[2] - 60.0)), (0.0, -1.0, 0.06), 10.0,
-               lens=24.0, folder=folder)
-
-
 if __name__ == '__main__':
     import looter_tripo_wardens as tw
     built, report = tw.build('DredgeBarge')
@@ -444,3 +481,5 @@ if __name__ == '__main__':
     with open(LAYOUT, 'w', encoding='utf-8', newline='\n') as f:
         f.write('\n'.join(lines))
     print('\n'.join('LAYOUT ' + line for line in lines), flush=True)
+    if FAILS:
+        raise ValueError('the barge breaks the layout rules: ' + '; '.join(FAILS))

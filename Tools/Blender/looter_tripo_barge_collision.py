@@ -24,6 +24,8 @@ FLOOR_CLEAR = 3.0            # points this far over a floor belong to what stand
 WALL_MARGIN = 5.0            # a wall's points: inboard of its walk floor's inner edge + this
 HOUSE_SPLIT_Z = 2700.0       # the house's and casing's hulls split here (over head height, 2257 + 180, with margin)
 HOUSE_BINS, CABIN_BINS, CASING_BIN = 3, 2, 900.0
+LOW_BIN = 150.0              # cm: the low hulls' lengths (a hull of 9 m filled the walls' feet's bends: it stood up to 1.6
+                             # m into the walks where a foot runs inboard, the capsule test stopped there)
 CABIN_Z, STACK_HEAD_Z, CRADLE_TOP = 3200.0, 4450.0, 950.0
 HOUSE_X, CASING_FORE = (-600.0, 2000.0), -640.0  # Tripo's x (final_x() moves them)
 HOUSE_Y = 1100.0             # |y| within: the house's and casing's widest (the cabin's walk)
@@ -90,10 +92,10 @@ def pieces(bm, tag):
             band = 'cabin' if z > CABIN_Z else ('high' if z > HOUSE_SPLIT_Z else 'low')
             if house[0] < x < house[1]:
                 bins = CABIN_BINS if band == 'cabin' else HOUSE_BINS
-                k = int((x - house[0]) // ((house[1] - house[0]) / bins))
+                k = int((x - house[0]) // (LOW_BIN if band == 'low' else (house[1] - house[0]) / bins))
                 add(f'cabin {k}' if band == 'cabin' else f'house {k} {band}', p)
             else:
-                add(f'casing {int((x - SQ_X[0]) // CASING_BIN)} {band}', p)
+                add(f'casing {int((x - SQ_X[0]) // (LOW_BIN if band == "low" else CASING_BIN))} {band}', p)
         elif w and x < scoop_x and BULWARK_Z[0] < z < BULWARK_Z[1] and abs(y) > w[1] - BULWARK_EDGE:
             # Split at the berth gap's ends: no hull may span it (the gap's own hull is its sill).
             k = int((x - HULL_ORIGIN) // SEG)

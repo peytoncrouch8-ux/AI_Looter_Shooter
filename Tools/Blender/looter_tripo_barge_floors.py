@@ -16,6 +16,17 @@ WALK_FLOOR, WALK_Y, WALK_STEP = (2240.0, 2262.0), (450.0, 1100.0), 25.0   # wher
 TRENCH_JOIN = 2.0                      # cm: floor faces closer than this across y are one run
 OUTBOARD_TEST = (30.0, 400.0)          # cm: a floor has its bulwark (or wall) within this, ray out at this height
 RIM_Z_MAX = 2450.0                     # the bulwark's points looked at stop under this (the walk canopies start here)
+STEP_OVER = 10.0                       # cm: a walk's headroom is measured from this over its floor (a plate or a cut
+                                       # stub lower than this is a step on the walk, not a roof over it)
+PATH_IN = 30.0                         # cm: a side walk's middle line keeps within its width rule's half + this of the
+                                       # bulwark (where the floor runs inboard round a wall's corner, its middle lay under
+                                       # the house's overhang, where no pawn walks)
+
+
+def walk_middle(lo, hi, width):
+    """|y| of a side walk's middle line over a floor lo..hi: its middle, no farther inboard of the bulwark's face than
+    width / 2 + PATH_IN (width: the walk's rule)."""
+    return max((lo + hi) / 2.0, hi - width / 2.0 - PATH_IN)
 
 
 def rims(bm, trench, step=WALK_STEP):

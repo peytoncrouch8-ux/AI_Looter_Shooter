@@ -181,3 +181,5 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-11-04 | PERF round 2 + KIT lamps r15 + M_Terrain Medium path: 10 Basic spiders in town | 312cb821 | 1920x1080 | 8.3 | 120 | 9.1 | 6.5 | 8.1 | 1.7 | 7.0 | 1918 | 2053139 | 4.17 |
 | 2026-11-04 | Art round 5: on the barge's well deck | 312cb821 | 1920x1080 | 8.2 | 122 | 9.0 | 5.4 | 8.2 | 2.1 | 6.9 | 1145 | 1454652 | 8.38 |
 | 2026-11-04 | Art round 5: 10 Basic spiders in town | 312cb821 | 1920x1080 | 8.8 | 113 | 10.5 | 7.6 | 7.8 | 2.0 | 7.3 | 1841 | 1934115 | 4.52 |
+| 2026-11-05 | Art round 6: on the barge's well deck | f3bd38c7 | 1920x1080 | 7.9 | 126 | 8.5 | 4.3 | 7.9 | 1.6 | 6.7 | 1173 | 1572859 | 7.06 |
+| 2026-11-05 | Art round 6: 10 Basic spiders in town | f3bd38c7 | 1920x1080 | 7.9 | 127 | 8.5 | 6.4 | 7.8 | 1.7 | 6.7 | 1749 | 1666296 | 4.12 |

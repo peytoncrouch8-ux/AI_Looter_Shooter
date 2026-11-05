@@ -159,8 +159,28 @@ The house's and casing's walls (the faces `looter_tripo_barge_paint.walls` picks
   `write_maps` shrinks the set to 2K), handed to the paint as `maps['Walls']`, written by `write_maps(maps['Walls'],
   'DredgeBargeWalls', ...)` (REBAKE's AlphaMask -> RGBA kept), and after `slots()` the slot's material is rebuilt on the
   set. The build stops if the slot's faces and the set's differ (one rule, checked).
-- Switched on by one spec line in `SPECS['DredgeBarge']`, once REWORK's round-5 mesh lands (Main's call):
-  `sets={'Walls': dict(faces=<the Walls rule>, maps=2048, slot='TripoDredgeBarge_Walls')}`.
+- Switched on 2026-11-05 00:58 (Main's GO on REWORK's round-5 mesh): `SPECS['DredgeBarge']['sets'] = {'Walls':
+  dict(faces=barge_paint.walls, maps=2048, slot='TripoDredgeBarge_Walls')}`.
+- **Round 5, the export** (`$env:LOOTER_TRIPO_ONLY='DredgeBarge'; Tools\artrun.ps1 -Export Wardens -Family BargeWalls` ->
+  `Intermediate\ArtExport_BargeWalls`: SM_DredgeBarge.fbx + Art_Models_Tripo_Wardens.json, 11 min; the manifest's
+  TripoDredgeBarge_Walls on Art/Textures/TripoDredgeBargeWalls (BC 2048 RGBA with REBAKE's chip alpha, ORM, N), the three
+  other slots on TripoDredgeBarge): 19,832 wall faces, 883 islands, 2,507 m2; fill 0.671 of their square; 15.4 -> 33.5
+  px/m (big 13.6 -> 33.4, spread 0.57 -> 0.19); mip bleed at 4096 0 / 0 / 1.8 / 12.4% (mips 1-4). REBAKE's paint on the
+  set: 11.25 M texels (2.38 M in the main atlas before), its footprint 30.6 px/m (14.0 before), chip weight 62.8%.
+- Tangents: 36 zero-tangent corners, all from the mesh's 27 zero-area faces (REWORK's own export: 46); no face
+  without UV area.
+- The mesh: 148,769 triangles against 148,830 in REWORK's `ArtExport_TripoR5` (00:49:54). Its build seems to have started
+  before `looter_tripo_barge.py`'s 00:43:01 change; ours used that code (flagged to Main).
+- Previews (`tripo_repack_check.py -ScriptArgs barge,<scratch>`: REBAKE's cameras; before = the walls painted in the main
+  atlas, after = their own set; `_paintdetail` = with MI_TripoDredgeBarge_Walls' proposed detail, PaintWorn 0.65 at
+  1.6 m, emulated): `Saved/ArtPreviews/Repack/BargeWalls/house_1m_*`, `house_3m_*`, `casing_3m_*`, `house_walk_*`,
+  `casing_walk_*`, `house_front_*`, `ship_*`. What they show, bluntly: the zones' borders are crisp curves where they were
+  7 cm smears, and the rust shows its own mottling. But at 1 m the rust also shows Tripo's soft light/dark blotches,
+  which the 14 px/m atlas used to average away (REBAKE's VALUE_KEEP term). With the proposed detail, the chip alpha
+  keeps the PaintWorn chips off the rust as designed, so the rust zones read softer than the old chips-everywhere look.
+  That is a look call for REBAKE and MATERIAL (a grain-only detail on rust, VALUE_KEEP lower at this density).
+- Repeatability: a second build (the preview run's after state, maps into a scratch folder) wrote the three main-atlas
+  maps byte-identical to the export's; the three walls-set maps differed. REPEAT_WALLS
 - Measured on the round-4 mesh (a dry run in memory; no barge map written): 19,936 faces, 2,508 m2, 881 Tripo islands;
   Tripo's atlas gives them 15.4 px/m (big surfaces 13.6).
 
@@ -174,12 +194,14 @@ The house's and casing's walls (the faces `looter_tripo_barge_paint.walls` picks
 The target of 35 px/m needs a 73% fill. Tripo's irregular wall islands, each REWORK copy of a slab on its own space
 (REBAKE's paint is tri-planar in model space, so copies can't share texels), top out near 70% with mip-safe gaps. Main:
 2 px on the 512 grid (2.2x Tripo's), no 1024 grid, no 4K set (the user's 2K cap for ships).
+- Tested end to end on the round-4 mesh (the build with `sets` switched on in memory, the barge's maps redirected to a
+  scratch folder): 19,838 wall faces packed alone, fill 0.671, 15.4 -> 33.5 px/m (big 13.6 -> 33.4), mip bleed at 4096 0 /
+  1.8 / 12.4% (mips 2-4); REBAKE's paint wrote into the set (chip weight on 62.9%); slots: Hull, Deck, Super on
+  TripoDredgeBarge and Walls on TripoDredgeBargeWalls, the face check passed; T_TripoDredgeBargeWalls_BC 2048 RGBA (the
+  chip alpha), _ORM, _N. The whole barge build took 890 s (own set 165 s with the pack cached, paint 315 s).
 - **Note for REWORK** (a cheap check, `tripo_repack_check`-style script in this lane's scratchpad: 32 rays over each wall
   face's outer hemisphere, an escape = no hit within 300 m): on the round-4 mesh 617 wall faces (51 m2, 2.0% of 2,512 m2)
   see no sky at all, 1,346 (112 m2, 4.5%) at most 2 of 32 rays, 2,150 (193 m2, 7.7%) at most 4. The enclosed ones lie
   23.2-30.1 m up, x -31.9..+11.8 m (house and casing), 184 facing down, 391 sideways, 42 up: inner faces between the house's
   and casing's shells. Dropping them from the rule would raise the walls' px/m by only 1%, so it isn't worth doing for the
   texels. The faces and their escape counts (that mesh only): `Saved/ArtPreviews/Repack/barge_walls_escapes.npy`.
-- Export, previews (house and casing at 1 and 3 m, before = the walls painted in the main atlas, after = their own set):
-  `Toolsrtrun.ps1 -Script Tools\Blender	ripo_repack_check.py -ScriptArgs barge` -> `Saved/ArtPreviews/Repack/BargeWalls/`,
-  `Intermediate\ArtExport_BargeWalls`: pending REWORK's round 5.

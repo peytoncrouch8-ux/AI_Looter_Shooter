@@ -6,9 +6,10 @@
   ... -ScriptArgs packers,<Name>[,<Name>...]
       Tripo's packing against Blender's packer (concave, any turn) and ours (looter_tripo_repack_pack), on the GLB as
       loaded, at the model's map size.
-  ... -ScriptArgs barge
+  ... -ScriptArgs barge[,<scratch folder>]
       the barge's walls on their own set against the walls in the main atlas: REBAKE's close views, before and after,
-      into Saved/ArtPreviews/Repack/BargeWalls/.
+      into Saved/ArtPreviews/Repack/BargeWalls/; with a scratch folder the builds' maps go there (an export's stay) and
+      the after build's are compared with Art/Textures' (repeatability).
   ... -ScriptArgs model,<kind>:<Name>[,...]
       the model built by its own pipeline twice (LOOTER_TRIPO_REPACK=0, then on): its numbers before and after, renders at
       1, 3 and 10 m from its biggest surface (1920 x 1080, 90 degrees across: the audit's view) and a sheet of 1:1 crops,
@@ -326,27 +327,45 @@ def model(kind, name):
         log(f'MODEL {key} after {json.dumps(res["after"])}')
 
 
-def barge():
+def barge(scratch=None):
     """The barge's walls on their own set (SPECS['DredgeBarge']['sets']) against the walls painted in the main atlas:
     the build with LOOTER_TRIPO_REPACK=0, then on, each through the REBAKE lane's close views (looter_tripo_barge_paint
-    .preview_views: the house at 1 and 3 m, the casing at 3 m, the walks), into Saved/ArtPreviews/Repack/BargeWalls/."""
+    .preview_views: the house at 1 and 3 m, the casing at 3 m, the walks), into Saved/ArtPreviews/Repack/BargeWalls/.
+    scratch: a folder the two builds write the barge's maps into (<scratch>/before, /after) instead of Art/Textures, so
+    an export's maps stay as they are; the after build's maps are then compared byte for byte with Art/Textures' (the
+    export's repeatability)."""
+    import hashlib
     import looter_tripo_barge_paint as bpaint
     import looter_tripo_wardens as tw
     folder = os.path.join(OUT, 'BargeWalls')
     os.makedirs(folder, exist_ok=True)
     details = (('', bpaint.DETAIL_TODAY), ('_paintdetail', bpaint.DETAIL_PROPOSED))
-    for state in ('before', 'after'):
-        _clear()
-        os.environ[trp.ENV] = '0' if state == 'before' else '1'
-        obj, report = tw.build('DredgeBarge')
-        for img in bpy.data.images:
-            if img.filepath and 'TripoDredgeBarge' in img.filepath:
-                img.reload()            # lt.material reuses a loaded image by its path
-        bpaint.preview_views(obj, folder, state, details)
-        log(f"BARGE {state}: {report.get('own set DredgeBargeWalls')} paint {report.get('paint')}")
-    os.environ[trp.ENV] = '1'
+    real = lt.texture_path
+    try:
+        for state in ('before', 'after'):
+            _clear()
+            os.environ[trp.ENV] = '0' if state == 'before' else '1'
+            if scratch:
+                root = os.path.join(scratch, state)
+                lt.texture_path = (lambda s, k, root=root: os.path.join(root, s, f'T_{s}_{k}.png')
+                                   if s.startswith('TripoDredgeBarge') else real(s, k))
+            obj, report = tw.build('DredgeBarge')
+            for img in bpy.data.images:
+                if img.filepath and 'TripoDredgeBarge' in img.filepath:
+                    img.reload()            # lt.material reuses a loaded image by its path
+            bpaint.preview_views(obj, folder, state, details)
+            log(f"BARGE {state}: {report.get('own set DredgeBargeWalls')} paint {report.get('paint')}")
+    finally:
+        lt.texture_path = real
+        os.environ[trp.ENV] = '1'
     entry = trp.RESULTS.get('DredgeBargeWalls', {})
     log('BARGE walls set: ' + json.dumps({k: entry.get(k) for k in ('before', 'after', 'mip', 'taps', 'scale', 'secs')}))
+    if scratch:
+        for set_name in ('TripoDredgeBarge', 'TripoDredgeBargeWalls'):
+            for kind in ('BC', 'ORM', 'N'):
+                a, b = os.path.join(scratch, 'after', set_name, f'T_{set_name}_{kind}.png'), real(set_name, kind)
+                ha, hb = (hashlib.sha1(open(x, 'rb').read()).hexdigest() if os.path.exists(x) else None for x in (a, b))
+                log(f"BARGE repeat T_{set_name}_{kind}: {'identical' if ha and ha == hb else 'DIFFERENT'}")
 
 
 if __name__ == '__main__':
@@ -360,7 +379,7 @@ if __name__ == '__main__':
     elif what == 'packers':
         packers(rest)
     elif what == 'barge':
-        barge()
+        barge(rest[0] if rest else None)
     elif what == 'model':
         import traceback
         for item in rest:

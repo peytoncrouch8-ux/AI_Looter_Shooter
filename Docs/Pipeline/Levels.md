@@ -45,6 +45,9 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
   - `props`: `level.props` alone (the town gate, and the towns plan's `RR_Home_B` / `RR_Home_I` as `homeB` / `homeI`; a prop
     may carry `"lift"` cm over the ground at its pivot) with their lights, chimney smoke and households, as the full build
     places them; the grass scatter, `build_area_loot.py` and `build_area_fauna.py` read the buildings: run them after.
+    `level.fires` (`{"house": <prop id or placement key>, "socket": "Fire", "byDay": true}`: the smith's forge, the bathhouse
+    boiler) puts an `ATownFire` (`Fire_<house>`, Effects) at the house's `SOCKET_Fire` (`build_area.town_fires()`: the props mode and
+    the full build's effects).
   - `lights`: the lived-in houses' lights alone (`level.lights`: lamp, reach, the windows' `gloomGlow` for the smog;
     `house_lights()`, otherwise part of the full build). Takes out the `Lights_<key>` actors, places them again and sets their
     households again (`build_area_townlife.py`'s `set_households`); `-Until "lights placed and saved"`.

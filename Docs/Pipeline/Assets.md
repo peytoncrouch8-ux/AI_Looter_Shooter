@@ -253,7 +253,7 @@ Rules that saved time:
    - Re-cut by an exact UV-to-UV box filter (k x k point taps over each texel's footprint): bilinear taps came out softer than
      Tripo's old 2:1 shrink. Normals re-encoded in the new MikkTSpace frames (a scratch mesh of the loop triangles: n-gons OK).
    - A soft source can't be sharpened by a re-cut: check the survey's "lost at map size" first
-     (`Toolsrtrun.ps1 -Script Tools\Blender	ripo_repack_check.py -ScriptArgs survey`). Lamplighter 0.8%, Unpaid 0.2%, tender 1.0%
+     (`Tools\artrun.ps1 -Script Tools\Blender\tripo_repack_check.py -ScriptArgs survey`). Lamplighter 0.8%, Unpaid 0.2%, tender 1.0%
      at 2K: rebake those in our sets instead.
    - Hooks: `repack=True` (Wardens SPECS), `repack_after=True` (m23/m47 BASE: after their fit), `swap(repack=True)` (buildings:
      after the retexture), the build's `sets` (own_set: faces onto a texture set of their own). `LOOTER_TRIPO_REPACK=0` gives the

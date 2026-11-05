@@ -1202,6 +1202,7 @@ class AreaBuild:
                 count += 1
         self.log(f'placed {count} chimney smoke plumes')
         self.house_lights()
+        self.town_fires()
 
     def falls(self, meshes):
         """Every waterfall (layout_computed.json waterfalls, else the older single waterfall) in Effects/Falls, each
@@ -1306,6 +1307,42 @@ class AreaBuild:
             town_life = importlib.reload(importlib.import_module('build_area_townlife'))
             town_life.set_households(self, town_life.level_actors(self))
         return len(old)
+
+    def town_fires(self):
+        """The towns plan's fires (level.fires, D3: the smith's forge, the bathhouse's boiler; the Company's barrel fire at the gate is
+        build_area_main3.py's): an ATownFire at the named house's socket (SOCKET_Fire), labelled Fire_<house>, in Effects, burning by
+        day if the entry says so (a forge, a boiler: somebody works there) and always in the smog's Gloom and at dusk. An entry:
+        {"house": <the placement key or prop id>, "socket": "Fire", "byDay": true}. The last build's are taken out by label first."""
+        specs = self.source.get('level', {}).get('fires', [])
+        if not specs:
+            return
+        cls = unreal.load_class(None, CLASSES + 'TownFire')
+        if cls is None:
+            self.warn('no TownFire class (build the game module first): no forge or boiler fire')
+            return
+        made = 0
+        for spec in specs:
+            label = f'Fire_{spec["house"]}'
+            for old in [a for a in actors.get_all_level_actors() if unreal.Name(self.tag) in a.tags and str(a.get_actor_label()) == label]:
+                actors.destroy_actor(old)
+            house = next((a for a in actors.get_all_level_actors() if unreal.Name(self.tag) in a.tags
+                          and str(a.get_actor_label()) == spec['house'] and isinstance(a, unreal.StaticMeshActor)), None)
+            if house is None:
+                self.warn(f'{label}: no {spec["house"]} placed (run the props mode or the full build): no fire')
+                continue
+            mesh = house.static_mesh_component
+            socket = spec.get('socket', 'Fire')
+            if not mesh.does_socket_exist(socket):
+                self.warn(f'{label}: {spec["house"]} has no {socket} socket: no fire')
+                continue
+            at = mesh.get_socket_transform(socket, unreal.RelativeTransformSpace.RTS_WORLD)
+            fire = self.place(cls, (at.translation.x, at.translation.y, at.translation.z), house.get_actor_rotation().yaw, label=label,
+                              folder='Effects')
+            fire.set_editor_property('burns_by_day', bool(spec.get('byDay', True)))
+            made += 1
+            self.log(f'{label}: a town fire at ({at.translation.x:.0f}, {at.translation.y:.0f}, {at.translation.z:.0f}), '
+                     f'{"by day, in the smog and at dusk" if spec.get("byDay", True) else "in the smog and at dusk"}')
+        self.log(f'{made} town fires')
 
     def prop_smoke(self, ids):
         """Chimney smoke for the level.props named in level.smoke (effects() does the placements': a prop is in the level only
@@ -1483,6 +1520,7 @@ class AreaBuild:
             count = self.place_props(mesh_index())
             self.prop_smoke(ids)
             self.replace_house_lights()
+            self.town_fires()
             levels.save_current_level()
             self.log(f'props placed and saved ({count} placed, {len(old)} of the last build taken out)')
             return

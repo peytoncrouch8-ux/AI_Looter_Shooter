@@ -1,0 +1,114 @@
+[
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "smithyTown",
+      "kind": "RR_Smithy_Town",
+      "location": [
+        -875,
+        9775
+      ],
+      "yaw": 345,
+      "note": "Smith & Wheelwright (open front, forge): the yard road's west end, its front 8.5 m from the road, 2.5 m from the coal stage; shut (dark), the forge burns (D3)"
+    }
+  },
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "bathhouse",
+      "kind": "RR_Bathhouse",
+      "location": [
+        -5275,
+        6375
+      ],
+      "yaw": 285,
+      "note": "Baths & Laundry: south of the workshop at the fields path's end, its front 10 m from the path; shut (dark), the boiler burns (D3)"
+    }
+  },
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "homeO",
+      "kind": "RR_Home_O",
+      "location": [
+        -4375,
+        6475
+      ],
+      "yaw": 255,
+      "note": "the narrow two-storey (lived) south of the workshop yard, its front 10.5 m from the fields path, facing west like the bathhouse"
+    }
+  },
+  {
+    "path": "level.props",
+    "op": "append",
+    "value": {
+      "id": "privyB",
+      "kind": "RR_Privy_B",
+      "location": [
+        -5875,
+        6375
+      ],
+      "yaw": 30,
+      "note": "beside the bathhouse's south wall"
+    }
+  },
+  {
+    "path": "level.lights",
+    "op": "merge",
+    "value": {
+      "smithyTown": {
+        "dark": true
+      },
+      "bathhouse": {
+        "dark": true
+      },
+      "homeO": {
+        "lamp": [
+          3,
+          16
+        ],
+        "reach": 400,
+        "gloomGlow": 4
+      }
+    },
+    "comment": "lived = the boarding house, K, M, O (the user, D5: lamp and gloomGlow of the lived houses); the shut ones dark"
+  },
+  {
+    "path": "level.smoke",
+    "op": "append",
+    "value": "smithyTown"
+  },
+  {
+    "path": "level.smoke",
+    "op": "append",
+    "value": "bathhouse"
+  },
+  {
+    "path": "level.smoke",
+    "op": "append",
+    "value": "homeO"
+  },
+  {
+    "path": "level.fires",
+    "op": "append",
+    "value": {
+      "house": "smithyTown",
+      "socket": "Fire",
+      "byDay": true
+    },
+    "comment": "D3: the smith's forge / the bathhouse boiler: an ATownFire at SOCKET_Fire (build_area.town_fires), by day and in the smog and at dusk"
+  },
+  {
+    "path": "level.fires",
+    "op": "append",
+    "value": {
+      "house": "bathhouse",
+      "socket": "Fire",
+      "byDay": true
+    },
+    "comment": "D3: the smith's forge / the bathhouse boiler: an ATownFire at SOCKET_Fire (build_area.town_fires), by day and in the smog and at dusk"
+  }
+]

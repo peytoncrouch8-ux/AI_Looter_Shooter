@@ -93,6 +93,12 @@ BUSH_CULL = 15000.0    # bushes (a hedge is a wall of them): about 90 m on Mediu
 REED_CULL = 7000.0     # reeds and flowers: about 42 m on Medium (the scatter's reeds go at 30)
 PAD_CULL = 6000.0      # lily pads, flat on the water: about 36 m on Medium
 WEB_CULL = 8000.0      # silk threads and mats: about 48 m on Medium, past which a thread is less than a pixel
+# The towns round's (Docs/Work/2026-11-04-Towns/PLAN.md 4.3-4.4): the wall feet's weeds to 24 m on Medium (past it a strip
+# of grass is a few pixels and the scatter's grass carries the read), the walks' variants to 90 m (the Farm view's camera
+# sees the town's west walks at 68-96 m: a new type drawn there would cost it draws over its line; the originals stay at
+# FENCE_CULL, so no walk opens a gap nearer than that).
+WEED_CULL = 4000.0
+WALK_VARIANT_CULL = 15000.0
 
 # Every kit piece, by its mesh's name without SM_ (build_area.mesh_index()'s keys): its size as it stands (cm: along
 # its length, the actor's Y, which a fence runs along; across, the actor's X, its front; up), where its pivot is along
@@ -236,6 +242,59 @@ PIECES = {
     'SignBracket': ((6, 96, 62), 'middle', FENCE_CULL),
     'Spittoon': ((26, 26, 18), 'middle', CLUTTER_CULL),
     'Washtub': ((80, 80, 60), 'middle', CLUTTER_CULL),
+    # The towns round's kit (Art/Models/Props/TownClutter.py, TownGround.py, FarmYard.py and the variants in Boardwalk.py,
+    # VillageProps.py, Containers.py; the PROPS lane, 2026-11-04), measured from the models' reports
+    # (Art/Levels/RansomsRest/town_rules.py KIT); Ransom's Rest's town.json places them (make_town.py, town_rules.py).
+    # Wall pieces (the bills, the corner lamp) hang lifted, so they have no footprint.
+    'BarrelFire': ((60, 63, 101), 'middle', CLUTTER_CULL),
+    'BarrelStack_A': ((200, 96, 135), 'middle', SMALL_CULL),
+    'Barrel_C': ((78, 66, 100), 'middle', CLUTTER_CULL),
+    'Boardwalk_4m_Patched': ((400, 303, 50), 'middle', WALK_VARIANT_CULL),
+    'Boardwalk_4m_Worn': ((400, 303, 50), 'middle', WALK_VARIANT_CULL),
+    'Boardwalk_Steps_Worn': ((40, 302, 37), 'middle', WALK_VARIANT_CULL),
+    'ButterChurn': ((40, 40, 107), 'middle', CLUTTER_CULL),
+    'CrateStack_A': ((102, 84, 149), 'middle', SMALL_CULL),
+    'CrateStack_B': ((201, 91, 104), 'middle', SMALL_CULL),
+    'Crate_C': ((166, 56, 48), 'middle', CLUTTER_CULL),
+    'DragHarrow': ((164, 184, 29), 'middle', CLUTTER_CULL),
+    'FallenBoards_A': ((205, 99, 13), 'middle', CLUTTER_CULL),
+    'FeedTrough': ((242, 93, 52), 'middle', CLUTTER_CULL),
+    'Grindstone': ((124, 60, 100), 'middle', CLUTTER_CULL),
+    'Handbills_A': ((111, 4, 77), 'middle', CLUTTER_CULL),
+    'Handbills_B': ((106, 5, 67), 'middle', CLUTTER_CULL),
+    'HayRake': ((284, 218, 130), 'middle', SMALL_CULL),
+    'Keg_Trestle': ((140, 78, 82), 'middle', CLUTTER_CULL),
+    'Ladder_A': ((55, 39, 360), 'middle', SMALL_CULL),
+    'LampPost_B': ((70, 70, 90), 'middle', SMALL_CULL),
+    'LampPost_C': ((22, 22, 322), 'middle', SMALL_CULL),
+    'LumberPile_Small': ((190, 120, 34), 'middle', CLUTTER_CULL),
+    'PlankCrossing_A': ((147, 263, 6), 'middle', CLUTTER_CULL),
+    'PlankCrossing_B': ((129, 325, 8), 'middle', CLUTTER_CULL),
+    'Plough': ((88, 236, 108), 'middle', SMALL_CULL),
+    'SackPile_B': ((146, 127, 28), 'middle', CLUTTER_CULL),
+    'Sawhorse_Log': ((176, 76, 126), 'middle', CLUTTER_CULL),
+    'SignBoard_Baths': ((4, 88, 48), 'middle', FENCE_CULL),
+    'SignBoard_Feed': ((4, 88, 48), 'middle', FENCE_CULL),
+    'SignBoard_Rooms': ((4, 88, 48), 'middle', FENCE_CULL),
+    'SignBoard_Smith': ((4, 88, 48), 'middle', FENCE_CULL),
+    'StrawLitter_A': ((169, 132, 4), 'middle', CLUTTER_CULL),
+    'ToolBarrel': ((118, 105, 170), 'middle', CLUTTER_CULL),
+    'ToolsLeaning_A': ((87, 50, 148), 'middle', CLUTTER_CULL),
+    'Vignette_Alley_A': ((225, 129, 181), 'middle', SMALL_CULL),
+    'Vignette_BackYard_A': ((190, 187, 110), 'middle', SMALL_CULL),
+    'Vignette_PorchEmpty_A': ((277, 111, 137), 'middle', SMALL_CULL),
+    'Vignette_PorchLived_A': ((206, 115, 122), 'middle', SMALL_CULL),
+    'Vignette_ShopFront_A': ((227, 126, 122), 'middle', SMALL_CULL),
+    'Vignette_ShopFront_B': ((267, 128, 92), 'middle', SMALL_CULL),
+    'WagonFreight': ((192, 522, 201), 'middle', SMALL_CULL),
+    'WagonFreight_Broken': ((192, 610, 201), 'middle', SMALL_CULL),
+    'WagonFreight_Canvas': ((192, 530, 262), 'middle', SMALL_CULL),
+    'WashKettle': ((114, 110, 135), 'middle', CLUTTER_CULL),
+    # The town's one water cart: drawn to 30 m on Medium (SMALL_CULL's 72 m would draw it in the Farm view, 66 m off).
+    'WaterBarrel_Cart': ((148, 222, 146), 'middle', CLUTTER_CULL),
+    'WeedFringe_A': ((209, 57, 48), 'middle', WEED_CULL),
+    'WeedFringe_B': ((213, 62, 80), 'middle', WEED_CULL),
+    'WeedFringe_C': ((57, 60, 50), 'middle', WEED_CULL),
     # Rocks (Rocks.py, Outcrops.py); an outcrop is a landmark, never culled.
     'Rock_A': ((94, 82, 47), 'middle', SMALL_CULL),
     'Rock_B': ((68, 65, 34), 'middle', SMALL_CULL),
@@ -272,10 +331,18 @@ FOOTPRINT_AHEAD = {'Woodshed': 21.0, 'LumberStack': 28.0, 'LeanTo': 6.0,
                    'Outcrop_TorA': 15.0, 'Outcrop_TorB': 48.0, 'Outcrop_TorC': -19.0,
                    'Awning_4m': 162.0, 'Awning_Post': 162.0, 'BroomBucket': 22.0, 'FlourSacks': 5.0, 'FlowerBox': 12.0,
                    'HandPump': -14.0, 'MilkCans': 11.0, 'PorchLantern': 17.0, 'RockingChair': -7.0,
-                   'RockingChair_Shawl': -7.0, 'SignBracket': 48.0}
+                   'RockingChair_Shawl': -7.0, 'SignBracket': 48.0,
+                   # The towns round's (town_rules.dressing_size: their boxes' middles off their pivots).
+                   'DragHarrow': 12.0, 'FeedTrough': 14.0, 'Ladder_A': 20.0, 'LumberPile_Small': 11.0, 'SackPile_B': 8.0,
+                   'ToolBarrel': 10.0, 'ToolsLeaning_A': 25.0, 'Vignette_Alley_A': 66.0, 'Vignette_BackYard_A': 24.0,
+                   'Vignette_PorchEmpty_A': 56.0, 'Vignette_PorchLived_A': 58.0, 'Vignette_ShopFront_A': 63.0,
+                   'Vignette_ShopFront_B': 64.0, 'WashKettle': 10.0, 'WeedFringe_A': 28.0, 'WeedFringe_B': 31.0}
 FOOTPRINT_RIGHT = {'EggSac_Burst': -16.0, 'Outcrop_TorA': 33.0, 'Outcrop_TorC': 65.0, 'Outcrop_TorD': 66.0,
                    'Boardwalk_2m': -100.0, 'Boardwalk_4m': -200.0, 'Boardwalk_Steps': -16.0, 'FlourSacks': -17.0,
-                   'KitchenGarden': 8.0}
+                   'KitchenGarden': 8.0, 'Boardwalk_4m_Patched': -200.0, 'Boardwalk_4m_Worn': -200.0,
+                   'Boardwalk_Steps_Worn': -16.0, 'Barrel_C': 6.0, 'Grindstone': 12.0, 'SackPile_B': -15.0,
+                   'Sawhorse_Log': -14.0, 'ToolBarrel': -26.0, 'Vignette_Alley_A': 12.0, 'Vignette_BackYard_A': -6.0,
+                   'Vignette_PorchLived_A': -10.0, 'Vignette_ShopFront_A': 12.0, 'Vignette_ShopFront_B': -6.0}
 
 # The fence and wall kits: the section and its length (cm), the broken and fallen sections, the piece that closes a run,
 # the iron fence's heavy corner post, the gate unit that fills a gate's gap (gate_clear: its way through, from and to
@@ -632,7 +699,8 @@ TOWN_KINDS = {
                         'Woodshed', 'LeanTo', 'LumberStack', 'LaundryLine', 'HitchRail', 'Outhouse', 'Cocoon_Hung',
                         'EggSac_A', 'EggSac_B', 'EggSac_C', 'Web_Crown', 'Web_Strands', 'Web_Tatters', 'Bush_',
                         'Reeds_', 'Flowers_', 'Rock_', 'Boulder_', 'Outcrop_', 'Cairn_'),
-    'flat': ('LilyPads_', 'Web_Ground', 'Web_Corner', 'Cocoon_Lying', 'EggSac_Burst'),
+    'flat': ('LilyPads_', 'Web_Ground', 'Web_Corner', 'Cocoon_Lying', 'EggSac_Burst', 'WeedFringe_', 'PlankCrossing_',
+             'StrawLitter_', 'FallenBoards_'),
 }
 FLAT_TILT = 15.0
 # Lily pads float this far (cm) over their pond's water (the scatter's do too).
@@ -640,13 +708,23 @@ WATER_LIFT = 1.0
 # What the player and the creatures go through (no collision, never an Obstacle: AInstancedProps' bSolid off), by the
 # start of the mesh's name; a town piece's "solid" overrides it (a hedge's bushes are solid). Egg sacs and cocoons are
 # shootable story pieces in Ransom's Rest's Sink; here they're dressing.
-PASSABLE = ('Bush_', 'Reeds_', 'LilyPads_', 'Flowers_', 'Web_', 'Cocoon_', 'EggSac_')
+PASSABLE = ('Bush_', 'Reeds_', 'LilyPads_', 'Flowers_', 'Web_', 'Cocoon_', 'EggSac_', 'WeedFringe_', 'PlankCrossing_',
+            'StrawLitter_', 'FallenBoards_', 'Handbills_')
 # Cards that cast no shadow (the art's rule for the webs; the scatter's reeds and pads cast none either).
 SHADOWLESS = ('Web_', 'Reeds_', 'LilyPads_', 'Flowers_')
-CLUTTER_SHADOWLESS = ('Spittoon', 'Horseshoe', 'BottleCrate', 'BroomBucket', 'MilkCans', 'FlowerBox', 'PorchLantern')
+CLUTTER_SHADOWLESS = ('Spittoon', 'Horseshoe', 'BottleCrate', 'BroomBucket', 'MilkCans', 'FlowerBox', 'PorchLantern',
+                      # The towns round's (the plan's rule: every piece under 0.6 m, every wall and flat piece, the
+                      # walks' family): the weeds, the ground cover, the bills, the low piles, the corner lamp's bracket.
+                      'WeedFringe_A', 'WeedFringe_B', 'WeedFringe_C', 'PlankCrossing_A', 'PlankCrossing_B',
+                      'StrawLitter_A', 'FallenBoards_A', 'Handbills_A', 'Handbills_B', 'SackPile_B', 'LumberPile_Small',
+                      'Crate_C', 'DragHarrow', 'FeedTrough', 'LampPost_B', 'Boardwalk_4m_Worn', 'Boardwalk_4m_Patched',
+                      'Boardwalk_Steps_Worn')
+# Existing kit drawn without a shadow in these areas only (Ransom's Rest's town views have no margin, 2026-11-04: the walks'
+# family and the pieces under 0.6 m; the other levels keep theirs as they were).
+SHADOWLESS_BY_AREA = {'RansomsRest': ('Boardwalk_4m', 'Boardwalk_2m', 'Boardwalk_Steps', 'Bench', 'WaterTrough', 'Washtub')}
 # A town piece's footprint lets the scatter's grass and flowers grow up to it, as a fence's does (only the woody and
 # rocky layers keep off it): plants, and the laundry's line between its posts.
-GRASS_UNDER = ('Bush_', 'Reeds_', 'Flowers_', 'LaundryLine')
+GRASS_UNDER = ('Bush_', 'Reeds_', 'Flowers_', 'LaundryLine', 'WeedFringe_', 'FallenBoards_')
 # Town pieces with no footprint: up in the air (threads, a crown's webs, what hangs) or on the water.
 NO_FOOTPRINT = ('Web_Line', 'Web_Strands', 'Web_Tatters', 'Web_Crown', 'Cocoon_Hung', 'LilyPads_')
 
@@ -2448,7 +2526,8 @@ def prop_flags(build, actor, mesh, solid, town):
     try:
         if not solid:
             actor.set_editor_property('solid', False)
-        if mesh.startswith(SHADOWLESS) or mesh in CLUTTER_SHADOWLESS:
+        if mesh.startswith(SHADOWLESS) or mesh in CLUTTER_SHADOWLESS or \
+                mesh in SHADOWLESS_BY_AREA.get(getattr(build, 'name', ''), ()):
             actor.set_editor_property('cast_shadows', False)
     except Exception as error:
         build.warn(f'Dressing_{mesh}: {error} (build the game module first): it stays solid and shadowed')

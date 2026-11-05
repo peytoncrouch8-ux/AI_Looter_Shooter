@@ -88,3 +88,76 @@ when it has a lot of its own); only `homeI` is in `layout.json`, so read the B r
   the gate (about 24 x 24 m, in the gate fight's ground) and the yard road's ends (reserved for the feed store and smithy).
   Larger lots need pads and moved props groups (`saloonBacklot`, `storeBacklot`) from TERRAIN, or the buildings go to the farms and
   the west road's stretches outside the town.
+
+# The 16 new buildings (BUILDINGS lane): sites, 2026-11-05 (overnight; nothing run, nothing applied)
+
+Method as for B and I: 50 cm occupancy raster of layout.json + layout_computed.json + the probe + town.json + towns_except.json (every
+category of the rules: buildings, obstacles, roads +1 m, pits, pads, features, water, cliffs, roosts, fight and encounter grounds, spots,
+boundary); every footprint (BUILDINGS.md bounds) shifted over the raster at 15 degree yaws; exact clearances from the polygons after.
+Result: the valley has two pockets. Patch: `towns_buildings.patch.json` (props, lights, smoke, fires; **not applied**; `--check` passes).
+
+## Placed (4 of 16)
+
+| id | model | location (X, Y) | yaw | faces | clearance (cm) | ground |
+|---|---|---|---|---|---|---|
+| `smithyTown` | RR_Smithy_Town | (-875, 9775) | 345 | the yard road, 8.5 m ahead (`yardRoad`) | coalStage 248, coffinShed 395, rail bed 449, yardRoad edge 645, gapTalus 302 | door 13.7; 26 of 320 cells known: 13.2..19.0, vs door 0..+5 |
+| `bathhouse` | RR_Bathhouse | (-5275, 6375) | 285 | west, `fieldsPath` 10 m ahead | fieldWall 292, workshop 1462, path edge 905 | **unknown** (0 of 204 cells) |
+| `homeL` | RR_Home_L (shut) | (-4075, 6375) | 270 | west, `fieldsPath` 9 m ahead | amosFence 252, fieldWall 412, workshop 553, path edge 650, undertaker 1732 | **unknown** (0 of 240) |
+| `privyB` | RR_Privy_B | (-5875, 6375) | 30 | beside the bathhouse's south wall (gap 195) | fieldWall 204, path edge 928 | **unknown** |
+
+- Why there. Smithy: the rail yard's west end, coal stage and coffin shed at hand, the yard road in front: the only spot where a 9.8 x
+  8 m open-front shop clears everything with a road ahead (33 poses, one cluster; the pocket holds no second building). Bathhouse, L, privy: the strip south of the workshop between the workshop yard and Amos's field wall,
+  facing the fields path (the field hands' way); Bath-L gap 358, Bath-privy 195 (all stamped with 150 cm margins). Both pockets are
+  off every story fight ground, encounter spot/route, roost circle, loot spot, Main 3 street, the 3.5 m street lane, rivers, the Sink
+  rim and cliffs (the raster categories); WestRoadCrew's new ground is far.
+- **Heights are the open question.** The probe (23:31) stops short of both pockets (the smithy's 294 cells and all of B are unknown).
+  `Saved/rr_town_probe.py` already has `yardWest` (-1900..-300, 9200..10900) and `workshopSouth` (-6000..-3800, 5900..7400): run it,
+  then check each footprint's ground against the door's: it must stay within -35..+45 cm of the door ground (the mesh goes 35 cm under
+  the pivot, ~45 cm above buries the wall's foot; about 3% over a 10 m footprint). Over that: drop the entry (no pad: pads do not create
+  room, the limit is occupancy), or add `"lift"` for a small sink.
+- Lights: all four shut/dark (rule: lived = boarding house, K, M, O). The mesh has two lit panes and SOCKET_Light on the bathhouse (shop);
+  `"dark": true` leaves them out. A lamp for it is one line in the patch (`{"lamp": [2, 8], "reach": 300, "gloomGlow": 6}`).
+- Smoke: smithy (SOCKET_Smoke), bathhouse (stovepipe; its vent `Smoke_2` is not used by `effects()`). Fires (D3): `level.fires` for both
+  (`build_area.town_fires()`, SOCKET_Fire; needs the models imported with their sockets, else a warning and no fire).
+- **Alternative `towns_buildings_O.patch.json`**: RR_Home_O (lived) at (-4375, 6475, 255) instead of L (gap to the bathhouse 227; fieldsPath
+  10.5 m ahead; amosFence 265, workshop 527). Lamp 3/16 cd, reach 400, gloomGlow 4, smoke. Apply one of the two files, never both.
+  Households: `HouseholdForMesh` only knows A/B/D/E/H, so O has none (silent inside) until one is added to `build_area_townlife.HOUSEHOLDS`.
+
+## Not placed (12) and why
+
+- **RR_BoardingHouse** (12.8 x 11.2 m): no pose anywhere in the valley, even ignoring every fight ground (0 of 0).
+- **RR_Home_K** (9.7 x 9.1): 0 poses under the rules. Ignoring fight grounds: only the west road's chapel end by Boot Hill, 2.7 m from the
+  dugout, inside WestRoadCrew's ground; heights unknown.
+- **RR_Home_M**: 16 poses, 12 in the strip above (7 facing the path) and 4 in the smithy's pocket (1 facing the yard road); it competes with
+  Bath/L/O for the same ground. Not taken: lived houses get lights and a household, and this strip is a field edge, not a street.
+- **RR_Home_N, RR_Home_P**: poses only in the same two pockets (N 456, P 296; in the strip they face the path at 11 m) and in the pen lane's
+  back (-4300, 2100: 19-20 m from any road, heights unknown, one building). A pocket holds one more of them only by dropping L/O.
+- **RR_FeedStore** (7.9 x 14 m): 6 poses in pocket B, none facing a road. Not placed (a feed store off every road is wrong). Ignoring fight
+  grounds: the west road's chapel end at (4275, -1775, 345), 172 cm off the road and 261 from the dugout, inside WestRoadCrew's ground.
+- **Sheds A-C, smokehouse, root cellar**: they belong behind homes; the homes that fit are placed shut and the strip has no yards. Candidate
+  spots exist behind the smithy (shed B or the smokehouse at about (-525..-575, 9875..9925), beside the smithy's front: too close to its
+  yard) and none behind L. Only the privy is placed.
+- Ignoring all fight grounds adds only: the west road's chapel end (M, O, K, Feed; Main 7's crew ground, Boot Hill graves 3-6 m off, heights
+  unknown) and O south-west of the gate (-25, -2225, 180: inside the Main 3 gate fight, 96 cm from the gate stones). Not taken.
+
+## Options for Main (a decision, not done)
+
+- More buildings need ground, not pads: move the `saloonBacklot`/`storeBacklot` props groups and give the lots of plan 4.4 real sizes, or
+  build K-P, the boarding house and the feed store on the farms and the west road's stretches outside the town core (a new probe region each).
+- If the probe shows the strip too steep: the pen lane's back (-4325, 1975) takes one house (O, 22 m off any road, heights unknown).
+
+## Run order (when the patch is accepted)
+
+1. `Tools\console.ps1 "py C:/Dev/AI_Looter_Shooter/Saved/rr_town_probe.py" -Until "TOWNPROBE done"` (30-90 s; covers `yardWest`,
+   `workshopSouth`, `penLaneBack`); then re-check the four footprints' ground (rule above); drop or lift as needed.
+2. Import the lane's models (BUILDINGS lane; `Intermediate\ArtExport_Buildings2`, 16 models + the outbuildings) so `SM_RR_Smithy_Town`,
+   `SM_RR_Bathhouse`, `SM_RR_Home_L` (or `_O`), `SM_RR_Privy_B` exist.
+3. `python Tools/layout_patch.py RansomsRest Docs/Work/2026-11-04-Towns/towns_buildings.patch.json --check`, then without `--check`; delete
+   or archive the patch (and the unused `_O` one).
+4. `Tools\console.ps1 "py C:/Dev/AI_Looter_Shooter/Tools/Unreal/build_area.py RansomsRest props" -Until "props placed and saved"`
+   (props, plumes, house lights, households, `town_fires`).
+5. As for B and I: `build_island_scatter.py`, `build_area_loot.py`, `build_area_fauna.py`, `path_probe.py`; tests
+   `Looter.World.TownFire`, `Looter.World.HouseLights`, `Looter.World.RansomsRest.InsideBoundary`, `Looter.UI.Minimap`, `Looter.Encounters.Camps`;
+   a PIE walk to the smithy (walk-in floor, forge fire) and the strip south of the workshop.
+6. `make_town.py` reads `level.props` as buildings, so its next run keeps off all four. CODEMAP: lines for `Art/Models/Buildings/Outbuildings.py`
+   and `TownBuildings.py` are the BUILDINGS lane's.
