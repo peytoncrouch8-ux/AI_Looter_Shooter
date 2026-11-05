@@ -10,6 +10,7 @@
 #include "Components/PointLightComponent.h"
 #include "Engine/World.h"
 #include "Tests/AutomationCommon.h"
+#include "Tests/BargeBlockProbe.h"
 #include "Tests/BargeTestWorld.h"
 
 // Main 6's deck fight, bigger (the user's "Bigger", 2026-11-04: BargeFightRules.h): three pushes (the deck's own, the
@@ -135,11 +136,25 @@ bool FBargeFightTest::RunTest(const FString& Parameters)
 	{
 		const FVector& From = SternFightSpots[Side < 0.0 ? 0 : 1];
 		FString Why;
+		FVector2D Reached = FVector2D::ZeroVector;
+		FVector2D Past = FVector2D::ZeroVector;
 		// A Dredger's body (DredgerCreature.cpp: 36 cm round).
+		constexpr double DredgerBody = 36.0;
 		if (!RouteOpen(World, *Barge, FVector2D(From.X, From.Y), LaneAftX, Side < 0.0 ? -HullHalfBeam : 0.0, Side < 0.0 ? 0.0 : HullHalfBeam,
-			CrossWalkZ, 36.0, &Why))
+			CrossWalkZ, DredgerBody, &Why, &Reached, &Past))
 		{
 			Route += FString::Printf(TEXT("%s: %s; "), Side < 0.0 ? TEXT("port") : TEXT("starboard"), *Why);
+			// What stops the body past there, traced (the user's call, 2026-11-05: "Trace it in C++"), and the same spot on her
+			// other side, where the walk is open, to set it against.
+			for (const double Mirror : { 1.0, -1.0 })
+			{
+				const TCHAR* Which = Mirror > 0.0 ? (Side < 0.0 ? TEXT("port") : TEXT("starboard")) : (Side < 0.0 ? TEXT("starboard, mirrored") : TEXT("port, mirrored"));
+				for (const FString& Line : DescribeBlock(World, *Barge, FVector2D(Reached.X, Reached.Y * Mirror), FVector2D(Past.X, Past.Y * Mirror),
+					CrossWalkZ, DredgerBody, RouteTall))
+				{
+					AddInfo(FString::Printf(TEXT("BargeBlock %s %s"), Which, *Line));
+				}
+			}
 		}
 	}
 	TestTrue(FString::Printf(TEXT("The stern push's way up both walks to the well deck is open (%s)"), *Route), Route.IsEmpty());

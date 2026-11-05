@@ -10,7 +10,9 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "World/BargeBoarding.h"
+#include "CollisionQueryParams.h"
 #include "Components/PrimitiveComponent.h"
+#include "Engine/HitResult.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/World.h"
 #include "Misc/AutomationTest.h"
@@ -165,6 +167,35 @@ namespace BargeTestWorld
 	}
 
 	/**
+	 * A body of Radius standing at Feet (on her) as a walking pawn's movement finds it: CapsuleClear's capsule swept a
+	 * centimetre in place against simple collision, any blocking hit (one it starts in too) in its way. Movement sweeps; it
+	 * never meets her per-poly mesh. The overlap CapsuleClear makes did, 2026-11-05: a render face across the starboard
+	 * house walk at (1607, 753, 2376) stopped the stern push's route, though no simple shape of hers is there and the
+	 * Dredgers walk through. Blocker gets the first blocking component's name.
+	 */
+	inline bool BodyFits(const UWorld* World, const ABargeBoarding& Barge, const FVector& Feet, double Radius, double Tall, FString* Blocker = nullptr)
+	{
+		const float Half = FMath::Max(static_cast<float>((Tall - OverFeet) * 0.5), static_cast<float>(Radius));
+		const FVector Middle = Barge.GetActorTransform().TransformPosition(Feet + FVector(0.0, 0.0, OverFeet + Half));
+		const FCollisionQueryParams Params(SCENE_QUERY_STAT(BargeBodyFits), false);
+		TArray<FHitResult> Hits;
+		World->SweepMultiByChannel(Hits, Middle + FVector(0.0, 0.0, 1.0), Middle, FQuat::Identity, ECC_Pawn,
+			FCollisionShape::MakeCapsule(static_cast<float>(Radius), Half), Params);
+		for (const FHitResult& Hit : Hits)
+		{
+			if (Hit.bBlockingHit && Hit.GetComponent())
+			{
+				if (Blocker)
+				{
+					*Blocker = Hit.GetComponent()->GetName();
+				}
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * A walk along Points (on her, flat) a step at a time: at every step a floor within Rise of Z under it and a body of
 	 * Radius standing clear there (CapsuleClear, to 1.8 m). Why gets the first step it fails and on what.
 	 */
@@ -200,16 +231,18 @@ namespace BargeTestWorld
 	/**
 	 * A walker's way across her where the walls wander (the walks' mouths, the stern push's walks): a grid of cells 30 cm
 	 * along X by 15 cm across over YMin..YMax, from Start's cell toward GoalX; a cell stands where a drop from over it finds
-	 * a floor within 30 cm of Z and a body of Radius stands clear on it (CapsuleClear, to 1.8 m). Open when a cell at GoalX
-	 * is reached through cells side by side. Why gets the farthest it got and what stopped it past there.
+	 * a floor within 30 cm of Z and a body of Radius stands on it as a walker's movement finds it (BodyFits, to 1.8 m). Open when a cell at GoalX
+	 * is reached through cells side by side. Why gets the farthest it got and what stopped it past there; OutReached and
+	 * OutPast those two cells (for BargeBlockProbe.h's DescribeBlock).
 	 */
+	inline constexpr double RouteTall = 180.0;
 	inline bool RouteOpen(const UWorld* World, const ABargeBoarding& Barge, const FVector2D& Start, double GoalX, double YMin, double YMax, double Z,
-		double Radius, FString* Why = nullptr)
+		double Radius, FString* Why = nullptr, FVector2D* OutReached = nullptr, FVector2D* OutPast = nullptr)
 	{
 		constexpr double StepX = 30.0;
 		constexpr double StepY = 15.0;
 		constexpr double Rise = 30.0;
-		constexpr double Tall = 180.0;
+		constexpr double Tall = RouteTall;
 		const double Way = GoalX >= Start.X ? 1.0 : -1.0;
 		const int32 Columns = FMath::CeilToInt32(FMath::Abs(GoalX - Start.X) / StepX) + 1;
 		const int32 Rows = FMath::Max(1, FMath::CeilToInt32((YMax - YMin) / StepY) + 1);
@@ -228,7 +261,7 @@ namespace BargeTestWorld
 				const FVector2D Spot = At(Column, Row);
 				double Floor = 0.0;
 				const bool bFloor = FloorUnder(World, Barge, FVector(Spot, Z + 120.0), Floor) && FMath::Abs(Floor - Z) <= Rise;
-				Cell = bFloor && CapsuleClear(World, Barge, FVector(Spot, Floor), Radius, Tall) ? 2 : 1;
+				Cell = bFloor && BodyFits(World, Barge, FVector(Spot, Floor), Radius, Tall) ? 2 : 1;
 			}
 			return Cell >= 2;
 		};
@@ -270,13 +303,21 @@ namespace BargeTestWorld
 				}
 			}
 		}
+		if (OutReached)
+		{
+			*OutReached = At(Farthest.X, Farthest.Y);
+		}
+		if (OutPast)
+		{
+			*OutPast = At(FMath::Min(Farthest.X + 1, Columns - 1), Farthest.Y);
+		}
 		if (Why)
 		{
 			const FVector2D Past = At(FMath::Min(Farthest.X + 1, Columns - 1), Farthest.Y);
 			double Floor = 0.0;
 			FString Blocker;
 			const bool bFloor = FloorUnder(World, Barge, FVector(Past, Z + 120.0), Floor) && FMath::Abs(Floor - Z) <= Rise;
-			CapsuleClear(World, Barge, FVector(Past, bFloor ? Floor : Z), Radius, Tall, &Blocker);
+			BodyFits(World, Barge, FVector(Past, bFloor ? Floor : Z), Radius, Tall, &Blocker);
 			*Why = Queue.IsEmpty() ? FString::Printf(TEXT("no room at the start (%.0f, %.0f)"), Start.X, Start.Y)
 				: FString::Printf(TEXT("got to x %.0f; past it at (%.0f, %.0f): %s"), At(Farthest.X, Farthest.Y).X, Past.X, Past.Y,
 					bFloor ? *(TEXT("in ") + Blocker) : *(TEXT("floor ") + FloorWhat(World, Barge, FVector(Past, Z + 120.0))));

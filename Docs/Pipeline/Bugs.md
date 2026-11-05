@@ -6,14 +6,15 @@ Part of the pipeline notes (index: `Docs/Pipeline.md`). Rules: `CLAUDE.md`.
 
 Each line: bug (date). Cause. Fix.
 
-- OPEN: the barge's starboard walk is blocked in the game but open in Blender's route check (2026-11-05, Looter.World.Barge.Fight
-  "starboard: got to x 1560; past it at (1590, 750): in Hull", identical on hulls 5, 5b and 5c; port open). Not the fix tried:
-  REWORK's low hulls narrowed (FOOT_MEDIAN) and every UCX proven convex (the check builds each UCX's convex hull, as Unreal's
-  one-hull-per-UCX import does): unchanged. A read-only editor probe tracing her Hull alone (`line_trace_component`,
-  `sphere_overlap_component`; a world trace hits the PCG scatter VOLUME instead; Unreal's Python can't read `KConvexElem`
-  vertices) saw sphere overlaps from floor+105 up across the walk at x 1590-1620 but a swept body along y 750 met nothing:
-  the overlap call may test complex (render) collision. Next: trace the test's own sweep in C++ and print the hit's element
-  index and its convex's bounds (scratchpad bargeprobe.py has the cross-section). Two failed fixes: the user decides.
+- The barge's stern-route test failed on the starboard walk while Blender's route check said open (2026-11-05,
+  Looter.World.Barge.Fight "past it at (1590, 750): in Hull", hulls 5, 5b, 5c). Two fixes to her UCX changed nothing (they were
+  fine). A C++ trace in the test (`Tests/BargeBlockProbe.h`, printed on failure as `BargeBlock`) showed: her simple shapes clear,
+  both simple sweeps clear, but `OverlapMultiByChannel` (bTraceComplex false) still reported her Hull, and a complex sweep hit her
+  render mesh (shape 194, past the 194 convexes) at (1607, 753, 2376): a stray aft-facing face across the walk 1.35 m up. Fix: the
+  route test sweeps the body against simple collision as CharacterMovement does (`BargeTestWorld.h` BodyFits); the render face
+  went to REWORK. Lessons: when a test and a Blender check disagree, trace the test's exact query in C++ first (an editor
+  Python probe can't read cooked convexes, and its `sphere_overlap_component` tests every shape incl. complex); two blind fixes
+  cost two hours.
 
 - Tripo builds failed writing a PNG a second after writing it (2026-11-04: 5 of 13, `OSError [Errno 22] Invalid argument`, once
   in Blender's own `save_render`). Cause: Windows reports a file still mapped by another reader (most likely the virus scanner
