@@ -1936,9 +1936,11 @@ ABOUT = (
 
 def write(d, world, approved):
     placed = [p for p in d.pieces if p.placed]
-    # A signpost with names stands as an ARoadSign (town.json "signs"), not an instance.
+    # A signpost with names stands as an ARoadSign (town.json "signs"), not an instance; its look (scale, letterHeight,
+    # sink: town_rules SIGN_*) rides along.
     signs = sorted(({'id': p.id, 'at': [rnd1(p.x), rnd1(p.y)], 'yaw': rnd1(p.yaw % 360.0), 'upper': p.sign[0],
-                     'lower': p.sign[1], 'group': p.group} for p in placed if getattr(p, 'sign', None)),
+                     'lower': p.sign[1], 'group': p.group, **getattr(p, 'sign_look', {})}
+                    for p in placed if getattr(p, 'sign', None)),
                    key=lambda e: e['id'])
     placed = [p for p in placed if not getattr(p, 'sign', None)]
     pieces = sorted((piece_json(p) for p in placed if not p.deferred), key=lambda e: e['id'])

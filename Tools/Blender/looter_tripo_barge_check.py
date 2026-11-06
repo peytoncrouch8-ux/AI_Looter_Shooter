@@ -109,6 +109,7 @@ def measure(obj):
     _walks(r, bm, out, well)
     _convex(out)
     _route(out)
+    _seams(obj, out)
     bm.free()
     _cross(r, out)
     _gap(r, out)
@@ -118,6 +119,28 @@ def measure(obj):
     _avoid(out)
     _sockets(obj, out)
     return out
+
+
+def _seams(obj, out):
+    """The passages' seams (looter_tripo_barge_passage.check_seams): every ray at the walls' and bulwarks' plates and
+    down both seams meets her own faces facing it."""
+    import looter_tripo_barge_passage as passage
+    rays, misses = passage.check_seams(obj)
+    import looter_tripo_barge_collision as bc_low
+    high = bc_low.low_hulls_high()
+    if high:
+        FAILS.append('low hulls begin over the passages\' floor: ' + ', '.join(f'{n} {d} cm' for n, d in high))
+    out += [f'- The house\'s and casing\'s low hulls along the passages: ' + ('every one reaches down to the floor '
+            f'(within {bc_low.LOW_FLOOR:.0f} cm).' if not high else ', '.join(f'{n} begins {d} cm up' for n, d in high))]
+    out += ['## The side walks\' seams (looter_tripo_barge_passage)', '',
+            f'- {len(passage.PASSAGES)} passages, {rays} rays (from each walk\'s middle at its wall '
+            f'{", ".join(f"{z:.0f}" for z in passage.SEAM_HEIGHTS)} cm up and its bulwark '
+            f'{", ".join(f"{z:.0f}" for z in passage.SEAM_BULWARK)} cm up, and down both seams '
+            f'{", ".join(f"{d:.0f}" for d in passage.SEAM_DOWN)} cm out, every {passage.SEAM_STEP:.1f} cm): '
+            + ('every one meets her faces facing it.' if not misses else f'{len(misses)} miss: ' + '; '.join(
+                f'{w} x {x} {what} ({got})' for w, x, what, got in misses[:20])), '']
+    if misses:
+        FAILS.append(f'the side walks\' seams: {len(misses)} rays miss')
 
 
 def _well(r, bm, out):

@@ -58,8 +58,71 @@ STOCK_FOUND = 9                        # rays of WALL_REF a stock station's wall
 FLOOR_IN = 30.0                        # cm: the floor's stock keeps this far off both plates (they slant)
 
 
+# --- The seam check (on the finished mesh) ---
+SEAM_HEIGHTS = (5.0, 30.0, 60.0, 95.0)  # cm over the floor: rays from the walk's middle at the wall (the user's)
+SEAM_BULWARK = (5.0, 30.0)            # and at the bulwark's plates (under its capping)
+SEAM_DOWN = (2.0, 6.0, 12.0)          # cm out from each plate: rays down at the seam from SEAM_FROM over the floor
+SEAM_FROM, SEAM_FLOOR = 40.0, 15.0    # a down ray must stop over the walk's floor - SEAM_FLOOR (the floor dips and
+                                      # rises some 8 cm across a walk: past that it went through)
+SEAM_STEP, SEAM_END = 12.5, 8.0       # cm between the rays along x; kept off the passage's ends
+SEAM_NEAR = 12.0                      # cm: a ray at a plate that gets past its line by more went through it
+SEAM_FACING = 0.2                     # the walk's floor met at its middle faces up this much
+SEAM_BACK = -0.35                     # a face met facing the ray less than this is seen from behind: culled in the
+                                      # game, a hole the ground shows through (edge-on faces of a bar pass)
+PASSAGES = []                         # the walks as the last build cut them (lines, floor level), for check_seams
+
+
 def log(message):
     print(f'LOOTER: DredgeBarge passages: {message}', flush=True)
+
+
+def check_seams(obj):
+    """Rays from every passage's middle at its wall's plates (SEAM_HEIGHTS), at its bulwark's (SEAM_BULWARK) and down at
+    both seams (SEAM_DOWN), every SEAM_STEP along x: none may get through (meet nothing, or meet a face past the
+    plate's line by SEAM_NEAR or under the floor by SEAM_FLOOR) or meet a face from behind (SEAM_BACK). Returns (rays
+    cast, the misses as (walk, x, what, where met))."""
+    import bmesh
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    bm.normal_update()
+    tree = BVHTree.FromBMesh(bm)
+    rays, misses = 0, []
+
+    def cast(p, d):
+        hit = tree.ray_cast(B(p), D(d), FAR)
+        if hit[0] is None:
+            return None
+        facing = -hit[1].dot(D(d).normalized())
+        return U(hit[0]), facing
+    for w in PASSAGES:
+        s, where = w['s'], side_name(w['s'], w['name'])
+        for x in np.arange(w['xs'][0] + SEAM_END, w['xs'][-1] - SEAM_END, SEAM_STEP):
+            x = float(x) + 0.7                 # off the plates' joints (at a station's x a ray can slip a seam)
+            yw, yb = w['yw'](x), w['yb'](x)
+            ym = (yw + yb) / 2.0
+            got = cast((x, s * ym, w['H'] + 60.0), (0.0, 0.0, -1.0))
+            rays += 1
+            if got is None or got[1] < SEAM_FACING or got[0][2] < w['H'] - SEAM_FLOOR:
+                misses.append((where, round(x), 'the floor at the middle', got and round(got[0][2] - w['H'])))
+                continue
+            floor = got[0][2]
+            for h, line, dy, heights in ((yw, 'wall', -1.0, SEAM_HEIGHTS), (yb, 'bulwark', 1.0, SEAM_BULWARK)):
+                for z in heights:
+                    got = cast((x, s * ym, floor + z), (0.0, s * dy, 0.0))
+                    rays += 1
+                    past = got is not None and (abs(got[0][1]) - h) * dy > SEAM_NEAR
+                    if got is None or past or got[1] < SEAM_BACK:
+                        misses.append((where, round(x), f'{line} at {z:.0f} cm',
+                                       None if got is None else (round(abs(got[0][1]) - h), round(got[1], 2))))
+                for out in SEAM_DOWN:
+                    y = h - dy * out                   # out from the plate into the walk
+                    got = cast((x, s * y, floor + SEAM_FROM), (0.0, 0.0, -1.0))
+                    rays += 1
+                    if got is None or got[0][2] < floor - SEAM_FLOOR or got[1] < SEAM_BACK:
+                        misses.append((where, round(x), f'{line} seam {out:.0f} cm out',
+                                       None if got is None else (round(got[0][2] - floor), round(got[1], 2))))
+    bm.free()
+    return rays, misses
 
 
 def side_name(s, name):
@@ -81,11 +144,13 @@ def build(bm, tag, nearest, fill):
     bm.faces.ensure_lookup_table()
     capped = lambda i: bm.faces[i][tag] == fill       # a corridor's or a walk's cap: no plating stock (its paint is a smear)
     walks = []
+    PASSAGES.clear()
     for name, (x0, x1) in runs().items():
         for s in (1, -1):
             got = _passage(table, tree, name, x0, x1, s, capped)
             if got:
                 walks.append(got)
+                PASSAGES.append(got)
     band = stairs.Stock(bm)
     stocks = []
     for w in walks:
@@ -101,7 +166,7 @@ def build(bm, tag, nearest, fill):
     out = {}
     for w in walks:
         gone, caps = cut.carve(bm, tag, nearest, fill, w)
-        made = cut.plates_for(bm, tag, w, band)
+        made = cut.plates_for(bm, tag, w, band) + cut.seals(bm, tag, nearest, w)
         out[side_name(w['s'], w['name'])] = (round(w['xs'][0]), round(w['xs'][-1]), len(w['segs']))
         log(f'{side_name(w["s"], w["name"])}: x {w["xs"][0]:.0f}..{w["xs"][-1]:.0f}, {len(w["segs"])} segments; wall '
             f'|y| {min(w["yw_s"]):.0f}..{max(w["yw_s"]):.0f}, bulwark {min(w["yb_s"]):.0f}..{max(w["yb_s"]):.0f}; {gone} '

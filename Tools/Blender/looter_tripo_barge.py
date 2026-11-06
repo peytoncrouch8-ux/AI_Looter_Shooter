@@ -55,6 +55,7 @@ The rework, in order (every number a constant below):
    axes moved by the squeeze), Gangway (on the gap's sill, facing out), Hatch (the hole's centre).
 """
 import math
+import os
 
 import bmesh
 import numpy as np
@@ -193,6 +194,11 @@ def rework(obj, report, maps):
     obj.data.update()
     collision.build(obj, pieces)
     _route_open()
+    _seams_closed(obj)
+    high = collision.low_hulls_high()
+    if high:
+        raise ValueError('low hulls begin over the passages\' floor (cm): ' + ', '.join(f'{n} {d}' for n, d in high))
+    log('every low hull along the passages reaches down to their floor')
     sq = lambda y: y * SQUEEZE_CASING                  # both stacks stand on the casing
     sockets = {'Gangway': ((GAP_X, -gap['outer'], GAP_SILL), -90.0),     # on the sill's outboard edge, facing out
                'Hatch': ((sum(HATCH[:2]) / 2.0, 0.0, CROSS), 0.0)}
@@ -204,6 +210,20 @@ def rework(obj, report, maps):
                         'coaming faces': hatch, 'passages': passages, 'triangulated, slivers': split, 'ucx': len(UCX)}
     for name, centre, size, _ in UCX:
         log(f'UCX {name}: centre {centre} size {size}')
+
+
+def _seams_closed(obj):
+    """The passages' seams (looter_tripo_barge_passage.check_seams): a ray from a walk at its wall, its bulwark or
+    down at either seam that meets no face of hers facing it (daylight through a gap: DEMO6, round 6) fails the build."""
+    import looter_tripo_barge_passage as passage
+    rays, misses = passage.check_seams(obj)
+    if misses and os.environ.get('LOOTER_SEAMS_WARN') == '1':     # a probe's: the misses logged, the build on
+        log(f'SEAMS OPEN {len(misses)} of {rays}: {misses}')
+        return
+    if misses:
+        raise ValueError(f'the passages\' seams are open: {len(misses)} of {rays} rays: ' + '; '.join(
+            f'{w} x {x} {what} ({got})' for w, x, what, got in misses[:16]))
+    log(f'the passages\' seams are closed: {rays} rays at the walls, the bulwarks and down the seams meet her faces')
 
 
 def _route_open():

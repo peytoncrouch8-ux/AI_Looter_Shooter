@@ -26,6 +26,11 @@ HOUSE_SPLIT_Z = 2700.0       # the house's and casing's hulls split here (over h
 HOUSE_BINS, CABIN_BINS, CASING_BIN = 3, 2, 900.0
 LOW_BIN = 150.0              # cm: the low hulls' lengths (a hull of 9 m filled the walls' feet's bends: it stood up to 1.6
                              # m into the walks where a foot runs inboard, the capsule test stopped there)
+LOW_FOOT = 2.0               # cm under a passage's floor its low hulls reach, along its wall's plates (merged flat, the
+                             # plates had no points under the strake: 6 low hulls began 88 cm up, a drop or a bullet at
+                             # knee height passed into the house)
+LOW_FLOOR = 5.0              # cm: a low hull along a passage may begin at most this over its floor (looter_tripo_barge's
+                             # guard, the layout's check)
 LOW_CLEAR = 10.0             # cm: the low hulls stay this much more than the walk's width rule off its bulwark
 FOOT_MEDIAN = 2              # stations each side a wall's foot is the median over
 CABIN_Z, STACK_HEAD_Z, CRADLE_TOP = 3200.0, 4450.0, 950.0
@@ -56,6 +61,16 @@ def pieces(bm, tag):
     raw = trenches(bm)
     walk = {(s, k): (float(np.median([raw[(s, k + d)][0] for d in range(-FOOT_MEDIAN, FOOT_MEDIAN + 1)
                                       if (s, k + d) in raw])), hi, top) for (s, k), (lo, hi, top) in raw.items()}
+    # Where a side walk is a passage (looter_tripo_barge_passage) its wall's foot and its bulwark's face are the
+    # passage's straight lines (its plates): measured, the floor strips and the seal under the plates read the foot 8-10
+    # cm in behind the wall's plates, the low hulls got no wall under 2 m (round 7: the walls were open to a pawn and a
+    # flat hull at the plates' top stood over the walk).
+    import looter_tripo_barge_passage as passage
+    for w in passage.PASSAGES:
+        for (s, k), (lo, hi, top) in list(walk.items()):
+            x = k * WALK_STEP
+            if s == w['s'] and w['xs'][0] - WALK_STEP / 2.0 <= x <= w['xs'][-1] + WALK_STEP / 2.0:
+                walk[(s, k)] = (w['yw'](x), w['yb'](x), top)
     scoop_x = barge.terrace_aft(bm)
     # The forecastle's floor to the scoop's walls: its outermost faces (a post's foot breaks the run from the middle),
     # the widest of the stations near (a station where a bar's foot sits reads narrow).
@@ -116,7 +131,32 @@ def pieces(bm, tag):
                 add(f'bulwark {side} {n}{part}', p)
         elif HULL_Z[0] < z < HULL_Z[1]:
             add(f'hull {int((x - HULL_ORIGIN) // HULL_SLICE)}', p)
+    # Along every passage the low hulls reach from LOW_FOOT under its floor at its wall's plates (each station a point).
+    for w in passage.PASSAGES:
+        for x in w['xs']:
+            x = float(x)
+            p = (x, w['s'] * (w['yw'](x) - 1.0), w['top'](x) - LOW_FOOT)
+            if house[0] < x < house[1]:
+                add(f'house {int((x - house[0]) // LOW_BIN)} low', p)
+            elif casing[0] < x < casing[1]:
+                add(f'casing {int((x - SQ_X[0]) // LOW_BIN)} low', p)
     return pts, {'walk': walk, 'floor': floor, 'scoop_x': scoop_x, 'bow': bow}
+
+
+def low_hulls_high():
+    """The house's and casing's low hulls along a passage that begin more than LOW_FLOOR over its floor: [(name, their
+    bottom over the floor)] (looter_tripo_barge.UCX)."""
+    import looter_tripo_barge_passage as passage
+    out = []
+    for name, centre, size, _ in barge.UCX:
+        if not (name.startswith('house ') or name.startswith('casing ')) or not name.endswith(' low'):
+            continue
+        x0, x1, bottom = centre[0] - size[0] / 2.0, centre[0] + size[0] / 2.0, centre[2] - size[2] / 2.0
+        floors = [w['top'](min(max(centre[0], w['xs'][0]), w['xs'][-1])) for w in passage.PASSAGES
+                  if x1 > w['xs'][0] and x0 < w['xs'][-1]]
+        if floors and bottom > min(floors) + LOW_FLOOR:
+            out.append((name, round(bottom - min(floors))))
+    return out
 
 
 def reach(z, w, wide):

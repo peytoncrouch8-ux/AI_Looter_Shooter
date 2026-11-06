@@ -1085,6 +1085,16 @@ def lanes(layout):
     return [lane for lane in LANES if lane['id'] not in ids]
 
 
+def lane_road(world, lane_id, mouth):
+    """The points of the road a lane leaves (the other road nearest its mouth), or None."""
+    near = [(seg_near(a, b, mouth)[1], rid, pts) for rid, pts, half, kind in world.roads if rid != lane_id
+            for a, b in zip(pts, pts[1:])]
+    if not near:
+        return None
+    d, rid, pts = min(near, key=lambda t: (t[0], t[1]))
+    return [tuple(p) for p in pts] if d < 500.0 else None
+
+
 def lane_route(world, lane_id):
     """A lane's points and half width: the layout's road of that id if it has one, else LANES'."""
     for rid, pts, half, kind in world.roads:
@@ -1120,10 +1130,73 @@ def tree_free(x, y):
             return True
     return False
 LANE_WEED_STEP = 400.0
-# A lane's signpost's names (upper: up the lane; lower: back the way it came), and the board's yaw in the post's frame
-# (build_area_dressing.SIGN_UPPER_YAW: ARoadSign::BoardYaw(0)).
-SIGNS = {'hamletLane': ('GLEBE CORNER', 'CHAPEL')}
+# A lane's signpost's names (upper: up the lane; lower: what really lies the way the lower board points, 190 degrees round
+# from the upper: the model's boards can't turn), and the board's yaw in the post's frame (build_area_dressing.SIGN_UPPER_YAW:
+# ARoadSign::BoardYaw(0)). Glebe Corner's lower points due south across the west road (bearing 179): Ransom Farm's zone from
+# 52 m, its barn at 68 m (1 degree off the board), well 77 m, farmhouse 86 m (round 11; was "CHAPEL", which lies north-east,
+# 113 degrees off the board).
+SIGNS = {'hamletLane': ('GLEBE CORNER', 'RANSOM FARM')}
 SIGN_UPPER_YAW = -78.0
+# The upper board's front face looks out 90 degrees left of its arrow, the lower board's back face (the one beside it: the
+# lower points 190 degrees round) 100: a reader on that side sees both within 5 degrees of arrow + 95.
+SIGN_FACE = 95.0
+# Round 11 (DEMO6: "from 5 m at 1080p the letters are a smudge"): a lane's signpost is the roadside's at 1.5x (boards 1.17
+# and 1.05 m long and 24 cm tall, the post 18 cm square), its letters 8.6 cm in the post's frame (12.9 cm seen: 2x the
+# roadside's 6.5; "GLEBE CORNER" is squeezed to 0.8 on its board), and it stands 1.0 m deep, so the boards' middles come at
+# 1.95 and 1.57 m (ARoadSign: 1.97 and 1.72 m up the post, the names' middles 1.967 and 1.716; x 1.5 = 2.95 and 2.57).
+SIGN_SCALE = 1.5
+SIGN_LETTER = 8.6
+SIGN_SINK = 100.0
+# Its spot box: SM_Signpost's bounds (x -33.8..24.6, y -73.0..60.8: the boards) at SIGN_SCALE.
+SIGN_BOX = (-33.8 * SIGN_SCALE, 24.6 * SIGN_SCALE, -73.0 * SIGN_SCALE, 60.8 * SIGN_SCALE)
+# The boards are turned to read from the lane's mouth and from 10 and 15 m along the road it leaves, both ways (the least
+# worst of those five sights), the upper arrow kept within SIGN_TURN of the lane 15 m in (DEMO6 saw them edge on from the
+# mouth: they ran along the lane).
+SIGN_TURN = 35.0
+SIGN_VIEWS = (1000.0, 1500.0)
+
+
+def sign_arrow(x, y, lane_pts, road_pts):
+    """The upper board's bearing for a lane's signpost at (x, y) (lane_pts from its mouth; road_pts the road it leaves),
+    and the worst angle a reader at the mouth or along the road meets its faces at."""
+    mx, my = lane_pts[0]
+    seg = min(zip(road_pts, road_pts[1:]), key=lambda s: seg_near(s[0], s[1], (mx, my))[1])
+    (ax, ay), (bx, by) = seg
+    n = math.hypot(bx - ax, by - ay) or 1.0
+    dx, dy = (bx - ax) / n, (by - ay) / n
+    views = [(mx, my)] + [(mx + dx * d * s, my + dy * d * s) for d in SIGN_VIEWS for s in (1.0, -1.0)]
+    up = lane_point(lane_pts, 1500.0)
+    up_bearing = math.degrees(math.atan2(up[1] - y, up[0] - x))
+    bearings = [math.degrees(math.atan2(vy - y, vx - x)) for vx, vy in views]
+
+    def worst(arrow):
+        face = arrow + SIGN_FACE
+        return max(min(d, 180.0 - d) for d in (abs((b - face + 180.0) % 360.0 - 180.0) for b in bearings))
+
+    turns = [t * 0.5 for t in range(-int(SIGN_TURN * 2), int(SIGN_TURN * 2) + 1)]
+    best = min(turns, key=lambda t: (round(worst(up_bearing + t), 3), abs(t)))
+    return up_bearing + best, worst(up_bearing + best)
+
+
+def seg_near(a, b, p):
+    """The point of segment a-b nearest p, and its distance."""
+    (ax, ay), (bx, by), (px, py) = a, b, p
+    dx, dy = bx - ax, by - ay
+    l2 = dx * dx + dy * dy or 1.0
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / l2))
+    q = (ax + dx * t, ay + dy * t)
+    return q, math.hypot(px - q[0], py - q[1])
+
+
+def lane_point(pts, dist):
+    """The point dist cm along a polyline (its end if shorter)."""
+    left = dist
+    for (ax, ay), (bx, by) in zip(pts, pts[1:]):
+        seg = math.hypot(bx - ax, by - ay)
+        if left <= seg and seg > 0.0:
+            return ax + (bx - ax) * left / seg, ay + (by - ay) * left / seg
+        left -= seg
+    return pts[-1]
 
 
 def hamlet(r):
@@ -1202,17 +1275,26 @@ def hamlet(r):
         house_side = 1.0 if ((ex - px) * (hy - ey) - (ey - py) * (hx - ex)) > 0.0 else -1.0
         # The mouth: the lantern post (emissive only: LIGHTS may leave it dark) on one side, the signpost on the other: an
         # ARoadSign (build_area_dressing places town.json's "signs" with their names painted on the boards, the roadside's
-        # make), its upper board up the lane to the hamlet, its lower back to the road toward the chapel.
+        # make, here at SIGN_SCALE), its upper board up the lane to the hamlet, its lower back across the road at the
+        # farm (SIGNS), both turned to the road (sign_arrow).
+        road = lane_road(r.world, g, pts[0])
         for mesh, dist, side in (('LanternPost', 400.0, 1.0), ('Signpost', 300.0, -1.0)):
             a = along_lane(dist, side, half + 70.0)
             b = along_lane(dist + 150.0, -side, half + 70.0)
             if not a:
                 continue
             if mesh == 'Signpost':
-                p = r.add(mesh, a[0], a[1], a[2] - SIGN_UPPER_YAW, g, 'verge',
-                          alts=[(b[0], b[1], b[2] - SIGN_UPPER_YAW)] if b else [])
+                # Its spot, 50 cm nearer the road, 1 m farther in, then across the lane.
+                spots = [s for s in (a, along_lane(dist - 50.0, side, half + 70.0),
+                                     along_lane(dist + 100.0, side, half + 70.0), b) if s]
+                yaws = []
+                for s in spots:
+                    arrow = sign_arrow(s[0], s[1], pts, road)[0] if road else s[2]
+                    yaws.append((s[0], s[1], arrow - SIGN_UPPER_YAW))
+                p = r.add(mesh, *yaws[0], g, 'verge', alts=yaws[1:], box=SIGN_BOX)
                 if p is not None:
                     p.sign = SIGNS.get(g, ('', ''))
+                    p.sign_look = {'scale': SIGN_SCALE, 'letterHeight': SIGN_LETTER, 'sink': SIGN_SINK}
             else:
                 r.add(mesh, a[0], a[1], a[2] + 90.0 * side, g, 'verge',
                       alts=[(b[0], b[1], b[2] - 90.0 * side)] if b else [])

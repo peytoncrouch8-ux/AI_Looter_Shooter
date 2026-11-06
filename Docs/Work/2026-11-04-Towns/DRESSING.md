@@ -293,3 +293,22 @@ PenLane, YardRoad, Farm), Looter.Breakable / Economy.Balance (no breakable mesh 
   laundry, second woodpile and block (43-78 cm on the knoll's toe), its tools (its side yard is full), homeO's laundry (no spot by
   the smokehouse). The kitchen garden's last 30 cm lie past the probe's hamlet region (X 8000): 99 of 121 samples measured, 12 cm
   of fall, kept.
+
+# Round 11 (2026-11-05 16:45; DEMO6: the Glebe Corner signpost unreadable)
+- The lane's signpost is the roadside's ARoadSign at 1.5x (town_rules SIGN_SCALE; boards 1.17 / 1.05 m x 24 cm, post 18 cm),
+  LetterHeight 8.6 in its frame (SIGN_LETTER: 12.9 cm seen, 2x the roadside's 6.5; "GLEBE CORNER" squeezed ~0.8), stood 1.0 m
+  deep (SIGN_SINK): the boards' middles at 1.95 and 1.57 m. Same model, names, paint, both faces painted.
+- town.json "signs" entries carry the look: `scale`, `letterHeight`, `sink` (make_town write(): p.sign_look);
+  build_area_dressing.place_town_signs applies them (actor scale, z = ground - sink, letter_height set before the names).
+- Turned by town_rules.sign_arrow: the upper arrow within 35 degrees of the lane 15 m in, turned so the faces meet the five
+  sights (the lane's mouth on the west road, 10 and 15 m along the road both ways) at the least worst angle. The spot box is the
+  scaled bounds (SIGN_BOX). Spots tried: 3 m in, 2.5 m, 4 m (west side), then across the lane: 3 m and 2.5 m are within 3 m of
+  WestRoad's patrol route with the bigger boards, so it stands 4 m in on the west side: (4603, -6357), yaw 67 (arrow -11, was -22.5).
+- Sights (angle off the faces / distance): chapel side 5 m 12 / 8.2 m, 10 m 1 / 12.8 m, 15 m 4 / 17.6 m; the mouth 45 / 4.6 m;
+  far side 10 m 44 / 8.8 m, 15 m 34 / 13.4 m; far side 5 m 72 / 4.9 m and DEMO6's (4100, -6150) 74 / 5.4 m: edge on (a flat
+  two-faced board can't face both road ends and the mouth from one corner; this favours the chapel side, the way Main 4-6 go out).
+- The lower board (190 degrees round from the upper; the model's boards can't turn) points due south across the west road (179):
+  renamed "CHAPEL" -> "RANSOM FARM" (Main 17:00: name what really lies that way): the farm zone from 52 m, its barn 68 m (1 degree
+  off), well 77 m, farmhouse 86 m. The chapel lies north-east, 113 degrees off it. Squeezed ~0.72 on its 43 cm room.
+- `make_town.py --out town_next.json`, runs identical (after the rename too); town.json untouched; the 438 pieces unchanged, only
+  the sign entry.

@@ -102,6 +102,10 @@ def rect(bm, tag, stock, kind, o, a, b, n):
         bmesh.ops.reverse_faces(bm, faces=new)
         for f in new:
             f.normal_update()
+    for f in new:                       # and any face the press folded back (culled in the game: a hole)
+        if f.normal.dot(nb) < -0.1:
+            f.normal_flip()
+            f.normal_update()
     return new
 
 

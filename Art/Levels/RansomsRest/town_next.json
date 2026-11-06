@@ -462,7 +462,7 @@
 
   ],
   "signs": [
-    {"id": "hamletLane_signpost_01", "at": [4583.2, -6337.6], "yaw": 55.5, "upper": "GLEBE CORNER", "lower": "CHAPEL", "group": "hamletLane"}
+    {"id": "hamletLane_signpost_01", "at": [4603.1, -6356.5], "yaw": 67.0, "upper": "GLEBE CORNER", "lower": "RANSOM FARM", "group": "hamletLane", "scale": 1.5, "letterHeight": 8.6, "sink": 100.0}
   ],
   "deferred": {},
   "deferredPieces": [

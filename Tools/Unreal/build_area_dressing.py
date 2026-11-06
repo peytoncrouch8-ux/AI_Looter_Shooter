@@ -2610,7 +2610,9 @@ def place_signs(build, plan, signs, cls, meshes):
 
 def place_town_signs(build, ground, cls, meshes):
     """A town's named signposts (town.json "signs": at, yaw, upper, lower; make_town checks their spots as a Signpost
-    piece) as ARoadSigns, the roadside's make: Glebe Corner's at its lane's mouth. In Dressing/Roadside, tagged Obstacle."""
+    piece) as ARoadSigns, the roadside's make: Glebe Corner's at its lane's mouth. In Dressing/Roadside, tagged Obstacle.
+    Optional look (town_rules SIGN_*): scale (the whole sign, the names with it), letterHeight (ARoadSign.LetterHeight, in
+    the post's frame), sink (cm into the ground, so the scaled boards come at eye height)."""
     town, _ = load_town(build.source)
     signs = (town or {}).get('signs') or []
     if not signs:
@@ -2623,14 +2625,19 @@ def place_town_signs(build, ground, cls, meshes):
     post = unreal.load_asset(meshes['Signpost'])
     for sign in signs:
         x, y = sign['at'][:2]
-        actor = build.place(cls, (x, y, ground(x, y)), float(sign.get('yaw', 0.0)), label=f'RoadSign_{sign["id"]}',
-                            folder=f'{FOLDER}/{ROADSIDE_FOLDER}', tags=(TAG, 'Obstacle'))
+        scale = float(sign.get('scale', 1.0))
+        actor = build.place(cls, (x, y, ground(x, y) - float(sign.get('sink', 0.0))), float(sign.get('yaw', 0.0)),
+                            label=f'RoadSign_{sign["id"]}', folder=f'{FOLDER}/{ROADSIDE_FOLDER}',
+                            scale=(scale, scale, scale) if scale != 1.0 else None, tags=(TAG, 'Obstacle'))
         component = actor.get_editor_property('post')
         component.set_static_mesh(post)
         component.set_editor_property('ld_max_draw_distance', float(PIECES['Signpost'][2]))
+        if 'letterHeight' in sign:
+            actor.set_editor_property('letter_height', float(sign['letterHeight']))
+        # Set last, so the editor builds it again and lays the names on the boards.
         actor.set_editor_property('upper_name', unreal.Text(sign.get('upper', '')))
         actor.set_editor_property('lower_name', unreal.Text(sign.get('lower', '')))
-        build.log(f'dressing: the town\'s signpost {sign["id"]} at ({x:.0f}, {y:.0f}): "{sign.get("upper", "")}" '
+        build.log(f'dressing: the town\'s signpost {sign["id"]} at ({x:.0f}, {y:.0f}) x{scale:g}: "{sign.get("upper", "")}" '
                   f'ahead, "{sign.get("lower", "")}" back')
 
 

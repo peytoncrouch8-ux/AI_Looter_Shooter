@@ -12,8 +12,13 @@ from looter_tripo_rework import D, copy, patch, ue_centre
 
 STASH_DZ = -5000.0                     # cm: the copies aside lie this far under the barge while the cuts run
 RELIEF = 0.25                          # of a piece's source depth kept (rivets and plate edges, shallow: as the stairs')
-DEPTH_IN, DEPTH_OUT = 25.0, 4.0        # cm into and out of a wall's face (its plane, leaning or plumb) its plating is
+DEPTH_IN, DEPTH_OUT = 25.0, 8.0        # cm into and out of a wall's face (its plane, leaning or plumb) its plating is
                                        # copied from (what stands out more is a shard or a fitting, not plating)
+PRESS_OUT = 4.0                        # cm: a stock face standing out of the face is pressed as if this far out at most
+STOCK_BASE = 25.0                      # cm over its floor a wall's plating is read from (its foot flares out into the
+                                       # skirt: read from the floor, every plate's foot came out empty, the seam open)
+FILL_CLEAR = 20.0                      # cm: a stock stretch keeps this far off the rework's fills (caps: no plating)
+STRETCH_MIN = 60.0                     # cm: the shortest stretch kept when the fills part one
 FLOOR_DEPTH = (6.0, 2.0)               # cm under and over a floor's top its plating is copied from
 MOVE_ON = (0.61, 17.0)                 # the stretch read on by this share of each piece's length plus this (cm)
 PIECE_MIN = 12.0                       # cm: the least source a piece is cut from either way (slivers had no tangents)
@@ -29,6 +34,7 @@ class Plating:
         self.kind, self.side, self.line, self.top, self.height = kind, side, line, top, height
         self.y_span = y_span
         self.stretches = [(a, b) for a, b in stretches if b - a >= PIECE_MIN]
+        z0 = STOCK_BASE if kind == 'wall' else 0.0
         if not self.stretches:
             raise ValueError(f'a passage plating stock ({kind}, side {side}) has no stretch')
         picked = []
@@ -41,10 +47,11 @@ class Plating:
                 continue                                  # skip: the rework's fills (caps painted in a smear)
             if kind == 'wall':
                 d = line(x, z - top(x)) - abs(y)
-                if -DEPTH_OUT < d < DEPTH_IN and max(zs) > top(x) - 2.0 and min(zs) < top(x) + height + 10.0:
+                if -DEPTH_OUT < d < DEPTH_IN and max(zs) > top(x) + z0 - 2.0 and min(zs) < top(x) + z0 + height + 10.0:
                     picked.append(f)
             elif y_span[0] - 5.0 < abs(y) < y_span[1] + 5.0 and top(x) - FLOOR_DEPTH[0] < z < top(x) + FLOOR_DEPTH[1]:
                 picked.append(f)
+        self.stretches = self._clear_of(bm, tag, skip, line, top, height, y_span)
         self.faces = copy(bm, picked, tag, part, move=lambda p: (p[0], p[1], p[2] + STASH_DZ))
         self.k, self.at = 0, 0.0
 
@@ -62,6 +69,37 @@ class Plating:
                 return x
             self.k, self.at = (self.k + 1) % len(self.stretches), 0.0
         return None
+
+    def _clear_of(self, bm, tag, skip, line, top, height, y_span):
+        """The stretches parted round the fills in the stock's window (a corridor's cap is no plating: its paint is a
+        smear; left out, a hole in every piece cut there). The stretches as they were if that leaves too little."""
+        if skip is None:
+            return self.stretches
+        xs = []
+        for f in bm.faces:
+            if f[tag] != skip:
+                continue
+            x, y, z = ue_centre(f)
+            if y * self.side <= 0.0 or not any(a - FILL_CLEAR < x < b + FILL_CLEAR for a, b in self.stretches):
+                continue
+            if self.kind == 'wall':
+                inside = (-DEPTH_OUT < line(x, z - top(x)) - abs(y) < DEPTH_IN
+                          and top(x) < z < top(x) + STOCK_BASE + height + 10.0)
+            else:
+                inside = y_span[0] < abs(y) < y_span[1] and abs(z - top(x)) < FLOOR_DEPTH[0]
+            if inside:
+                xs.append(x)
+        out = []
+        for a, b in self.stretches:
+            cuts = sorted(x for x in xs if a - FILL_CLEAR < x < b + FILL_CLEAR)
+            start = a
+            for x in cuts:
+                if x - FILL_CLEAR - start >= STRETCH_MIN:
+                    out.append((start, x - FILL_CLEAR))
+                start = max(start, x + FILL_CLEAR)
+            if b - start >= STRETCH_MIN:
+                out.append((start, b))
+        return out if sum(b - a for a, b in out) >= 2.0 * STRETCH_MIN else self.stretches
 
     def longest(self):
         return max(b - a for a, b in self.stretches)
@@ -88,12 +126,13 @@ def _piece(bm, tag, part, stock, o, a, b, n, la, lb):
         return []
     if stock.kind == 'wall':
         lb = min(lb, stock.height)
-        ys = [stock.line(sx + la * u, h) for u in (0.0, 0.5, 1.0) for h in (0.0, lb)]
+        ys = [stock.line(sx + la * u, h) for u in (0.0, 0.5, 1.0) for h in (STOCK_BASE, STOCK_BASE + lb)]
         top = stock.top(sx + la / 2.0)
         lo_y, hi_y = min(ys) - DEPTH_IN, max(ys) + DEPTH_OUT
-        box = (sx, sx + la, lo_y, hi_y, top + STASH_DZ, top + lb + STASH_DZ)
-        st = lambda p: ((p[0] - sx) / la, (p[2] - STASH_DZ - top) / lb,
-                        stock.line(p[0], p[2] - STASH_DZ - top) - abs(p[1]))
+        z0 = top + STOCK_BASE                            # read from over the stock's own foot
+        box = (sx, sx + la, lo_y, hi_y, z0 + STASH_DZ, z0 + lb + STASH_DZ)
+        st = lambda p: ((p[0] - sx) / la, (p[2] - STASH_DZ - z0) / lb,
+                        max(stock.line(p[0], p[2] - STASH_DZ - top) - abs(p[1]), -PRESS_OUT))
     else:
         lb = min(lb, stock.y_span[1] - stock.y_span[0])
         top = stock.top(sx + la / 2.0)
@@ -115,7 +154,17 @@ def _piece(bm, tag, part, stock, o, a, b, n, la, lb):
         bmesh.ops.reverse_faces(bm, faces=new)
         for f in new:
             f.normal_update()
+    face_out(new, nb)
     return new
+
+
+def face_out(faces, nb, least=-0.1):
+    """Every face of a pressed plate turned to face its plate's way nb (Blender frame): a stock face folded back by the
+    press (a cap's or a rivet's back) is culled in the game, a hole you see the ground through."""
+    for f in faces:
+        if f.is_valid and f.normal.dot(nb) < least:
+            f.normal_flip()
+            f.normal_update()
 
 
 def drop(bm, stocks):

@@ -193,3 +193,5 @@ move older rows to `Docs/Archive/Performance_history.md` (the full log of every 
 | 2026-11-05 | Art round 10: 10 Basic spiders in town | f004e373 | 1920x1080 | 8.1 | 123 | 8.9 | 6.2 | 7.8 | 1.8 | 6.9 | 1848 | 1692757 | 4.29 |
 | 2026-11-05 | Art round 11: on the barge's well deck | bf3b0e77 | 1920x1080 | 8.1 | 124 | 8.7 | 4.6 | 8.1 | 1.8 | 6.9 | 1212 | 1672936 | 4.58 |
 | 2026-11-05 | Art round 11: 10 Basic spiders in town | bf3b0e77 | 1920x1080 | 8.0 | 125 | 8.7 | 6.5 | 7.9 | 1.8 | 6.8 | 1854 | 1744196 | 4.27 |
+| 2026-11-05 | Art round 12: on the barge's well deck | a3a73b72 | 1920x1080 | 8.1 | 124 | 8.8 | 4.7 | 8.1 | 1.8 | 6.9 | 1209 | 1652015 | 4.84 |
+| 2026-11-05 | Art round 12: 10 Basic spiders in town | a3a73b72 | 1920x1080 | 8.0 | 125 | 8.8 | 6.2 | 7.8 | 1.7 | 6.8 | 1840 | 1691497 | 4.45 |

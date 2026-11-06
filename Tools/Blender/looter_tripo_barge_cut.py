@@ -8,6 +8,8 @@ and the passage's end plates; floors() carries the floor to both plates where th
 barge's, cm, final x."""
 import bmesh
 import numpy as np
+from mathutils import Vector
+from mathutils.bvhtree import BVHTree
 
 import looter_tripo_barge_clear as clear
 import looter_tripo_barge_floors as fl
@@ -34,6 +36,9 @@ WALL_TOL = {'house': 40.0, 'casing': 25.0}  # over LINE_H what stands this far o
                                        # over the flashing full of capped notches)
 RAIL_KEEP = 30.0                       # over its capping the bulwark keeps this much inboard (capping, posts, rails)
 FLOOR_UP = 1.0                         # cm: a floor face (up, at most this over its floor) is never cut
+FLOOR_JUNK = (6.0, 10.0)               # cm under and over the walk's floor where only floor faces stay: a corridor's
+                                       # stub's sides and a lip's underside there, under the air's cut, were seen from
+                                       # behind from the walk (culled in the game: holes the round-7 check found)
 CAP_ABOVE = 18.0                       # cm over the bulwark's plates' top: its capping's top; what stands on it that an
                                        # earlier cut left (a strap's or a horn pipe's stub, a corridor's fin: a piece
                                        # with a fill face) goes, cut there; posts and rails stay
@@ -42,7 +47,17 @@ RAIL_OUT = 150.0                       # cm outboard of the bulwark's face such 
 SPAN = 0.05                            # cm: a face reaching this far past a plane both ways is cut on it
 ON = rw.EPS * 100.0                    # cm: a cut's edge this near its plane lies on it
 # --- The plates ---
-SINK = 4.0                             # cm: the plates reach under the floor
+SINK = 8.0                             # cm: the plates reach under the floor (4 left the seam open where the floor dips)
+APRON = 20.0                           # cm: at every station the floor is carried on this far out from each plate (a
+                                       # strip of the walk's own floor, from SEAM_UNDER behind the plate: the seam is
+                                       # overlapped, never butted)
+SEAM_UNDER = 8.0                       # cm the floor strips reach in under the wall's plates (their press: up to 6)
+SEAL = (10.0, 1.0)                     # the walk's seal under its floor, wall to bulwark: in behind the wall's plates,
+                                       # under the floor (a plain plate in the floor's paint: through any gap in the
+                                       # floor, no daylight; a corridor's stub station had a hole in the walk's middle)
+BACK = (43.0, 4.0)                     # the slots' backs: the wall's this far in behind its plates (more than the REBAKE
+                                       # lane's THIN 35 past the deepest press, so the plates stay walls), the bulwark's
+                                       # this far behind its plates (inside its slot)
 STRAKE = (95.0, 12.0, 5.0)             # the rubbing strake: its middle over the floor, tall, proud of the plates
 FLASH = (6.0, 11.0, 2.0)               # the head flashing over LINE_H: tall, proud (over what the cut left there), into
                                        # the plates; past it, to WALL_TOL, the cut is capped
@@ -174,6 +189,14 @@ def carve(bm, tag, nearest, fill, w):
                 mine = list(dict.fromkeys([f for f in mine if f not in gone and f.is_valid] + _bisect(bm, cut, co, n)))
         doomed += [f for f in mine if f.is_valid and _inside(f, g, w, s)]
         faces = [f for f in faces if f.is_valid]
+    doomed = list(dict.fromkeys(doomed))
+    for f in bm.faces:                          # what is not floor at the floor's level, wall to bulwark
+        if not f.is_valid or f.normal.z > fl.DECK_UP:
+            continue
+        x, y, z = ue_centre(f)
+        if (xa0 <= x <= xb0 and y * s > 0.0 and yw(x) + 1.0 < abs(y) < yb(x) + DEPTH_B
+                and -FLOOR_JUNK[0] < z - w['top'](x) < FLOOR_JUNK[1]):
+            doomed.append(f)
     doomed = list(dict.fromkeys(doomed))
     rim = {e for f in doomed for e in f.edges}
     bmesh.ops.delete(bm, geom=doomed, context='FACES')
@@ -311,25 +334,70 @@ def plates_for(bm, tag, w, band):
     return len(made)
 
 
+def _quad(bm, tag, nearest, ps, n):
+    """A plain plate through the four points ps (cm) facing n (the barge's frame), painted from the Tripo surface
+    nearest it."""
+    f = bm.faces.new([bm.verts.new(B(tuple(p))) for p in ps])
+    f.normal_update()
+    if f.normal.dot(D(tuple(n))) < 0.0:
+        f.normal_flip()
+        f.normal_update()
+    f[tag] = PASSAGE
+    f.smooth = False
+    nearest.paint(f)
+    return f
+
+
+def seals(bm, tag, nearest, w):
+    """Each segment's slots closed with plain plates where only a gap in the pressed plates would show them: under the
+    wall's and the bulwark's seams with the floor (SEAL), behind the wall's plates and the bulwark's (BACK). Returns
+    the faces made."""
+    s, yw, yb = w['s'], w['yw'], w['yb']
+    s_in, s_down = SEAL
+    made = 0
+    for g in w['segs']:
+        xa, xb, z = g['xa'], g['xb'], g['Tmin'] - s_down
+        foot = g['Tmin'] - SINK
+        P = lambda x, y, zz: (x, s * y, zz)
+        _quad(bm, tag, nearest, [P(xa, yw(xa) - s_in, z), P(xb, yw(xb) - s_in, z), P(xb, yb(xb) + DEPTH_B, z),
+                                 P(xa, yb(xa) + DEPTH_B, z)], (0.0, 0.0, 1.0))
+        top = w['H'] + LINE_H
+        _quad(bm, tag, nearest, [P(xa, yw(xa) - BACK[0], foot), P(xb, yw(xb) - BACK[0], foot),
+                                 P(xb, yw(xb) - BACK[0], top), P(xa, yw(xa) - BACK[0], top)], (0.0, s, 0.0))
+        top = w['H'] + g['bt']
+        _quad(bm, tag, nearest, [P(xa, yb(xa) + BACK[1], foot), P(xb, yb(xb) + BACK[1], foot),
+                                 P(xb, yb(xb) + BACK[1], top), P(xa, yb(xa) + BACK[1], top)], (0.0, -s, 0.0))
+        made += 3
+    return made
+
+
 def floors(bm, tag, walks):
     """Where the cut took a skirt's foot the floor carried on to the plates (strips of the walk's own floor at each
     station); returns the faces made."""
     bm.normal_update()
     table = fl.trenches(bm)
+    tree = BVHTree.FromBMesh(bm)
     step = fl.WALK_STEP
     made = []
+
+    def beside(x, y, near):
+        # The floor's level just past a strip (under the rays' start: the walk's floor dips and rises some cm across).
+        hit = tree.ray_cast(B((x, y, near + 50.0)), Vector((0.0, 0.0, -1.0)), 1.0)
+        z = U(hit[0])[2] if hit[0] is not None else near
+        return z if abs(z - near) < 10.0 else near
     for w in walks:
         s = w['s']
         for x in w['xs']:
             t = table.get((s, int(round(x / step))))
-            if t is None:
-                continue
-            lo, hi, _ = t
-            top = min(t[2], w['top'](x))      # the floor as read before the cut (after it, a stub's foot read 1-3 cm over
-            yw, yb = w['yw'](x), w['yb'](x)    # it: strips laid there took the casing walks' headroom to 219)
-            for y0, y1 in ((yw - STRIP_OVER, lo + STRIP_OVER), (hi - STRIP_OVER, yb + STRIP_OVER)):
+            yw, yb = w['yw'](x), w['yb'](x)
+            lo, hi = (t[0], t[1]) if t else (yb, yw)
+            top = min(t[2], w['top'](x)) if t else w['top'](x)   # the floor as read before the cut (after it, a stub's
+                                       # foot read 1-3 cm over it: strips laid there took the headroom to 219)
+            for y0, y1, at in ((yw - SEAM_UNDER, max(lo + STRIP_OVER, yw + APRON), max(lo, yw + APRON) + 6.0),
+                               (min(hi - STRIP_OVER, yb - APRON), yb + DEPTH_B, min(hi, yb - APRON) - 6.0)):
                 if y1 - y0 > 3.0 * STRIP_OVER:
-                    made += plates.plate(bm, tag, PASSAGE, w['floor_stock'], (x - step / 2.0, s * y0, top + STRIP_UP),
+                    z = beside(x, s * at, top)
+                    made += plates.plate(bm, tag, PASSAGE, w['floor_stock'], (x - step / 2.0, s * y0, z + STRIP_UP),
                                          (step, 0.0, 0.0), (0.0, s * (y1 - y0), 0.0), (0.0, 0.0, 1.0))
     for f in made:
         if f.is_valid:
