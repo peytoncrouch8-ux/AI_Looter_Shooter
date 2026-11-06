@@ -3,7 +3,17 @@
 Where the work stands; newest first. Rules: `CLAUDE.md`. How-to: `Docs/Pipeline.md`. Older sessions, word for word:
 `Docs/Archive/Handoff_history.md` (read only when needed; the 2026-10-27 playtest rounds 1-5 are there).
 
-## START HERE (2026-11-05 17:50: build 3 is the one to play; build 4 waits on the barge seam fix; none played yet)
+## START HERE (2026-11-05 20:00: BUILD 4 is the one to play; the user hasn't played any build yet)
+**Build 4** `Builds\Playtest6-11-05_1954\Windows\AI_Looter_Shooter.exe` (commit 024c6627, smoke PASS, full cook 5574, 1.81 GB;
+`Play Latest Build.bat` starts it) = build 3 + the hamlet Glebe Corner with its painted lane, fences, garden, pump and signpost, and the
+barge's walks as sealed ship's passages (REWORK r7c: faces turned to their plates, plates under the floor, seal plates, a 9,308-ray
+seam check and a low-hull guard in every build; the wall collision down to the floor). Clean 56-view tour: ALL <= 8.3 ms (Aerial_Dusk
+8.22). Barge 12/12. Page v5: https://claude.ai/artifact/CCLjmC72XB8wg7wGfDE41k (scratchpad `changes_page/`).
+**No build 5 planned** (the user, ~15:00: "10-4"): next is the user's playtest; build 5 from their notes. Known leftovers: the
+bulwark's posts are faceted blocks; the boarding house's laundry/woodpile/block held off the knoll's slope; the feed store fits
+nowhere (a later town); 46 tangent-warning corners on the barge's stairs; barge builds vary ~100 tris a run (BMesh set order).
+
+## Before build 4 (2026-11-05 17:50)
 **Since build 3 (committed, not packaged):** the hamlet Glebe Corner (the user's "hamlet out of town": the boarding house lived, homes P
 and N shut, sheds A/B, the root cellar; towns_hamlet.patch.json) with a real painted dirt road `hamletLane` (the terrain rebuilt,
 every check PASS), fences, a kitchen garden, a hand pump, the hitch rail and trough on the lane, a GLEBE CORNER / RANSOM FARM signpost
